@@ -18,3 +18,5 @@ next-env.d.ts
 
 .vercel/
 .backups/
+
+/src/generated/institutional/

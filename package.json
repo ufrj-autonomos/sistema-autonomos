@@ -4,14 +4,14 @@
   "private": true,
   "scripts": {
     "dev": "next dev -p 3000",
-    "build": "prisma generate && next build --webpack",
+    "build": "npm run db:generate && next build --webpack",
     "start": "next start -p 3000",
     "lint": "tsc --noEmit",
     "db:push": "prisma db push",
-    "db:generate": "prisma generate",
+    "db:generate": "prisma generate && prisma generate --schema prisma/institutional.prisma",
     "db:migrate": "prisma migrate dev",
     "db:seed": "tsx prisma/seed.ts",
-    "postinstall": "prisma generate",
+    "postinstall": "npm run db:generate",
     "db:access-control": "prisma db execute --schema prisma/schema.prisma --file prisma/migrations/20261101000000_access_control/migration.sql",
     "db:bootstrap-admin": "node --import tsx scripts/bootstrap-admin.ts",
     "test:access": "node --import tsx tests/access-control.test.ts",
@@ -21,9 +21,10 @@
     "check:production": "node scripts/check-production-env.mjs",
     "test:production": "node --import tsx tests/production-security.test.ts",
     "test:gestao": "node --import tsx tests/gestao-production.test.ts",
-    "test": "npm run test:access && npm run test:production && npm run test:gestao && npm run test:attendance",
-    "test:database": "node --import tsx tests/database-production.test.ts && node --import tsx tests/attendance-database.test.ts",
-    "test:attendance": "node --import tsx tests/attendance.test.ts"
+    "test": "npm run test:access && npm run test:production && npm run test:gestao && npm run test:attendance && npm run test:institutional",
+    "test:database": "node --import tsx tests/database-production.test.ts && node --import tsx tests/attendance-database.test.ts && node --import tsx tests/institutional-database.test.ts",
+    "test:attendance": "node --import tsx tests/attendance.test.ts",
+    "test:institutional": "node --import tsx tests/institutional.test.ts"
   },
   "prisma": {
     "seed": "tsx prisma/seed.ts"
@@ -31,14 +32,21 @@
   "dependencies": {
     "@js-temporal/polyfill": "^0.5.1",
     "@prisma/client": "^6.11.1",
+    "@radix-ui/react-dialog": "^1.3.1",
+    "@radix-ui/react-tooltip": "^1.4.1",
+    "@supabase/supabase-js": "^2.118.0",
     "bcryptjs": "^3.0.2",
     "clsx": "^2.1.1",
     "jose": "^6.0.8",
     "lucide-react": "^0.525.0",
+    "marked": "^18.1.2",
     "next": "^16.1.1",
     "qrcode": "^1.5.4",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
+    "sanitize-html": "^2.18.1",
+    "sharp": "^0.35.5",
+    "sonner": "^2.0.8",
     "tailwind-merge": "^3.3.1"
   },
   "devDependencies": {
@@ -47,6 +55,7 @@
     "@types/qrcode": "^1.5.6",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "@types/sanitize-html": "^2.16.2",
     "prisma": "^6.11.1",
     "tailwindcss": "^4",
     "tsx": "^4.19.0",

@@ -118,3 +118,16 @@ TEST_DATABASE_URL=postgresql://postgres:SENHA@localhost:5432/autonomos_test npm 
 Atualizações do Prisma permanecem na série 6. A versão corrigida `deepmerge-ts@8.0.0`
 é fixada apenas na dependência `@prisma/config`; geração do cliente, migrações,
 testes e build devem continuar passando quando esse override for alterado.
+
+## Integração com o site institucional
+
+O app agora gera dois clientes Prisma no `postinstall` e no build. O segundo usa
+`INSTITUTIONAL_DATABASE_URL`, independente do banco interno. As migrações do build
+continuam limitadas ao banco interno; não alteram o esquema institucional.
+
+Para ativar as telas originais em **Gestão → Site institucional**, configure as
+cinco variáveis `INSTITUTIONAL_*` adicionais indicadas em
+[INSTITUTIONAL_SITE.md](INSTITUTIONAL_SITE.md). O site público precisa receber sua
+credencial de leitura e o segredo compartilhado e ser publicado em conjunto.
+A caixa de contato fica privada no app. Após validar os novos deploys, retire as
+implantações antigas e revogue suas credenciais de escrita conforme o guia.

@@ -95,3 +95,10 @@ Novos sistemas entram no catálogo `src/lib/management-navigation.ts`, utilizado
 pela sidebar, pelos links da visão geral e pela localização no cabeçalho. Cada
 página também mantém sua autorização no servidor. O botão **Área do membro**
 retorna à navegação de início, ensino e presença individual.
+
+## Site institucional
+
+As telas originais do admin do `site-autonomos` foram incorporadas à gestão em
+`/gestao/site`, com conexão separada ao banco institucional e acesso exclusivo de
+ADMIN. Não há cópia de dados para o banco interno. Configuração dos dois projetos,
+variáveis da Vercel e ordem da troca: [INSTITUTIONAL_SITE.md](INSTITUTIONAL_SITE.md).

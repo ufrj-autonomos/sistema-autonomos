@@ -2,6 +2,7 @@ import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
   reactStrictMode: true,
+  experimental: { serverActions: { bodySizeLimit: '5mb' } },
   poweredByHeader: false,
   async headers() {
     const production = process.env.NODE_ENV === 'production';
@@ -9,7 +10,7 @@ const nextConfig: NextConfig = {
       "default-src 'self'",
       `script-src 'self' 'unsafe-inline'${production ? '' : " 'unsafe-eval'"}`,
       "style-src 'self' 'unsafe-inline'",
-      "img-src 'self' data: https:",
+      "img-src 'self' data: blob: https:",
       "font-src 'self'",
       `connect-src 'self'${production ? '' : ' ws: wss:'}`,
       "frame-src https://www.youtube-nocookie.com https://www.youtube.com",

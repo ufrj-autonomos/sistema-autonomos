@@ -1,0 +1,221 @@
+// UFRJ Autônomos — Prisma schema
+// Data-driven multi-team structure.
+
+generator client {
+  provider = "prisma-client-js"
+  output = "../src/generated/institutional"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("INSTITUTIONAL_DATABASE_URL")
+}
+
+model Team {
+  id        Int      @id @default(autoincrement())
+  slug      String   @unique // "nautilus" | "harpia"
+  name      String
+  founded   Int
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  coverImage  String?
+  bannerImage String?
+  tags        String?  // JSON string array of focus tags
+  tagsEn      String?
+  tagsFr      String?
+
+  members       Member[]
+  projects      Project[]
+  sponsors      Sponsor[]
+  competitions  Competition[]
+  timeline      TimelineEvent[]
+  galleryImages GalleryImage[]
+}
+
+model Project {
+  id            Int            @id @default(autoincrement())
+  teamId        Int
+  team          Team           @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  slug          String
+  name          String
+  nameEn        String?
+  nameFr        String?
+  codename      String?
+  tagline       String
+  taglineEn     String?
+  taglineFr     String?
+  description   String
+  descriptionEn String?
+  descriptionFr String?
+  status        String // "operacao" | "desenvolvimento" | "conceitual" (traduzido no frontend)
+  year          Int
+  model3dId     Int?
+  model3d       Model3D?       @relation(fields: [model3dId], references: [id], onDelete: SetNull)
+  isGenericModel Boolean        @default(false)
+  importance    Int            @default(5)
+  coverImage    String?
+  tags          String // comma-separated
+  tagsEn        String?
+  tagsFr        String?
+  specs         String // JSON string
+  specsEn       String?
+  specsFr       String?
+  subsystems    String // JSON string
+  subsystemsEn  String?
+  subsystemsFr  String?
+  galleryImages GalleryImage[]
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+
+  @@unique([teamId, slug])
+}
+
+model Member {
+  id         Int      @id @default(autoincrement())
+  teamId     Int?
+  team       Team?    @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  name       String
+  role       String
+  roleEn     String?
+  roleFr     String?
+  area       String // "Mecânica" | "Eletrônica" | "Software" | "Liderança" (traduzido no frontend)
+  bio        String?
+  bioEn      String?
+  bioFr      String?
+  photo      String?
+  linkedin   String?
+  github     String?
+  instagram  String?
+  joinedYear String?
+  leftYear   String?
+  course     String?
+  courseEn   String?
+  courseFr   String?
+  projectIds String? // JSON array of project IDs
+  active     Boolean  @default(true)
+  isFemale   Boolean  @default(false)
+  age        Int?
+  createdAt  DateTime @default(now())
+}
+
+model Sponsor {
+  id        Int      @id @default(autoincrement())
+  teamId    Int?
+  team      Team?    @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  name      String
+  tier      String // "ouro" | "prata" | "bronze" | "apoio" (traduzido no frontend)
+  logo      String?
+  website   String?
+  benefit   String?
+  benefitEn String?
+  benefitFr String?
+  createdAt DateTime @default(now())
+}
+
+model Competition {
+  id            Int            @id @default(autoincrement())
+  teamId        Int
+  team          Team           @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  name          String
+  nameEn        String?
+  nameFr        String?
+  year          Int
+  location      String
+  locationEn    String?
+  locationFr    String?
+  country       String
+  countryEn     String?
+  countryFr     String?
+  lat           Float?
+  lng           Float?
+  result        String?
+  resultEn      String?
+  resultFr      String?
+  details       String?
+  detailsEn     String?
+  detailsFr     String?
+  missions      String? // JSON string array of missions
+  missionsEn    String?
+  missionsFr    String?
+  projectId     Int?
+  showOnHome    Boolean        @default(true)
+  createdAt     DateTime       @default(now())
+  galleryImages GalleryImage[]
+}
+
+model TimelineEvent {
+  id            Int            @id @default(autoincrement())
+  teamId        Int?
+  team          Team?          @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  date          String // "2024-03" format for flexibility
+  title         String
+  titleEn       String?
+  titleFr       String?
+  description   String
+  descriptionEn String?
+  descriptionFr String?
+  details       String?
+  detailsEn     String?
+  detailsFr     String?
+  showOnHome    Boolean        @default(false)
+  category      String // "marco" | "competicao" | "projeto" | "premio" (traduzido no frontend)
+  createdAt     DateTime       @default(now())
+  galleryImages GalleryImage[]
+}
+
+model ContactMessage {
+  id        Int      @id @default(autoincrement())
+  teamSlug  String // "autonomos" | "nautilus" | "harpia"
+  name      String
+  email     String
+  subject   String
+  message   String
+  intent    String // "recrutamento" | "patrocinio" | "duvida" | "outro"
+  createdAt DateTime @default(now())
+}
+
+model GalleryImage {
+  id              Int            @id @default(autoincrement())
+  url             String
+  caption         String
+  captionEn       String?
+  captionFr       String?
+  year            String? // Optional, useful for history gallery
+  month           String? // Optional month property as requested
+  teamId          Int
+  team            Team           @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  projectId       Int? // Optional, associates with a specific project
+  project         Project?       @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  timelineEventId Int?
+  timelineEvent   TimelineEvent? @relation(fields: [timelineEventId], references: [id], onDelete: Cascade)
+  competitionId   Int?
+  competition     Competition?   @relation(fields: [competitionId], references: [id], onDelete: Cascade)
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+}
+
+model Model3D {
+  id          Int       @id @default(autoincrement())
+  name        String
+  value       String    @unique
+  description String?
+  projects    Project[]
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+}
+
+model SiteSettings {
+  id                Int      @id @default(1)
+  contactEmails     String
+  whatsappNumber    String
+  location          String
+  nautilusInstagram String?
+  nautilusLinkedin  String?
+  nautilusEmail     String?
+  nautilusFormLink  String?
+  harpiaInstagram   String?
+  harpiaLinkedin    String?
+  harpiaEmail       String?
+  harpiaFormLink    String?
+  updatedAt         DateTime @updatedAt
+}

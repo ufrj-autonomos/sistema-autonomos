@@ -3,12 +3,12 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
-import { ArrowLeft, ArrowUpRight, ChevronRight, Clock3, LayoutDashboard, LogOut, Menu, Network, Server, ShieldCheck, Users, X } from 'lucide-react';
+import { ArrowLeft, ArrowUpRight, ChevronRight, Clock3, LayoutDashboard, Globe, LogOut, Menu, Network, Server, ShieldCheck, Users, X } from 'lucide-react';
 import { useSession } from '@/contexts/auth-context';
 import type { SafeUser } from '@/lib/session';
-import { getManagementSection, MANAGEMENT_SECTIONS } from '@/lib/management-navigation';
+import { getManagementSection, MANAGEMENT_SECTIONS, INSTITUTIONAL_LINKS } from '@/lib/management-navigation';
 
-const icons = { overview: LayoutDashboard, accounts: ShieldCheck, members: Users, attendance: Clock3, divisions: Network, system: Server };
+const icons = { overview: LayoutDashboard, accounts: ShieldCheck, members: Users, attendance: Clock3, divisions: Network, system: Server, institutional: Globe };
 const focus = 'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-zinc-300';
 
 export function ManagementShell({ children, initialUser }: { children: ReactNode; initialUser: SafeUser }) {
@@ -47,6 +47,7 @@ export function ManagementShell({ children, initialUser }: { children: ReactNode
             const active = section?.href === item.href;
             const Icon = icons[item.icon];
             return <li key={item.href}><Link href={item.href} onClick={() => mobile && closeMenu()} aria-current={active && !isQr ? 'page' : undefined} className={`flex min-h-11 items-center gap-3 rounded-lg px-3 py-2.5 text-sm ${focus} ${active ? 'bg-zinc-800 font-medium text-white' : 'text-zinc-400 hover:bg-zinc-800/50 hover:text-zinc-100'}`}><Icon aria-hidden="true" className="h-[18px] w-[18px] shrink-0" /><span>{item.label}</span></Link>
+            {active && item.icon === 'institutional' && <ul className="ml-8 mt-1 border-l border-zinc-700 pl-2">{INSTITUTIONAL_LINKS.map(([label, path]) => <li key={path}><Link href={`/gestao/site${path}`} onClick={() => mobile && closeMenu()} aria-current={pathname === `/gestao/site${path}` ? 'page' : undefined} className={`flex min-h-10 items-center rounded-md px-3 py-2 text-sm ${focus} ${pathname === `/gestao/site${path}` ? 'text-white underline underline-offset-4' : 'text-zinc-400 hover:text-white'}`}>{label}</Link></li>)}</ul>}
             {active && item.icon === 'attendance' && <ul className="ml-8 mt-1 border-l border-zinc-700 pl-2"><li><Link href="/gestao/presenca/qr" onClick={() => mobile && closeMenu()} aria-current={isQr ? 'page' : undefined} className={`flex min-h-11 items-center rounded-md px-3 text-sm ${focus} ${isQr ? 'text-white underline underline-offset-4' : 'text-zinc-400 hover:text-white'}`}>QR para impressão</Link></li></ul>}</li>;
           })}</ul>
         </div>)}
