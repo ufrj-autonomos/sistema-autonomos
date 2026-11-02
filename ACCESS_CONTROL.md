@@ -1,7 +1,7 @@
 # Acesso à plataforma
 
-Somente contas com situação `APPROVED` podem entrar. O início apresenta os cursos,
-o progresso da própria pessoa e informações gerais das equipes. Somente `ADMIN`
+Somente contas com situação `APPROVED` podem entrar. O início apresenta os cursos
+e o progresso da própria pessoa. Somente `ADMIN`
 aprovado acessa `/gestao`, `/api/gestao/*` e `/api/admin/*`.
 Os perfis `STUDENT`, `MEMBER` e `INSTRUCTOR` acessam início e ensino.
 
