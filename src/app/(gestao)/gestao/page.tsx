@@ -22,50 +22,14 @@ export default async function GestaoPage() {
     console.error("Erro ao carregar dados de gestão:", error);
   }
 
-  const kpis = data?.kpis || {
-    totalMembers: 59,
-    totalMembersLabel: "8 cadastrados no roster",
-    activeProjects: 4,
-    activeProjectsLabel: "Harpia H-01 & Nautilus Br-HUE",
-    totalStudents: 108,
-    totalStudentsLabel: "6 usuários ativos",
-    platformUptime: "99.98%",
-    platformStatus: "online",
-    dbLatencyMs: 24,
-  };
-
-  const divisions = data?.divisions || [];
-  const members = data?.members || [];
-  const projects = data?.projects || [];
-  const system = data?.system || {
-    database: {
-      status: "online",
-      provider: "Supabase PostgreSQL 15",
-      host: "db.ygvwfoxgwlfkwowuwrwu.supabase.co",
-      port: 5432,
-      latencyMs: 24,
-      pooled: true,
-    },
-    auth: {
-      status: "online",
-      engine: "JWT Session Engine (jose)",
-      algorithm: "HS256",
-      cookieName: "autonomos_session",
-      saltRounds: 10,
-    },
-    courses: {
-      status: "online",
-      courseSlug: "ros2-jazzy",
-      courseTitle: "ROS 2 Jazzy para Iniciantes",
-      modulesCount: 11,
-      lessonsCount: 108,
-      exercisesCount: 13,
-      availableVideos: 52,
-      pendingVideos: 26,
-      textOnlyLessons: 30,
-    },
-  };
-  const logs = data?.operationalLogs || [];
+  if (!data) {
+    return <div className="mx-auto w-full max-w-7xl space-y-8 px-4 py-8 sm:px-6 lg:px-8">
+      <h1 className="font-display text-3xl font-semibold">Gestão</h1>
+      <p role="alert" className="rounded-lg border border-amber-500/30 bg-amber-500/10 p-4 text-amber-200">Não foi possível consultar os indicadores. Atualize a página para tentar novamente.</p>
+      <UserManagement />
+    </div>;
+  }
+  const { kpis, divisions, members, projects, system, operationalLogs: logs } = data;
 
   return (
     <div className="flex-1 bg-[#0A0A0B] text-zinc-100">

@@ -90,6 +90,15 @@ model Session {
   @@index([sessionToken])
 }
 
+// Shared across serverless instances; identifiers are stored as keyed hashes.
+model AuthRateLimit {
+  key       String   @id
+  attempts  Int      @default(1)
+  expiresAt DateTime
+
+  @@index([expiresAt])
+}
+
 // ---------------------------------------------------------------------------
 // 2. ENSINO SUBSYSTEM: COURSES, MODULES, LESSONS, EXERCISES
 // ---------------------------------------------------------------------------

@@ -90,7 +90,7 @@ export interface SystemStatusData {
     saltRounds: number;
   };
   courses: {
-    status: "online";
+    status: "online" | "offline";
     courseSlug: string;
     courseTitle: string;
     modulesCount: number;

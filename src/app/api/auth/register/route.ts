@@ -1,13 +1,17 @@
+import { readAuthPayload } from '@/lib/auth-request';
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { hashPassword } from '@/lib/auth';
 import { Prisma } from '@prisma/client';
+import { checkRateLimit, clientAddress } from '@/lib/rate-limit';
 
 export async function POST(req: NextRequest) {
   try {
-    let body;
-    try { body = await req.json(); } catch { return NextResponse.json({ error: 'Dados inválidos.' }, { status: 400 }); }
-    if (!body || typeof body !== 'object' || Array.isArray(body)) return NextResponse.json({ error: 'Dados inválidos.' }, { status: 400 });
+    const blocked = await checkRateLimit(`register-ip:${clientAddress(req)}`, 30, 60 * 60);
+    if (blocked) return blocked;
+    const payload = await readAuthPayload(req);
+    if (payload.error) return payload.error;
+    const body = payload.body;
     const { email, name, password } = body;
 
     if (typeof email !== 'string' || typeof name !== 'string' || !name.trim() || name.trim().length < 2 || name.length > 150 || !password) {

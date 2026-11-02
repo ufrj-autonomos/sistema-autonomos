@@ -94,6 +94,7 @@ export function DivisionsSection({ divisions, projects }: DivisionsSectionProps)
                 </p>
 
                 {/* Especificações de Hardware & Sensores */}
+                {div.specs.frame && (
                 <div className="mt-5 space-y-2.5 rounded-xl border border-white/10 bg-black/40 p-4">
                   <div className="flex items-center gap-2 font-mono text-xs text-zinc-400">
                     <Cpu className="h-3.5 w-3.5 text-zinc-300" />
@@ -137,11 +138,12 @@ export function DivisionsSection({ divisions, projects }: DivisionsSectionProps)
                     ))}
                   </div>
                 </div>
+                )}
 
                 {/* Projetos em Andamento */}
                 <div className="mt-5">
                   <h4 className="font-mono text-xs font-semibold uppercase tracking-wider text-zinc-400 mb-2.5">
-                    Projetos Ativos da Divisão:
+                    Projetos Cadastrados da Divisão:
                   </h4>
                   <div className="space-y-2">
                     {divProjects.map((proj) => (
@@ -187,14 +189,16 @@ export function DivisionsSection({ divisions, projects }: DivisionsSectionProps)
                   </span>
                   <span>•</span>
                   <span>
-                    <strong className="text-white">{div.stats.projectsCount}</strong> Veículos
+                    <strong className="text-white">{div.stats.projectsCount}</strong> Projetos
                   </span>
                 </div>
 
+                {div.competitions.length > 0 && (
                 <div className="flex items-center gap-1.5 text-zinc-300">
                   <Award className="h-3.5 w-3.5 text-amber-400" />
                   <span>{div.competitions.join(" • ")}</span>
                 </div>
+                )}
               </div>
             </div>
           );

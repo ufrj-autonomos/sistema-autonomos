@@ -9,7 +9,7 @@ interface GestaoHeaderProps {
   dbLatencyMs: number;
 }
 
-export function GestaoHeader({ platformStatus, uptime, dbLatencyMs }: GestaoHeaderProps) {
+export function GestaoHeader({ platformStatus, dbLatencyMs }: GestaoHeaderProps) {
   return (
     <header className="relative border-b border-white/10 bg-[#0A0A0B]/80 backdrop-blur-md pb-6 pt-2">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
@@ -50,7 +50,7 @@ export function GestaoHeader({ platformStatus, uptime, dbLatencyMs }: GestaoHead
         <div className="flex flex-wrap items-center gap-3 shrink-0">
           <div className="flex items-center gap-2 rounded-lg border border-white/10 bg-[#111113] px-3.5 py-2 font-mono text-xs text-zinc-300">
             <Activity className="h-4 w-4 text-emerald-400" />
-            <span>SLA: <strong className="text-white">{uptime}</strong></span>
+            <span>Banco: <strong className="text-white">{platformStatus === "online" ? "Online" : platformStatus === "degraded" ? "Degradado" : "Offline"}</strong></span>
             <span className="text-zinc-600">|</span>
             <span>Ping: <strong className="text-emerald-400">{dbLatencyMs}ms</strong></span>
           </div>

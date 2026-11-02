@@ -8,5 +8,5 @@ export function isManagementPath(pathname: string) {
 }
 
 export function isPublicPath(pathname: string) {
-  return ['/login', '/register', '/api/auth/login', '/api/auth/register', '/api/auth/me', '/api/auth/logout'].includes(pathname);
+  return ['/login', '/register', '/api/auth/login', '/api/auth/register', '/api/auth/me', '/api/auth/logout', '/api/health', '/api/cron/maintenance'].includes(pathname);
 }

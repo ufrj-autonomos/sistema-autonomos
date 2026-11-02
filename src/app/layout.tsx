@@ -4,6 +4,7 @@ import "./globals.css";
 import { Navbar } from "@/components/layout/navbar";
 import { Footer } from "@/components/layout/footer";
 import { AuthProvider } from "@/contexts/auth-context";
+import { getAppOrigin } from "@/lib/environment";
 
 const spaceGrotesk = Space_Grotesk({
   variable: "--font-space-grotesk",
@@ -33,7 +34,7 @@ export const viewport: Viewport = {
 };
 
 export const metadata: Metadata = {
-  metadataBase: new URL("https://autonomos.ufrj.br"),
+  metadataBase: new URL(getAppOrigin()),
   title: {
     default: "UFRJ Autônomos — Sistema Integrado de Gestão e Ensino",
     template: "%s | UFRJ Autônomos",

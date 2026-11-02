@@ -20,7 +20,7 @@ export function SystemStatus({ system, logs }: SystemStatusProps) {
           </h2>
         </div>
         <span className="font-mono text-xs text-zinc-500 hidden sm:inline-block">
-          Supabase PostgreSQL • Auth JWT • ROS 2 Jazzy
+          PostgreSQL • Sessões JWT • Catálogo de ensino
         </span>
       </div>
 
@@ -43,7 +43,7 @@ export function SystemStatus({ system, logs }: SystemStatusProps) {
             <div className="mt-3 space-y-1 font-mono text-[11px] text-zinc-400">
               <div className="flex justify-between">
                 <span>Instância:</span>
-                <span className="text-zinc-200">Supabase (Porta 5432)</span>
+                <span className="text-zinc-200">{system.database.provider} (Porta {system.database.port})</span>
               </div>
               <div className="flex justify-between">
                 <span>Latência:</span>
@@ -51,7 +51,7 @@ export function SystemStatus({ system, logs }: SystemStatusProps) {
               </div>
               <div className="flex justify-between">
                 <span>Pool de Conexão:</span>
-                <span className="text-zinc-200">Ativo (Prisma Singleton)</span>
+                <span className="text-zinc-200">{system.database.pooled ? "Pooler configurado" : "Conexão direta"}</span>
               </div>
             </div>
           </div>
@@ -95,7 +95,7 @@ export function SystemStatus({ system, logs }: SystemStatusProps) {
                 </span>
               </div>
               <span className="inline-flex items-center gap-1 font-mono text-[10px] font-semibold text-purple-300 bg-purple-500/10 px-2 py-0.5 rounded">
-                SINCRONIZADO
+                {system.courses.status === "online" ? "CONSULTADO" : "SEM CURSO"}
               </span>
             </div>
             <div className="mt-3 space-y-1 font-mono text-[11px] text-zinc-400">
@@ -133,7 +133,7 @@ export function SystemStatus({ system, logs }: SystemStatusProps) {
               </div>
               <span className="text-[11px] text-zinc-500 flex items-center gap-1">
                 <Clock className="h-3 w-3" />
-                Sincronizado
+                Consulta atual
               </span>
             </div>
 
@@ -161,8 +161,8 @@ export function SystemStatus({ system, logs }: SystemStatusProps) {
           </div>
 
           <div className="mt-4 pt-3 border-t border-white/5 flex items-center justify-between text-[11px] text-zinc-500">
-            <span>Canal de Telemetria: ROS 2 DDS FastDDS / micro-ROS</span>
-            <span className="text-emerald-400 font-bold">● Pronto para Comandos</span>
+            <span>Resultados da consulta ao banco de dados</span>
+            <span className="text-emerald-400 font-bold">Telemetria não integrada</span>
           </div>
         </div>
       </div>

@@ -13,17 +13,15 @@ export function KpiCards({ kpis }: KpiCardsProps) {
       sublabel: kpis.totalMembersLabel,
       icon: Users,
       badge: "Ativos",
-      gradient: "from-zinc-500/10 to-transparent",
       borderColor: "border-white/10",
       iconColor: "text-zinc-300",
     },
     {
-      title: "Projetos de Robótica",
+      title: "Projetos Ativos",
       value: kpis.activeProjects,
       sublabel: kpis.activeProjectsLabel,
       icon: Bot,
       badge: "Harpia & Nautilus",
-      gradient: "from-purple-500/10 to-blue-500/10",
       borderColor: "border-purple-500/20",
       iconColor: "text-purple-400",
     },
@@ -33,17 +31,15 @@ export function KpiCards({ kpis }: KpiCardsProps) {
       sublabel: kpis.totalStudentsLabel,
       icon: GraduationCap,
       badge: "ROS 2 Jazzy",
-      gradient: "from-emerald-500/10 to-transparent",
       borderColor: "border-emerald-500/20",
       iconColor: "text-emerald-400",
     },
     {
-      title: "Uptime da Plataforma",
-      value: kpis.platformUptime,
-      sublabel: `PostgreSQL (${kpis.dbLatencyMs}ms)`,
+      title: "Banco de Dados",
+      value: kpis.platformStatus === "online" ? "Online" : kpis.platformStatus === "degraded" ? "Degradado" : "Offline",
+      sublabel: `Latência nesta consulta: ${kpis.dbLatencyMs}ms`,
       icon: Server,
       badge: kpis.platformStatus === "online" ? "Sistemas OK" : "Degradado",
-      gradient: "from-blue-500/10 to-transparent",
       borderColor: "border-blue-500/20",
       iconColor: "text-blue-400",
     },
@@ -87,7 +83,7 @@ export function KpiCards({ kpis }: KpiCardsProps) {
                 {card.badge}
               </span>
               <span className="font-mono text-[10px] text-zinc-500 flex items-center gap-0.5">
-                Tempo Real
+                Nesta consulta
                 <ArrowUpRight className="h-3 w-3" />
               </span>
             </div>

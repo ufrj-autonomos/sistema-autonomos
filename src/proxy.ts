@@ -1,13 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getCurrentUser } from '@/lib/session';
 import { isPublicPath, isManagementPath } from '@/lib/access-policy';
+import { allowedRequestOrigins } from '@/lib/environment';
 
 export async function proxy(req: NextRequest) {
   const pathname = req.nextUrl.pathname;
   if (!['GET', 'HEAD', 'OPTIONS'].includes(req.method)) {
     const origin = req.headers.get('origin');
     let sameOrigin = true;
-    try { sameOrigin = !origin || new URL(origin).host === req.headers.get('host'); } catch { sameOrigin = false; }
+    try { sameOrigin = !origin || allowedRequestOrigins().includes(new URL(origin).origin); } catch { sameOrigin = false; }
     if (!sameOrigin) {
       return NextResponse.json({ error: 'Origem da solicitação inválida.' }, { status: 403 });
     }

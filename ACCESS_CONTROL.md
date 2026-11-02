@@ -30,20 +30,13 @@ em caso de alteração concorrente, a API retorna conflito e solicita uma nova t
 Defina `JWT_SECRET` com pelo menos 32 caracteres aleatórios. Não existe chave
 embutida nem uso alternativo da chave do Supabase para assinar sessões.
 
-Para um banco existente, aplique a mudança aditiva e gere o cliente:
+As migrações estão versionadas, incluindo o esquema inicial. No banco já existente,
+o baseline foi conferido e registrado, e as migrações de produção foram aplicadas.
+Para novos bancos e atualizações, use `npm run db:deploy`. Não use `db:push` nem
+`migrate dev` em produção. Para outro banco existente sem histórico, confira o
+esquema antes de registrar o baseline; não aplique o esquema inicial sobre tabelas já criadas.
 
-```sh
-npm run db:access-control
-npm run db:generate
-```
-
-O comando SQL é idempotente: na primeira execução cria a coluna `User.status`,
-coloca os administradores existentes como aprovados e deixa os demais usuários
-pendentes. Reexecutá-lo não reativa contas que tenham sido suspensas posteriormente.
-Este projeto não tinha histórico de migrations: o comando explícito acima aplica
-somente essa alteração no banco existente, sem recriar tabelas nem apagar dados.
-Não execute `prisma migrate deploy` em um banco existente sem antes criar seu baseline.
-Em um banco novo criado com `db:push`, todas as contas começam pendentes.
+Configuração de produção, Vercel e proteção de banco: [PRODUCTION.md](PRODUCTION.md).
 
 Caso não exista administrador aprovado, crie a conta pela tela de cadastro e execute,
 com acesso operacional ao servidor e ao banco:

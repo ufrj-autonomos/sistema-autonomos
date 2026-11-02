@@ -18,6 +18,7 @@ import { GET as stats } from '../src/app/api/gestao/stats/route';
 import { getAuthenticatedUserId } from '../src/lib/progress';
 
 process.env.JWT_SECRET = 'test-only-signing-key-32-characters-minimum';
+process.env.NEXT_PUBLIC_APP_URL = 'https://app.example.invalid';
 type Row = Record<string, any>;
 function stub(object: any, key: string, implementation: (...args: any[]) => any) { object[key] = implementation; }
 let users: Row[] = [];
@@ -55,6 +56,8 @@ stub(prisma.session, 'deleteMany', async ({ where }: any) => {
   return { count: 1 };
 });
 stub(prisma, '$transaction', async (callback: any) => callback(prisma));
+stub(prisma, '$queryRaw', async () => [{ attempts: 1, expiresAt: new Date(Date.now() + 900_000) }]);
+stub(prisma.authRateLimit, 'deleteMany', async () => ({ count: 1 }));
 
 beforeEach(async () => {
   passwordHash ||= await hashPassword('valid-password');

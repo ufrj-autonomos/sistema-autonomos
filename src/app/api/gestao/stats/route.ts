@@ -24,7 +24,7 @@ export async function GET(_req: NextRequest) {
         error: "Erro interno ao consultar dados de gestão.",
         timestamp: new Date().toISOString(),
       },
-      { status: 500 }
+      { status: 503 }
     );
   }
 }

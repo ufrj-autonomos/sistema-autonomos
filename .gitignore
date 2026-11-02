@@ -15,3 +15,6 @@ dev.log
 .agents/
 *.tsbuildinfo
 next-env.d.ts
+
+.vercel/
+.backups/

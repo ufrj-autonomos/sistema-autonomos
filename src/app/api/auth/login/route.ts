@@ -1,16 +1,20 @@
+import { readAuthPayload } from '@/lib/auth-request';
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { verifyPassword } from '@/lib/auth';
 import { createUserSession, SESSION_COOKIE_NAME, sessionCookieOptions } from '@/lib/session';
+import { checkRateLimit, clientAddress, resetRateLimit } from '@/lib/rate-limit';
 
 export async function POST(req: NextRequest) {
   try {
-    let body;
-    try { body = await req.json(); } catch { return NextResponse.json({ error: 'Dados inválidos.' }, { status: 400 }); }
-    if (!body || typeof body !== 'object' || Array.isArray(body)) return NextResponse.json({ error: 'Dados inválidos.' }, { status: 400 });
+    const blockedAddress = await checkRateLimit(`login-ip:${clientAddress(req)}`, 50, 15 * 60);
+    if (blockedAddress) return blockedAddress;
+    const payload = await readAuthPayload(req);
+    if (payload.error) return payload.error;
+    const body = payload.body;
     const { email, password } = body;
 
-    if (typeof email !== 'string' || typeof password !== 'string' || !email.trim() || !password || Buffer.byteLength(password, 'utf8') > 72) {
+    if (typeof email !== 'string' || email.length > 254 || typeof password !== 'string' || !email.trim() || !password || Buffer.byteLength(password, 'utf8') > 72) {
       return NextResponse.json(
         { error: 'Email e senha são obrigatórios.' },
         { status: 400 }
@@ -18,6 +22,8 @@ export async function POST(req: NextRequest) {
     }
 
     const normalizedEmail = String(email).toLowerCase().trim();
+    const blockedAccount = await checkRateLimit(`login-account:${normalizedEmail}`, 10, 15 * 60);
+    if (blockedAccount) return blockedAccount;
     const user = await prisma.user.findUnique({
       where: { email: normalizedEmail },
     });
@@ -54,6 +60,7 @@ export async function POST(req: NextRequest) {
       status: user.status,
     };
 
+    await resetRateLimit(`login-account:${normalizedEmail}`);
     const token = await createUserSession(safeUser);
 
     const response = NextResponse.json(
