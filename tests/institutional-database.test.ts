@@ -80,6 +80,14 @@ async function main() {
     await savePrivateDetails('project',project.id,{notes:'Orçamento interno'});
     assert.equal((await prisma.memberDetails.findUniqueOrThrow({where:{institutionalMemberId:publicMember.id}})).memberId,member.id);
     assert.equal((await memberPrivateDetails(publicMember.id)).cpf,'52998224725');
+    const publicBeforeInternalEdit = await editor.member.findUniqueOrThrow({where:{id:publicMember.id}});
+    await savePrivateDetails('member',publicMember.id,{cpf:'52998224725',notes:'Privado',userId:account.id,name:'Nome operacional',area:'Pesquisa',email:'operacao@example.invalid',phone:'(21) 99999-9999',dre:'001234567',birthDate:'2000-02-29',course:'Curso interno',academicPeriod:'6º período',emergencyContactName:'Contato de emergência',emergencyContactPhone:'(21) 98888-8888'});
+    const operational = await memberPrivateDetails(publicMember.id);
+    assert.equal(operational.name,'Nome operacional'); assert.equal(operational.dre,'001234567'); assert.equal(operational.birthDate,'2000-02-29');
+    assert.equal(operational.email,'operacao@example.invalid'); assert.equal(operational.emergencyContactPhone,'(21) 98888-8888');
+    assert.deepEqual(await editor.member.findUniqueOrThrow({where:{id:publicMember.id}}),publicBeforeInternalEdit,'internal edits must never modify any institutional column');
+    await prisma.user.update({where:{id:account.id},data:{memberDirectoryPreferences:{view:'custom',columns:['cpf','name']}}});
+    assert.deepEqual((await prisma.user.findUniqueOrThrow({where:{id:account.id}})).memberDirectoryPreferences,{view:'custom',columns:['cpf','name']});
     assert.equal((await prisma.attendanceVisit.findUniqueOrThrow({where:{id:visit.id}})).memberId,member.id);
     assert.equal((await prisma.attendancePeriod.findUniqueOrThrow({where:{id:period.id}})).startsOn.toISOString(),'2026-10-19T00:00:00.000Z');
     assert.equal(await prisma.member.count({where:{userId:account.id}}),1);
@@ -91,6 +99,7 @@ async function main() {
     assert.equal(await prisma.memberDetails.count({where:{institutionalMemberId:other.id}}),0);
     await editor.member.delete({where:{id:other.id}});
     await savePrivateDetails('member',publicMember.id,{cpf:'',notes:'Desvinculado',userId:''});
+    assert.equal((await memberPrivateDetails(publicMember.id)).dre,'001234567','omitted operational fields survive legacy saves');
     assert.equal((await prisma.attendanceVisit.findUniqueOrThrow({where:{id:visit.id}})).memberId,member.id);
     assert.equal((await prisma.memberDetails.findUniqueOrThrow({where:{institutionalMemberId:publicMember.id}})).memberId,null);
     const acl = await target.$queryRaw<Array<{ name: string; protected: boolean; anonwrite: boolean; readerwrite: boolean }>>`SELECT c.relname AS name,c.relrowsecurity AS protected,has_table_privilege('anon',c.oid,'INSERT, UPDATE, DELETE') AS anonwrite,has_table_privilege('institutional_reader',c.oid,'INSERT, UPDATE, DELETE') AS readerwrite FROM pg_class c JOIN pg_namespace n ON n.oid=c.relnamespace WHERE n.nspname='public' AND c.relkind='r'`;

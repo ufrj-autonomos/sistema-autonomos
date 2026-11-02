@@ -49,6 +49,8 @@ consulta; a suspensão segue controlada em Contas e permissões.
 
 A lista e a edição do integrante mostram as semanas abaixo da meta usando o
 cálculo de presença existente, sem contar semanas em andamento como faltas.
+Na lista, esse indicador está disponível apenas como coluna opcional na visão
+Personalizada; não aparece nas visões Site e Interna.
 Sem vínculo, o acompanhamento aparece como não associado. A presença usa o nome
 e a área atuais do cadastro institucional quando há vínculo; os registros internos
 antigos continuam preservados. Remover um cadastro institucional não apaga presença
@@ -77,6 +79,35 @@ Antes de publicar a versão com o diretório unificado:
 O proprietário é necessário apenas para essa migração. O editor de runtime não
 recebe permissão de alterar tabelas ou políticas. Em um banco institucional novo,
 o provisionamento já instala as políticas com o filtro de visibilidade.
+
+## Visões da tabela de integrantes e cadastro operacional
+
+A tela de integrantes oferece três visões:
+
+- **Site:** nome, cargo, área, idade, equipe, status e exibição pública, sem dados
+  de presença ou documentos internos.
+- **Interna:** nome, área, email, contato/WhatsApp, DRE, CPF, nascimento, curso,
+  período acadêmico e contato de emergência.
+- **Personalizada:** seleção e ordenação de colunas do site, internas e de
+  presença. A preferência é salva na conta de quem está usando a gestão, sem
+  alterar as preferências de outras pessoas.
+
+Busca, filtros por área/equipe/status e ordenação funcionam sobre a visão atual.
+A busca considera somente as colunas visíveis. A tabela tem rolagem horizontal,
+cabeçalho fixo e, em telas maiores, primeira coluna e ações fixas. No celular,
+as colunas podem rolar livremente para não se sobreporem.
+
+A migração `20261102030000_member_operations` adiciona campos exclusivamente a
+`MemberDetails` e uma preferência JSON em `User`, no banco interno. Não altera
+tabelas, colunas ou conteúdo do banco institucional. Aplica-se com `db:deploy`.
+
+Os dados são preenchidos em **Integrantes → editar → Dados internos**. Nome, área
+e curso internos vazios usam o valor institucional como referência; um valor
+preenchido é uma informação operacional independente e nunca é enviado ao site.
+O email vazio usa a conta vinculada, quando houver, sem alterar o email de login.
+Nascimento é armazenado como data sem horário, preservando o dia em qualquer fuso.
+CPF e DRE são únicos quando preenchidos, e salvar campos antigos não apaga os
+novos campos omitidos na requisição. Campos vazios podem ser salvos sem inventar dados.
 
 ## Variáveis na Vercel
 

@@ -72,6 +72,7 @@ model User {
   role         Role     @default(TRAINEE)
   status       AccountStatus @default(PENDING)
   avatar       String?
+  memberDirectoryPreferences Json?
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
@@ -315,6 +316,16 @@ model MemberDetails {
   memberId              Int?     @unique
   member                Member?  @relation(fields: [memberId], references: [id], onDelete: SetNull)
   cpf                   String?  @unique
+  name                  String?
+  area                  String?
+  email                 String?
+  phone                 String?
+  dre                   String?  @unique
+  birthDate             DateTime? @db.Date
+  course                String?
+  academicPeriod        String?
+  emergencyContactName  String?
+  emergencyContactPhone String?
   notes                 String?  @db.Text
   updatedAt             DateTime @updatedAt
 }
