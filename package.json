@@ -4,7 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "next dev -p 3000",
-    "build": "npm run db:generate && next build --webpack",
+    "build": "npm run db:generate && next build --webpack && npm run check:proxy",
     "start": "next start -p 3000",
     "lint": "tsc --noEmit",
     "db:push": "prisma db push",
@@ -24,7 +24,8 @@
     "test": "npm run test:access && npm run test:production && npm run test:gestao && npm run test:attendance && npm run test:institutional",
     "test:database": "node --import tsx tests/database-production.test.ts && node --import tsx tests/attendance-database.test.ts && node --import tsx tests/institutional-database.test.ts",
     "test:attendance": "node --import tsx tests/attendance.test.ts",
-    "test:institutional": "node --import tsx tests/institutional.test.ts"
+    "test:institutional": "node --import tsx tests/institutional.test.ts",
+    "check:proxy": "node scripts/check-proxy-bundle.mjs"
   },
   "prisma": {
     "seed": "tsx prisma/seed.ts"

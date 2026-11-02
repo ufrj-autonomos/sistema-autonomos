@@ -131,3 +131,9 @@ cinco variáveis `INSTITUTIONAL_*` adicionais indicadas em
 credencial de leitura e o segredo compartilhado e ser publicado em conjunto.
 A caixa de contato fica privada no app. Após validar os novos deploys, retire as
 implantações antigas e revogue suas credenciais de escrita conforme o guia.
+
+
+O Proxy valida somente o cookie assinado, sem importar Prisma ou executar consultas
+no banco na função de roteamento. Sessão persistida, aprovação e perfil continuam
+sendo conferidos no servidor em cada página/API/ação protegida. Isso evita que a
+validação inicial dependa do empacotamento de engines nativas na função de Proxy.

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getCurrentUser } from '@/lib/session';
-import { isPublicPath, isManagementPath } from '@/lib/access-policy';
+import { verifySessionToken } from '@/lib/auth';
+import { SESSION_COOKIE_NAME } from '@/lib/session-cookie';
+import { isPublicPath } from '@/lib/access-policy';
 import { allowedRequestOrigins } from '@/lib/environment';
 
 export async function proxy(req: NextRequest) {
@@ -15,16 +16,16 @@ export async function proxy(req: NextRequest) {
   }
   if (isPublicPath(pathname)) return NextResponse.next();
   try {
-    const user = await getCurrentUser(req);
-    if (!user) {
+    // Proxy is an optimistic cookie/signature check only. Every protected page,
+    // Server Action and API performs the live database/session/role authorization.
+    // Native database engines must not be loaded by the separate routing function.
+    const token = req.cookies.get(SESSION_COOKIE_NAME)?.value;
+    const payload = token ? await verifySessionToken(token) : null;
+    if (!payload || typeof payload.sub !== 'string' || !payload.sub || typeof payload.sid !== 'string' || !payload.sid) {
       if (pathname.startsWith('/api/')) return NextResponse.json({ error: 'Autenticação necessária.' }, { status: 401 });
       const url = new URL('/login', req.url);
       url.searchParams.set('redirect', pathname + req.nextUrl.search);
       return NextResponse.redirect(url);
-    }
-    if (isManagementPath(pathname) && user.role !== 'ADMIN') {
-      if (pathname.startsWith('/api/')) return NextResponse.json({ error: 'Acesso exclusivo para administradores.' }, { status: 403 });
-      return NextResponse.redirect(new URL('/', req.url));
     }
     const response = NextResponse.next();
     response.headers.set('Cache-Control', 'private, no-store');

@@ -155,8 +155,7 @@ test('all non-admin roles can access learning but cannot access management', asy
     users[1].role = role;
     const token = await tokenFor('student');
     assert.equal((await proxy(request('/ensino', token))).status, 200);
-    assert.equal(new URL((await proxy(request('/gestao', token))).headers.get('location')!).pathname, '/');
-    assert.equal((await proxy(request('/api/gestao/stats', token))).status, 403);
+    assert.equal((await proxy(request('/gestao', token))).status, 200, 'proxy preflight does not grant management access');
     assert.equal((await accounts(request('/api/admin/users', token))).status, 403);
     assert.equal((await stats(request('/api/gestao/stats', token))).status, 403);
   }
@@ -216,9 +215,9 @@ test('administrator can approve, promote, demote, suspend and reapprove accounts
   assert.equal(users[2].status, 'APPROVED');
   const token = await tokenFor('pending');
   await updateAccount('admin', 'pending', { role: 'ADMIN' });
-  assert.equal((await proxy(request('/api/admin/users', token))).status, 200);
+  assert.equal((await accounts(request('/api/admin/users', token))).status, 200);
   await updateAccount('admin', 'pending', { role: 'STUDENT' });
-  assert.equal((await proxy(request('/api/admin/users', token))).status, 403);
+  assert.equal((await accounts(request('/api/admin/users', token))).status, 403);
   await updateAccount('admin', 'pending', { status: 'SUSPENDED' });
   assert.equal(sessions.length, 0);
   assert.equal(await getCurrentUser(request('/', token)), null);
@@ -278,4 +277,32 @@ test('unknown fields, invalid roles and invalid statuses cannot be written', asy
 test('cross-origin writes are blocked', async () => {
   const req = new NextRequest('http://localhost:3000/api/auth/register', { method: 'POST', headers: { origin: 'https://attacker.example', host: 'localhost:3000' } });
   assert.equal((await proxy(req)).status, 403);
+});
+
+
+test('proxy never loads session records; authoritative APIs fail closed during database outages', async () => {
+  const token = await tokenFor('admin');
+  const original = prisma.session.findUnique;
+  let calls = 0;
+  stub(prisma.session, 'findUnique', async () => { calls++; throw new Error('isolated database outage'); });
+  try {
+    assert.equal((await proxy(request('/', token))).status, 200);
+    assert.equal((await proxy(request('/api/admin/users', token))).status, 200);
+    assert.equal(calls, 0, 'routing must not query Prisma or depend on native database engines');
+    await assert.rejects(getCurrentUser(request('/', token)), /isolated database outage/);
+    assert.equal((await me(request('/api/auth/me', token))).status, 503);
+    assert.equal((await accounts(request('/api/admin/users', token))).status, 500);
+  } finally { stub(prisma.session, 'findUnique', original); }
+});
+
+test('signed preflight cookies never grant access after server session revocation', async () => {
+  const token = await tokenFor('admin');
+  sessions = [];
+  assert.equal((await proxy(request('/gestao', token))).status, 200);
+  assert.equal((await accounts(request('/api/admin/users', token))).status, 401);
+  assert.equal((await stats(request('/api/gestao/stats', token))).status, 401);
+  assert.equal((await course(request('/api/courses/ros2-jazzy', token))).status, 401);
+  const legacy = await createSessionToken({ sub: 'admin', name: 'Admin', email: 'admin@test.local', role: 'ADMIN' });
+  assert.equal((await proxy(request('/gestao', legacy))).status, 307);
+  assert.equal((await proxy(request('/api/admin/users', 'invalid'))).status, 401);
 });

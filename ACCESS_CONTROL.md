@@ -70,3 +70,15 @@ A suíte de acesso usa um banco simulado em memória: verifica os handlers reais
 JWTs assinados, a camada de proteção de rotas e as regras de aprovação e administração
 sem criar ou alterar contas no banco configurado. Ela não substitui um teste de carga
 com transações concorrentes em PostgreSQL.
+
+
+## Proxy e autorização no servidor
+
+O Proxy faz apenas a verificação inicial da assinatura/validade do cookie, sem
+consultar Prisma. Ele não concede permissões nem usa o perfil do JWT para decidir
+acesso administrativo. Cada página protegida deve chamar `requirePageUser()`
+(`true` para gestão), cada Server Action deve repetir essa autorização e cada API
+deve usar `authorizeApi()` ou o validador de sessão equivalente antes de consultar
+ou alterar dados. Essas verificações leem a sessão, aprovação e perfil atuais no
+banco; cookies revogados e perfis antigos não dão acesso. A indisponibilidade do
+banco bloqueia a operação, sem liberar acesso por informações do token.

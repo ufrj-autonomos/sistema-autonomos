@@ -5,8 +5,8 @@ import { randomUUID } from 'node:crypto';
 import { createSessionToken, verifySessionToken, SessionPayload } from './auth';
 import { prisma } from './prisma';
 
-export const SESSION_COOKIE_NAME = 'autonomos_session';
-export const SESSION_MAX_AGE = 60 * 60 * 24 * 7;
+import { SESSION_COOKIE_NAME, SESSION_MAX_AGE } from './session-cookie';
+export { SESSION_COOKIE_NAME, SESSION_MAX_AGE } from './session-cookie';
 export const safeUserSelect = { id: true, email: true, name: true, role: true, status: true, avatar: true } as const;
 export const sessionCookieOptions = {
   httpOnly: true,
