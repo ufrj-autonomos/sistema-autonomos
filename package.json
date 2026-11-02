@@ -21,19 +21,22 @@
     "check:production": "node scripts/check-production-env.mjs",
     "test:production": "node --import tsx tests/production-security.test.ts",
     "test:gestao": "node --import tsx tests/gestao-production.test.ts",
-    "test": "npm run test:access && npm run test:production && npm run test:gestao",
-    "test:database": "node --import tsx tests/database-production.test.ts"
+    "test": "npm run test:access && npm run test:production && npm run test:gestao && npm run test:attendance",
+    "test:database": "node --import tsx tests/database-production.test.ts && node --import tsx tests/attendance-database.test.ts",
+    "test:attendance": "node --import tsx tests/attendance.test.ts"
   },
   "prisma": {
     "seed": "tsx prisma/seed.ts"
   },
   "dependencies": {
+    "@js-temporal/polyfill": "^0.5.1",
     "@prisma/client": "^6.11.1",
     "bcryptjs": "^3.0.2",
     "clsx": "^2.1.1",
     "jose": "^6.0.8",
     "lucide-react": "^0.525.0",
     "next": "^16.1.1",
+    "qrcode": "^1.5.4",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
     "tailwind-merge": "^3.3.1"
@@ -41,12 +44,13 @@
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
     "@types/node": "^22",
+    "@types/qrcode": "^1.5.6",
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "prisma": "^6.11.1",
     "tailwindcss": "^4",
-    "tw-animate-css": "^1.3.5",
     "tsx": "^4.19.0",
+    "tw-animate-css": "^1.3.5",
     "typescript": "^5"
   },
   "overrides": {

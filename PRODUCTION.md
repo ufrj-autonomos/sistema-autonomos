@@ -45,6 +45,12 @@ original foi conferido e registrado como baseline, sem recriar tabelas ou perder
 dados. Depois disso, foram aplicadas a limitação de autenticação e a proteção RLS.
 Não execute `db:push` ou `migrate dev` contra produção.
 
+A migração `20261102010000_lab_attendance` adiciona as tabelas de presença com RLS,
+gera o identificador do QR fixo e inicia o acompanhamento dos membros ativos com
+conta aprovada na semana da implantação. Não importa a planilha nem cria visitas.
+Depois do deploy, imprima o QR em **Gestão → Presença no laboratório → QR code do
+laboratório**. Reimprima após uma troca de domínio. Regras: [ATTENDANCE.md](ATTENDANCE.md).
+
 O servidor usa uma conexão PostgreSQL privada via Prisma. As tabelas possuem RLS
 e não concedem permissões a `anon`, `authenticated` ou `PUBLIC`. A aplicação não
 usa a API pública do Supabase para acessar essas tabelas. O papel privado de banco

@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { UserManagement } from "@/components/admin/user-management";
 import { requirePageUser } from '@/lib/session';
 import { GestaoHeader } from "@/components/gestao/gestao-header";
@@ -40,6 +41,8 @@ export default async function GestaoPage() {
           uptime={kpis.platformUptime}
           dbLatencyMs={kpis.dbLatencyMs}
         />
+
+        <Link href="/gestao/presenca" className="inline-flex min-h-11 items-center rounded-lg border border-zinc-700 px-5 py-3 text-sm font-medium hover:bg-zinc-900">Acompanhar presença no laboratório</Link>
 
         <UserManagement />
 

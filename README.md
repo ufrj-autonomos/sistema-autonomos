@@ -1,7 +1,7 @@
 # Sistema Autônomos
 
 Plataforma de gestão e ensino da UFRJ Autônomos, com curso de ROS 2 Jazzy,
-progresso individual e aprovação de contas por administradores.
+progresso individual, aprovação de contas por administradores e presença no laboratório.
 
 ## Produção
 
@@ -61,7 +61,15 @@ npm run build
 
 A CI também testa as migrações e operações de banco em PostgreSQL descartável.
 Os testes antigos de milestones ficam disponíveis como referência histórica;
-`npm test` executa as suítes atuais de acesso, produção e indicadores de gestão.
+`npm test` executa as suítes atuais de acesso, produção, indicadores de gestão e presença.
+
+## Presença no laboratório
+
+Meta de 2 horas semanais, entrada e saída pelo mesmo QR fixo e saldo individual na
+home. Administradores acompanham semanas atuais/passadas, descumprimentos e ajustes
+com auditoria em **Gestão → Presença no laboratório**. Nessa página também fica o
+QR para impressão. O acompanhamento começa do zero, sem importar a planilha antiga.
+Instruções e regras: [ATTENDANCE.md](ATTENDANCE.md).
 
 ## Conteúdo e acesso
 

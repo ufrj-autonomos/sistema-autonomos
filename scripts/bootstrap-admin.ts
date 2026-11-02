@@ -1,3 +1,4 @@
+import { ensureAttendanceEnrollment } from '../src/lib/attendance/enrollment';
 import { loadEnvConfig } from '@next/env';
 import { PrismaClient, Prisma } from '@prisma/client';
 
@@ -14,7 +15,8 @@ async function main() {
     }
     const user = await tx.user.findUnique({ where: { email } });
     if (!user) throw new Error('Cadastre essa conta na plataforma antes de promover o primeiro administrador.');
-    await tx.user.update({ where: { id: user.id }, data: { role: 'ADMIN', status: 'APPROVED' } });
+    const approved = await tx.user.update({ where: { id: user.id }, data: { role: 'ADMIN', status: 'APPROVED' } });
+    await ensureAttendanceEnrollment(tx, approved);
   }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
   console.log('Primeiro administrador aprovado. Entre com a senha cadastrada.');
 }

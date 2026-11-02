@@ -1,3 +1,4 @@
+import { ensureAttendanceEnrollment, closeAttendanceEnrollment } from './attendance/enrollment';
 import { AccountStatus, Prisma, Role } from '@prisma/client';
 import { prisma } from './prisma';
 import { ACCOUNT_STATUSES, ROLES } from './access-policy';
@@ -30,12 +31,18 @@ export async function updateAccount(actorId: string, targetId: string, input: un
         if (admins <= 1) throw new AccountUpdateError('Mantenha pelo menos um administrador aprovado na plataforma.', 409);
       }
       if (status === 'REJECTED') {
+        await closeAttendanceEnrollment(tx, targetId);
         // Foreign keys remove sessions and learning progress, and unlink the member profile.
         await tx.user.delete({ where: { id: targetId } });
         return { deleted: true as const, userId: targetId, user: null };
       }
       const updated = await tx.user.update({ where: { id: targetId }, data: { role, status }, select: safeUserSelect });
-      if (status !== 'APPROVED') await tx.session.deleteMany({ where: { userId: targetId } });
+      if (status !== 'APPROVED') {
+        await closeAttendanceEnrollment(tx, targetId);
+        await tx.session.deleteMany({ where: { userId: targetId } });
+      } else if (target.status !== 'APPROVED') {
+        await ensureAttendanceEnrollment(tx, updated);
+      }
       return { deleted: false as const, userId: targetId, user: updated };
     }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
   } catch (error) {

@@ -1,3 +1,5 @@
+import { AttendanceCard } from '@/components/attendance/attendance-card';
+import { attendanceReport } from '@/lib/attendance/service';
 import Link from 'next/link';
 import { ArrowRight, BookOpen, ShieldCheck } from 'lucide-react';
 import { requirePageUser } from '@/lib/session';
@@ -13,6 +15,8 @@ export default async function HomePage() {
       _count: { select: { modules: true } },
     } });
 
+  const attendance = await attendanceReport(undefined, user.id).catch(() => null);
+
   return (
     <div className="mx-auto w-full max-w-6xl px-4 py-10 sm:px-6 sm:py-14">
       <header className="flex flex-wrap items-start justify-between gap-6 border-b border-white/10 pb-8">
@@ -22,6 +26,8 @@ export default async function HomePage() {
         </div>
         {user.role === 'ADMIN' && <Link href="/gestao" className="inline-flex min-h-11 items-center gap-2 rounded-lg border border-zinc-700 px-4 py-2 text-sm text-zinc-200 hover:bg-zinc-900 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-zinc-300"><ShieldCheck className="h-4 w-4" />Abrir gestão</Link>}
       </header>
+
+      <AttendanceCard initial={attendance} />
 
       <section aria-labelledby="courses-heading" className="py-10">
         <h2 id="courses-heading" className="font-display text-2xl font-semibold">Seus cursos</h2>

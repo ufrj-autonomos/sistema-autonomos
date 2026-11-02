@@ -3,6 +3,7 @@ import { BookOpen, FolderGit2, FileText, ArrowRight, Sparkles } from "lucide-rea
 
 export function QuickActions() {
   const actions = [
+    { title: "Presença no Laboratório", description: "Acompanhe as duas horas semanais, os registros e as pendências dos membros.", href: "/gestao/presenca", icon: BookOpen, actionText: "Acompanhar Presença", accent: "border-zinc-700 hover:border-zinc-500" },
     {
       title: "Acessar Plataforma de Ensino",
       description: "Navegue pelo currículo de 11 módulos e 108 lições com simulador Turtlesim e tópicos ROS 2 Jazzy.",
@@ -39,7 +40,7 @@ export function QuickActions() {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
         {actions.map((act, i) => {
           const Icon = act.icon;
           return (

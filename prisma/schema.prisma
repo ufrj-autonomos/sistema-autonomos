@@ -48,6 +48,18 @@ enum ExerciseType {
   TASK
 }
 
+enum AttendanceStatus {
+  OPEN
+  CLOSED
+  REVIEW
+  VOID
+}
+
+enum AttendancePunchType {
+  IN
+  OUT
+}
+
 // ---------------------------------------------------------------------------
 // 1. AUTH & USER MANAGEMENT
 // ---------------------------------------------------------------------------
@@ -65,6 +77,7 @@ model User {
 
   // Sessions
   sessions Session[]
+  attendanceAudits AttendanceAudit[]
 
   // Ensino relations
   courseProgress   CourseProgress[]
@@ -285,8 +298,79 @@ model Member {
   course    String?
   active    Boolean  @default(true)
   createdAt DateTime @default(now())
+  attendancePeriods AttendancePeriod[]
+  attendanceVisits AttendanceVisit[]
+  attendancePunches AttendancePunch[]
+  attendanceAudits AttendanceAudit[]
 
   @@index([teamId])
+}
+
+model AttendanceSettings {
+  id                String @id @default("lab")
+  qrCode            String @unique
+  weeklyTargetSeconds Int @default(7200)
+  maxSessionSeconds Int @default(43200)
+  startedAt         DateTime @default(now()) @db.Timestamptz(3)
+}
+
+model AttendancePeriod {
+  id          String @id @default(cuid())
+  memberId    Int
+  member      Member @relation(fields: [memberId], references: [id], onDelete: Cascade)
+  startsOn    DateTime @db.Date
+  endsOn      DateTime? @db.Date
+  targetSeconds Int @default(7200)
+
+  @@unique([memberId, startsOn])
+  @@index([memberId, endsOn])
+}
+
+model AttendanceVisit {
+  id           String @id @default(cuid())
+  memberId     Int
+  member       Member @relation(fields: [memberId], references: [id], onDelete: Cascade)
+  checkedInAt  DateTime @db.Timestamptz(3)
+  checkedOutAt DateTime? @db.Timestamptz(3)
+  status       AttendanceStatus @default(OPEN)
+  source       String @default("QR")
+  createdAt    DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt    DateTime @updatedAt @db.Timestamptz(3)
+  punches      AttendancePunch[]
+  audits       AttendanceAudit[]
+
+  @@index([memberId, checkedInAt])
+  @@index([status, checkedInAt])
+}
+
+model AttendancePunch {
+  id           String @id @default(cuid())
+  requestId    String @unique
+  memberId     Int
+  member       Member @relation(fields: [memberId], references: [id], onDelete: Cascade)
+  visitId      String
+  visit        AttendanceVisit @relation(fields: [visitId], references: [id], onDelete: Cascade)
+  type         AttendancePunchType
+  registeredAt DateTime @default(now()) @db.Timestamptz(3)
+
+  @@index([memberId, registeredAt])
+}
+
+model AttendanceAudit {
+  id        String @id @default(cuid())
+  memberId  Int
+  member    Member @relation(fields: [memberId], references: [id], onDelete: Cascade)
+  visitId   String?
+  visit     AttendanceVisit? @relation(fields: [visitId], references: [id], onDelete: SetNull)
+  actorId   String?
+  actor     User? @relation(fields: [actorId], references: [id], onDelete: SetNull)
+  action    String
+  reason    String
+  before    Json?
+  after     Json?
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
+
+  @@index([memberId, createdAt])
 }
 
 model Project {

@@ -55,6 +55,11 @@ stub(prisma.session, 'deleteMany', async ({ where }: any) => {
   sessions = sessions.filter(row => !Object.entries(where).every(([key, value]) => row[key] === value));
   return { count: 1 };
 });
+stub(prisma.member, 'upsert', async ({ create }: any) => ({ id: 100, active: true, ...create }));
+stub(prisma.attendancePeriod, 'findFirst', async () => null);
+stub(prisma.attendancePeriod, 'upsert', async ({ create }: any) => ({ id: 'period', ...create }));
+stub(prisma.attendancePeriod, 'findMany', async () => []);
+stub(prisma.attendanceVisit, 'updateMany', async () => ({ count: 0 }));
 stub(prisma, '$transaction', async (callback: any) => callback(prisma));
 stub(prisma, '$queryRaw', async () => [{ attempts: 1, expiresAt: new Date(Date.now() + 900_000) }]);
 stub(prisma.authRateLimit, 'deleteMany', async () => ({ count: 1 }));

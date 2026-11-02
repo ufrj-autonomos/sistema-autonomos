@@ -23,9 +23,9 @@ async function main() {
     const tables = await prisma.$queryRaw<Array<{ name: string; protected: boolean }>>`
       SELECT c.relname AS name, c.relrowsecurity AS protected
       FROM pg_class c JOIN pg_namespace n ON n.oid=c.relnamespace
-      WHERE n.nspname='public' AND c.relname IN ('User','Session','AuthRateLimit','Course','Module','Lesson','Exercise','CourseProgress','LessonProgress','ExerciseProgress','Team','Member','Project')
+      WHERE n.nspname='public' AND c.relname IN ('User','Session','AuthRateLimit','Course','Module','Lesson','Exercise','CourseProgress','LessonProgress','ExerciseProgress','Team','Member','Project','AttendanceSettings','AttendancePeriod','AttendanceVisit','AttendancePunch','AttendanceAudit')
     `;
-    assert.equal(tables.length, 13);
+    assert.equal(tables.length, 18);
     assert.ok(tables.every(table => table.protected), 'all application tables require RLS');
     const roles = await prisma.$queryRaw<Array<{ exists: boolean }>>`SELECT EXISTS(SELECT 1 FROM pg_roles WHERE rolname='anon') AS exists`;
     if (roles[0].exists) {

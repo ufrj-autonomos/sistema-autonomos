@@ -10,6 +10,7 @@ import {
   BookOpen,
   ShieldCheck,
   Home,
+  Clock3,
   LogOut,
   ArrowRight,
 } from "lucide-react";
@@ -89,6 +90,7 @@ export function Navbar({ className }: NavbarProps) {
   const NAV_LINKS = [
     { label: "Início", href: "/", icon: Home },
     { label: "Ensino", href: "/ensino", icon: BookOpen },
+    { label: "Presença", href: "/presenca", icon: Clock3 },
     { label: "Gestão", href: "/gestao", icon: ShieldCheck },
   ].filter(item => Boolean(user) && (item.href !== "/gestao" || isAdmin));
 
@@ -185,7 +187,7 @@ export function Navbar({ className }: NavbarProps) {
         <div className="flex items-center gap-3">
           {/* Portais Rápidos das Divisões (Harpia & Nautilus) em Desktop */}
           {isAdmin && (
-          <div className="hidden lg:flex items-center gap-1.5 pr-2 border-r border-white/10">
+          <div className="hidden xl:flex items-center gap-1.5 pr-2 border-r border-white/10">
             <Link
               href="/gestao#harpia"
               className="flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-mono text-zinc-400 hover:text-zinc-100 hover:bg-white/5 transition-all"
