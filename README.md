@@ -21,7 +21,7 @@ O deploy não executa seed nem cria usuários de demonstração.
 
 ## Desenvolvimento
 
-Requisitos: Node.js 22 ou 24, npm e PostgreSQL.
+Requisitos: Node.js 26, npm e PostgreSQL. Com nvm, use `nvm install` e `nvm use`.
 
 ```sh
 npm ci --include=dev

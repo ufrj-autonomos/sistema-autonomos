@@ -35,6 +35,9 @@ própria hospedagem, é aceito como origem da respectiva implantação.
 
 ## Build e banco
 
+O projeto usa Node.js 26 (`engines.node: "26.x"`), também definido na CI e no
+`.nvmrc`. Na Vercel, o `package.json` seleciona essa versão para novos deploys.
+
 A Vercel usa `vercel.json`: instalação com dependências de build, validação das
 variáveis, `prisma migrate deploy` apenas em Production e build com Webpack.
 Se a validação ou a migração falhar, o build para antes de publicar a nova versão.
