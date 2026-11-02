@@ -9,13 +9,16 @@ Os perfis `STUDENT`, `MEMBER` e `INSTRUCTOR` acessam início e ensino.
 
 Em **Gestão → Contas e permissões**, use os filtros de nome/email e situação para:
 
-- Aprovar novos cadastros ou usar **Rejeitar e excluir** para apagar a conta do banco e da lista.
+- Nas contas pendentes, usar **Aceitar** (verde) ou **Negar e excluir** (vermelho).
+- Após aceitar, alterar perfil e situação pelos controles exibidos na conta.
 - Suspender contas e reaprovar quando necessário.
 - Alterar o perfil para aluno, membro, instrutor ou administrador.
 
 Alterações de perfil valem na próxima requisição, mesmo com um cookie antigo.
-Rejeitar exclui definitivamente a conta, suas sessões e seu progresso nos cursos;
-o perfil de integrante, se houver, é preservado e desvinculado da conta. O email
+Rejeitar exclui definitivamente a conta, suas sessões e seu progresso nos cursos.
+Ela sai da lista assim que a ação é iniciada. Se a exclusão falhar, a conta é
+restaurada na lista e o erro é exibido. Contas rejeitadas anteriormente não aparecem.
+O perfil de integrante, se houver, é preservado e desvinculado da conta. O email
 fica disponível para um novo cadastro, que precisará de aprovação novamente.
 Suspensão e retorno à situação pendente revogam todas as sessões da conta.
 Reaprovar exige novo login. O último administrador aprovado não pode perder esse

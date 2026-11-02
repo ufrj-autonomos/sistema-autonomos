@@ -6,7 +6,7 @@ export async function GET(req: NextRequest) {
   try {
     const access = await authorizeApi(req, true);
     if (access.error) return access.error;
-    const users = await prisma.user.findMany({ select: { ...safeUserSelect, createdAt: true }, orderBy: { createdAt: 'desc' } });
+    const users = await prisma.user.findMany({ where: { status: { not: 'REJECTED' } }, select: { ...safeUserSelect, createdAt: true }, orderBy: { createdAt: 'desc' } });
     return NextResponse.json({ users }, { headers: { 'Cache-Control': 'private, no-store' } });
   } catch (error) {
     console.error('Erro ao listar contas:', error);

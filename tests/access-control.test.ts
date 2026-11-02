@@ -28,7 +28,9 @@ function project(row: Row | undefined, select?: Row) {
   return select ? Object.fromEntries(Object.keys(select).filter(key => select[key] === true).map(key => [key, row[key]])) : { ...row };
 }
 stub(prisma.user, 'findUnique', async ({ where, select }: any) => project(users.find(user => Object.entries(where).every(([key, value]) => user[key] === value)), select));
-stub(prisma.user, 'findMany', async ({ select }: any) => users.map(user => project(user, select)));
+stub(prisma.user, 'findMany', async ({ select, where }: any) => users
+  .filter(user => !where?.status?.not || user.status !== where.status.not)
+  .map(user => project(user, select)));
 stub(prisma.user, 'count', async ({ where }: any) => users.filter(user => Object.entries(where).every(([key, value]) => user[key] === value)).length);
 stub(prisma.user, 'create', async ({ data, select }: any) => { const row = { id: `user-${users.length}`, ...data }; users.push(row); return project(row, select); });
 stub(prisma.user, 'update', async ({ where, data, select }: any) => {
@@ -183,6 +185,16 @@ test('administrators can list accounts without password hashes', async () => {
   const response = await accounts(request('/api/admin/users', token));
   assert.equal(response.status, 200);
   for (const row of (await response.json()).users) assert.equal(row.passwordHash, undefined);
+});
+
+test('accounts rejected before the deletion flow are excluded from the list', async () => {
+  users.push({ id: 'old-rejected', name: 'Rejected User', email: 'rejected@test.local', role: 'STUDENT', status: 'REJECTED', passwordHash });
+  const token = await tokenFor('admin');
+  const response = await accounts(request('/api/admin/users', token));
+  assert.equal(response.status, 200);
+  const list = (await response.json()).users;
+  assert.equal(list.some((row: Row) => row.id === 'old-rejected'), false);
+  assert.equal(list.some((row: Row) => row.id === 'pending'), true);
 });
 
 test('only approved administrators can change accounts', async () => {

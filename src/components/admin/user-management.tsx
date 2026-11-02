@@ -28,7 +28,7 @@ export function UserManagement() {
       const response = await fetch('/api/admin/users', { cache: 'no-store' });
       const data = await response.json();
       if (!response.ok) throw new Error(data.error);
-      setUsers(data.users);
+      setUsers(data.users.filter((account: Account) => account.status !== 'REJECTED'));
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Não foi possível carregar as contas. Tente novamente.');
     } finally { setLoading(false); }
@@ -36,7 +36,13 @@ export function UserManagement() {
   useEffect(() => { void load(); }, [load]);
 
   async function update(account: Account, changes: { role?: Role; status?: Status }) {
+    const rejecting = changes.status === 'REJECTED';
+    const accountIndex = users.findIndex(item => item.id === account.id);
     setBusy(account.id); setError(''); setNotice('');
+    if (rejecting) {
+      setUsers(previous => previous.filter(item => item.id !== account.id));
+      setNotice(`Excluindo a conta de ${account.name}...`);
+    }
     try {
       const response = await fetch(`/api/admin/users/${account.id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(changes) });
       const data = await response.json();
@@ -49,7 +55,18 @@ export function UserManagement() {
         const current = await refreshSession();
         if (!current || current.role !== 'ADMIN') { router.replace('/'); router.refresh(); }
       }
-    } catch (err) { setError(err instanceof Error ? err.message : 'Não foi possível salvar. Tente novamente.'); }
+    } catch (err) {
+      if (rejecting) {
+        setUsers(previous => {
+          if (previous.some(item => item.id === account.id)) return previous;
+          const restored = [...previous];
+          restored.splice(Math.max(0, accountIndex), 0, account);
+          return restored;
+        });
+        setNotice('');
+      }
+      setError(err instanceof Error ? err.message : 'Não foi possível salvar. Tente novamente.');
+    }
     finally { setBusy(null); }
   }
 
@@ -74,9 +91,33 @@ export function UserManagement() {
       {visible.map(account => <div key={account.id} className="flex flex-col gap-4 py-5 lg:flex-row lg:items-center lg:justify-between">
         <div className="min-w-0 lg:max-w-xs"><h3 className="break-words font-medium text-zinc-100">{account.name}{account.id === user?.id && <span className="ml-2 text-sm text-zinc-400">(você)</span>}</h3><p className="mt-1 break-all text-sm text-zinc-400">{account.email}</p><p className={`mt-2 text-sm ${account.status === 'APPROVED' ? 'text-emerald-300' : account.status === 'PENDING' ? 'text-amber-300' : 'text-zinc-300'}`}>{STATUS_LABELS[account.status]}</p></div>
         <div className="flex flex-wrap items-end gap-3">
-          <label className="flex flex-col gap-1.5 text-sm text-zinc-400">Perfil<span className="sr-only"> de {account.name}</span><select aria-label={`Perfil de ${account.name}`} value={account.role} disabled={!!busy} onChange={event => void update(account, { role: event.target.value as Role })} className={control}>{ROLES.map(role => <option key={role} value={role}>{ROLE_LABELS[role]}</option>)}</select></label>
-          <label className="flex flex-col gap-1.5 text-sm text-zinc-400">Situação<span className="sr-only"> de {account.name}</span><select aria-label={`Situação de ${account.name}`} value={account.status} disabled={!!busy} onChange={event => void update(account, { status: event.target.value as Status })} className={control}>{ACCOUNT_STATUSES.map(status => <option key={status} value={status}>{status === 'REJECTED' ? 'Rejeitar e excluir' : STATUS_LABELS[status]}</option>)}</select></label>
-          {account.status === 'PENDING' && <button type="button" disabled={!!busy} onClick={() => void update(account, { status: 'APPROVED' })} className="min-h-11 rounded-lg bg-zinc-100 px-4 py-2 text-sm font-semibold text-zinc-950 hover:bg-zinc-300 disabled:opacity-50">{busy === account.id ? 'Salvando...' : 'Aprovar cadastro'}</button>}
+          {account.status === 'PENDING' ? (
+            <>
+              <button
+                type="button"
+                disabled={!!busy}
+                aria-label={`Negar e excluir ${account.name}`}
+                onClick={() => void update(account, { status: 'REJECTED' })}
+                className="min-h-11 rounded-lg bg-red-700 px-4 py-2 text-sm font-semibold text-white hover:bg-red-600 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-red-400 disabled:opacity-50"
+              >
+                Negar e excluir
+              </button>
+              <button
+                type="button"
+                disabled={!!busy}
+                aria-label={`Aceitar ${account.name}`}
+                onClick={() => void update(account, { status: 'APPROVED' })}
+                className="min-h-11 rounded-lg bg-emerald-700 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-800 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-400 disabled:opacity-50"
+              >
+                {busy === account.id ? 'Aceitando...' : 'Aceitar'}
+              </button>
+            </>
+          ) : (
+            <>
+              <label className="flex flex-col gap-1.5 text-sm text-zinc-400">Perfil<span className="sr-only"> de {account.name}</span><select aria-label={`Perfil de ${account.name}`} value={account.role} disabled={!!busy} onChange={event => void update(account, { role: event.target.value as Role })} className={control}>{ROLES.map(role => <option key={role} value={role}>{ROLE_LABELS[role]}</option>)}</select></label>
+              <label className="flex flex-col gap-1.5 text-sm text-zinc-400">Situação<span className="sr-only"> de {account.name}</span><select aria-label={`Situação de ${account.name}`} value={account.status} disabled={!!busy} onChange={event => void update(account, { status: event.target.value as Status })} className={control}>{ACCOUNT_STATUSES.map(status => <option key={status} value={status}>{status === 'REJECTED' ? 'Rejeitar e excluir' : STATUS_LABELS[status]}</option>)}</select></label>
+            </>
+          )}
         </div>
       </div>)}
     </div>}
