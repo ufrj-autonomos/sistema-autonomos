@@ -1,0 +1,47 @@
+import { AccountStatus, Prisma, Role } from '@prisma/client';
+import { prisma } from './prisma';
+import { ACCOUNT_STATUSES, ROLES } from './access-policy';
+import { safeUserSelect } from './session';
+
+export class AccountUpdateError extends Error {
+  constructor(message: string, public status: number) { super(message); }
+}
+
+export async function updateAccount(actorId: string, targetId: string, input: unknown) {
+  if (!input || typeof input !== 'object' || Array.isArray(input)) throw new AccountUpdateError('Dados inválidos.', 400);
+  const data = input as Record<string, unknown>;
+  if (Object.keys(data).some(key => !['role', 'status'].includes(key)) || !Object.keys(data).length) {
+    throw new AccountUpdateError('Informe apenas perfil e/ou situação da conta.', 400);
+  }
+  if (data.role !== undefined && !ROLES.includes(data.role as Role)) throw new AccountUpdateError('Perfil inválido.', 400);
+  if (data.status !== undefined && !ACCOUNT_STATUSES.includes(data.status as AccountStatus)) throw new AccountUpdateError('Situação inválida.', 400);
+
+  // Serializable isolation prevents concurrent demotions from removing every administrator.
+  try {
+    return await prisma.$transaction(async tx => {
+      const actor = await tx.user.findUnique({ where: { id: actorId } });
+      if (actor?.role !== 'ADMIN' || actor.status !== 'APPROVED') throw new AccountUpdateError('Acesso exclusivo para administradores aprovados.', 403);
+      const target = await tx.user.findUnique({ where: { id: targetId } });
+      if (!target) throw new AccountUpdateError('Conta não encontrada.', 404);
+      const role = (data.role ?? target.role) as Role;
+      const status = (data.status ?? target.status) as AccountStatus;
+      if (target.role === 'ADMIN' && target.status === 'APPROVED' && (role !== 'ADMIN' || status !== 'APPROVED')) {
+        const admins = await tx.user.count({ where: { role: 'ADMIN', status: 'APPROVED' } });
+        if (admins <= 1) throw new AccountUpdateError('Mantenha pelo menos um administrador aprovado na plataforma.', 409);
+      }
+      if (status === 'REJECTED') {
+        // Foreign keys remove sessions and learning progress, and unlink the member profile.
+        await tx.user.delete({ where: { id: targetId } });
+        return { deleted: true as const, userId: targetId, user: null };
+      }
+      const updated = await tx.user.update({ where: { id: targetId }, data: { role, status }, select: safeUserSelect });
+      if (status !== 'APPROVED') await tx.session.deleteMany({ where: { userId: targetId } });
+      return { deleted: false as const, userId: targetId, user: updated };
+    }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
+  } catch (error) {
+    if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2034') {
+      throw new AccountUpdateError('Outra alteração ocorreu ao mesmo tempo. Atualize a lista e tente novamente.', 409);
+    }
+    throw error;
+  }
+}

@@ -1,0 +1,300 @@
+// Prisma Schema for Sistema Autônomos (UFRJ Autônomos)
+// Core ecosystem: Gestão + Ensino (ROS 2 Jazzy)
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+// ---------------------------------------------------------------------------
+// ENUMS
+// ---------------------------------------------------------------------------
+
+enum Role {
+  STUDENT
+  INSTRUCTOR
+  MEMBER
+  ADMIN
+}
+
+enum AccountStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  SUSPENDED
+}
+
+enum LessonType {
+  VIDEO
+  TEXT
+  QUIZ
+  PROJECT
+}
+
+enum VideoStatus {
+  AVAILABLE
+  PENDING
+  TEXT_ONLY
+}
+
+enum ExerciseType {
+  CODE
+  MULTIPLE_CHOICE
+  TASK
+}
+
+// ---------------------------------------------------------------------------
+// 1. AUTH & USER MANAGEMENT
+// ---------------------------------------------------------------------------
+
+model User {
+  id           String   @id @default(cuid())
+  email        String   @unique
+  name         String
+  passwordHash String
+  role         Role     @default(STUDENT)
+  status       AccountStatus @default(PENDING)
+  avatar       String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  // Sessions
+  sessions Session[]
+
+  // Ensino relations
+  courseProgress   CourseProgress[]
+  lessonProgress   LessonProgress[]
+  exerciseProgress ExerciseProgress[]
+
+  // Optional Gestão member link
+  memberProfile Member?
+
+  @@index([email])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expiresAt    DateTime
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@index([userId])
+  @@index([sessionToken])
+}
+
+// ---------------------------------------------------------------------------
+// 2. ENSINO SUBSYSTEM: COURSES, MODULES, LESSONS, EXERCISES
+// ---------------------------------------------------------------------------
+
+model Course {
+  id            String   @id @default(cuid())
+  slug          String   @unique
+  title         String
+  subtitle      String?
+  description   String   @db.Text
+  coverImage    String?
+  badge         String?
+  level         String   @default("Iniciante")
+  durationHours Float    @default(15.0)
+  published     Boolean  @default(true)
+  orderIndex    Int      @default(1)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  modules        Module[]
+  courseProgress CourseProgress[]
+
+  @@index([slug])
+}
+
+model Module {
+  id          String   @id @default(cuid())
+  courseId    String
+  course      Course   @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  slug        String?
+  title       String
+  description String?  @db.Text
+  orderIndex  Int
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  lessons Lesson[]
+
+  @@unique([courseId, orderIndex])
+  @@index([courseId])
+}
+
+model Lesson {
+  id                   String      @id @default(cuid())
+  moduleId             String
+  module               Module      @relation(fields: [moduleId], references: [id], onDelete: Cascade)
+  slug                 String
+  title                String
+  orderIndex           Int
+  lessonType           LessonType  @default(VIDEO)
+  videoStatus          VideoStatus @default(PENDING)
+  youtubeVideoId       String?
+  videoDurationSeconds Int?
+  summary              String?     @db.Text
+  textContent          String      @db.Text
+  rosDocsUrl           String?
+  codeZipPath          String?
+  createdAt            DateTime    @default(now())
+  updatedAt            DateTime    @updatedAt
+
+  exercises      Exercise[]
+  lessonProgress LessonProgress[]
+
+  @@unique([moduleId, orderIndex])
+  @@unique([moduleId, slug])
+  @@index([moduleId])
+}
+
+model Exercise {
+  id            String       @id @default(cuid())
+  lessonId      String
+  lesson        Lesson       @relation(fields: [lessonId], references: [id], onDelete: Cascade)
+  title         String
+  type          ExerciseType @default(CODE)
+  prompt        String       @db.Text
+  instructions  String?      @db.Text
+  starterCode   String?      @db.Text
+  solutionCode  String?      @db.Text
+  hints         String?      @db.Text
+  options       String?      @db.Text
+  correctOption Int?
+  testCasesJson String?      @db.Text
+  points        Int          @default(10)
+  orderIndex    Int          @default(1)
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
+
+  submissions ExerciseProgress[]
+
+  @@index([lessonId])
+}
+
+// ---------------------------------------------------------------------------
+// 3. PROGRESS TRACKING & PERSISTENCE
+// ---------------------------------------------------------------------------
+
+model CourseProgress {
+  id                    String    @id @default(cuid())
+  userId                String
+  user                  User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  courseId              String
+  course                Course    @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  percentage            Float     @default(0.0)
+  completedLessonsCount Int       @default(0)
+  totalLessonsCount     Int       @default(0)
+  lastLessonId          String?
+  isCompleted           Boolean   @default(false)
+  completedAt           DateTime?
+  enrolledAt            DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+
+  @@unique([userId, courseId])
+  @@index([userId])
+  @@index([courseId])
+}
+
+model LessonProgress {
+  id              String    @id @default(cuid())
+  userId          String
+  user            User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  lessonId        String
+  lesson          Lesson    @relation(fields: [lessonId], references: [id], onDelete: Cascade)
+  completed       Boolean   @default(false)
+  completedAt     DateTime?
+  lastPositionSec Int       @default(0)
+  updatedAt       DateTime  @updatedAt
+
+  @@unique([userId, lessonId])
+  @@index([userId])
+  @@index([lessonId])
+}
+
+model ExerciseProgress {
+  id              String   @id @default(cuid())
+  userId          String
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  exerciseId      String
+  exercise        Exercise @relation(fields: [exerciseId], references: [id], onDelete: Cascade)
+  completed       Boolean  @default(false)
+  submittedAnswer String?  @db.Text
+  passed          Boolean  @default(false)
+  score           Int      @default(0)
+  attempts        Int      @default(1)
+  submittedAt     DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@unique([userId, exerciseId])
+  @@index([userId])
+  @@index([exerciseId])
+}
+
+// ---------------------------------------------------------------------------
+// 4. GESTÃO ECOSYSTEM FOUNDATIONS (UFRJ AUTÔNOMOS, HARPIA, NAUTILUS)
+// ---------------------------------------------------------------------------
+
+model Team {
+  id          Int      @id @default(autoincrement())
+  slug        String   @unique
+  name        String
+  founded     Int
+  coverImage  String?
+  bannerImage String?
+  tags        String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  members  Member[]
+  projects Project[]
+}
+
+model Member {
+  id        Int      @id @default(autoincrement())
+  userId    String?  @unique
+  user      User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  teamId    Int?
+  team      Team?    @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  name      String
+  role      String
+  area      String
+  bio       String?
+  photo     String?
+  linkedin  String?
+  github    String?
+  course    String?
+  active    Boolean  @default(true)
+  createdAt DateTime @default(now())
+
+  @@index([teamId])
+}
+
+model Project {
+  id          Int      @id @default(autoincrement())
+  teamId      Int
+  team        Team     @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  slug        String
+  name        String
+  tagline     String
+  description String   @db.Text
+  status      String
+  year        Int
+  coverImage  String?
+  tags        String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@unique([teamId, slug])
+  @@index([teamId])
+}

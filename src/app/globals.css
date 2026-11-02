@@ -1,0 +1,306 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+
+@custom-variant dark (&:is(.dark *));
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: var(--font-inter, ui-sans-serif, system-ui, sans-serif);
+  --font-display: var(--font-space-grotesk, ui-sans-serif, system-ui, sans-serif);
+  --font-mono: var(--font-jetbrains-mono, ui-monospace, monospace);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+
+  /* Tokens de equipe e acentos */
+  --color-team-primary: var(--team-primary);
+  --color-team-secondary: var(--team-secondary);
+  --color-team-glow: var(--team-glow);
+
+  /* Acentos de divisão */
+  --color-harpia-primary: #8530B0;
+  --color-harpia-accent: #A346CC;
+  --color-nautilus-primary: #0154a0;
+  --color-nautilus-accent: #387aef;
+}
+
+/* ============================================================
+   UFRJ AUTÔNOMOS — Design System "Engineering Studio"
+   Estética: Dark titânio, materiais reais, precisão técnica,
+   hairlines, sem glow neon.
+   ============================================================ */
+
+/* ---- TEMA MATRIZ: AUTÔNOMOS (Default Dark Titanium) ---- */
+:root {
+  --radius: 0.5rem;
+
+  /* Autônomos Dark Titanium */
+  --background: #0A0A0B;
+  --foreground: #F4F4F5;
+  --card: #111113;
+  --card-foreground: #F4F4F5;
+  --popover: #111113;
+  --popover-foreground: #F4F4F5;
+  --primary: #F4F4F5;
+  --primary-foreground: #0A0A0B;
+  --secondary: #1A1A1D;
+  --secondary-foreground: #E4E4E7;
+  --muted: #18181B;
+  --muted-foreground: #8B8E96;
+  --accent: #1F1F23;
+  --accent-foreground: #F4F4F5;
+  --destructive: #B42318;
+  --border: rgba(255, 255, 255, 0.08);
+  --input: rgba(255, 255, 255, 0.10);
+  --ring: #52525B;
+
+  /* Destaque Matriz */
+  --team-primary: #8B8E96;
+  --team-secondary: #3A3F4A;
+  --team-glow: rgba(139, 142, 150, 0.15);
+
+  /* Tokens de Linha Fina (Hairlines) */
+  --hairline: rgba(255, 255, 255, 0.06);
+  --hairline-strong: rgba(255, 255, 255, 0.12);
+  --grain-opacity: 0.035;
+}
+
+/* ---- Modo Claro (.light) ---- */
+.light {
+  --background: #FAFAFA;
+  --foreground: #0A0A0B;
+  --card: #FFFFFF;
+  --card-foreground: #0A0A0B;
+  --popover: #FFFFFF;
+  --popover-foreground: #0A0A0B;
+  --primary: #0A0A0B;
+  --primary-foreground: #FAFAFA;
+  --secondary: #F4F4F5;
+  --secondary-foreground: #18181B;
+  --muted: #F4F4F5;
+  --muted-foreground: #52525B;
+  --accent: #E4E4E7;
+  --accent-foreground: #0A0A0B;
+  --border: rgba(10, 10, 11, 0.10);
+  --input: rgba(10, 10, 11, 0.12);
+  --ring: #A1A1AA;
+  --hairline: rgba(10, 10, 11, 0.08);
+  --hairline-strong: rgba(10, 10, 11, 0.16);
+  --grain-opacity: 0.02;
+}
+
+/* ---- TEMA DA DIVISÃO HARPIA (Aeronaves Autônomas) ---- */
+.theme-harpia {
+  --background: #100318;
+  --foreground: #FAF4FF;
+  --card: #1D062B;
+  --card-foreground: #FAF4FF;
+  --popover: #1D062B;
+  --popover-foreground: #FAF4FF;
+  --primary: #FAF4FF;
+  --primary-foreground: #702191;
+  --secondary: #4A085E;
+  --secondary-foreground: #FAF4FF;
+  --muted: #260A36;
+  --muted-foreground: #C49ED9;
+  --accent: #702191;
+  --accent-foreground: #FAF4FF;
+  --border: rgba(250, 244, 255, 0.10);
+  --input: rgba(250, 244, 255, 0.12);
+  --ring: #A346CC;
+
+  --team-primary: #8530B0;
+  --team-secondary: #702191;
+  --team-glow: rgba(163, 70, 204, 0.18);
+  --hairline: rgba(250, 244, 255, 0.12);
+  --hairline-strong: rgba(250, 244, 255, 0.25);
+}
+
+/* ---- TEMA DA DIVISÃO NAUTILUS (Veículos Subaquáticos) ---- */
+.theme-nautilus {
+  --background: #021829;
+  --foreground: #EAF2F8;
+  --card: #032841;
+  --card-foreground: #EAF2F8;
+  --popover: #032841;
+  --popover-foreground: #EAF2F8;
+  --primary: #EAF2F8;
+  --primary-foreground: #022343;
+  --secondary: #0A3A5C;
+  --secondary-foreground: #EAF2F8;
+  --muted: #073152;
+  --muted-foreground: #8FAFCB;
+  --accent: #0E456E;
+  --accent-foreground: #EAF2F8;
+  --border: rgba(234, 242, 248, 0.10);
+  --input: rgba(234, 242, 248, 0.12);
+  --ring: #4A7BB7;
+
+  --team-primary: #0154a0;
+  --team-secondary: #022343;
+  --team-glow: rgba(56, 122, 239, 0.18);
+  --hairline: rgba(234, 242, 248, 0.08);
+  --hairline-strong: rgba(234, 242, 248, 0.16);
+}
+
+@layer base {
+  * {
+    border-color: var(--border);
+  }
+
+  html {
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    scrollbar-gutter: stable;
+  }
+
+  body {
+    background-color: var(--background);
+    color: var(--foreground);
+    font-family: var(--font-sans);
+    min-height: 100vh;
+    margin: 0;
+    overflow-x: hidden;
+  }
+
+  ::selection {
+    background: var(--team-primary);
+    color: var(--background);
+  }
+
+  /* Barra de rolagem técnica e discreta */
+  ::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: var(--hairline-strong);
+    border-radius: 4px;
+    border: 2px solid var(--background);
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: var(--muted-foreground);
+  }
+}
+
+@layer utilities {
+  /* Tipografia Display e Mono */
+  .font-display {
+    font-family: var(--font-display);
+    letter-spacing: -0.02em;
+  }
+
+  .font-mono {
+    font-family: var(--font-mono);
+  }
+
+  /* Malha Técnica Ortogonal (Blueprint Grid) */
+  .bg-grid {
+    background-image:
+      linear-gradient(var(--hairline) 1px, transparent 1px),
+      linear-gradient(90deg, var(--hairline) 1px, transparent 1px);
+    background-size: 64px 64px;
+  }
+
+  .bg-grid-sm {
+    background-image:
+      linear-gradient(var(--hairline) 1px, transparent 1px),
+      linear-gradient(90deg, var(--hairline) 1px, transparent 1px);
+    background-size: 24px 24px;
+  }
+
+  /* Hairlines Técnicas */
+  .hairline {
+    border-color: var(--hairline);
+  }
+
+  .hairline-strong {
+    border-color: var(--hairline-strong);
+  }
+
+  .border-hairline {
+    border: 1px solid var(--hairline);
+  }
+
+  /* Cantoneiras Técnicas de Blueprint para Cards de Engenharia */
+  .blueprint-corners {
+    position: relative;
+  }
+
+  .blueprint-corners::before,
+  .blueprint-corners::after {
+    content: "";
+    position: absolute;
+    width: 10px;
+    height: 10px;
+    border-color: var(--hairline-strong);
+    pointer-events: none;
+    z-index: 10;
+  }
+
+  .blueprint-corners::before {
+    top: -1px;
+    left: -1px;
+    border-top: 1.5px solid;
+    border-left: 1.5px solid;
+  }
+
+  .blueprint-corners::after {
+    bottom: -1px;
+    right: -1px;
+    border-bottom: 1.5px solid;
+    border-right: 1.5px solid;
+  }
+
+  /* Rótulo Técnico Mono em Caixa Alta Reduzida */
+  .label-mono {
+    font-family: var(--font-mono);
+    font-size: 0.6875rem;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--muted-foreground);
+  }
+
+  /* Números Tabulares para Métricas, Timers e Percentuais */
+  .tabular {
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* Sombra Glow Suave da Equipe */
+  .team-glow {
+    box-shadow: 0 0 0 1px var(--hairline-strong), 0 8px 32px -8px var(--team-glow);
+  }
+
+  /* Efeito de Profundidade Interna (Vignette) para Cards */
+  .card-inner-fade {
+    box-shadow: inset 0 0 40px -15px rgba(0, 0, 0, 0.6);
+  }
+
+  /* Granulação Analógica Sutil */
+  .grain::before {
+    content: "";
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    z-index: 999;
+    opacity: var(--grain-opacity);
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='3' /%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' /%3E%3C/svg%3E");
+  }
+}

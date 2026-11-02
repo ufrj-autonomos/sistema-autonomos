@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="2400px" height="2400px" viewBox="0 0 2400 2400" shape-rendering="geometricPrecision" overflow="hidden"><g transform="matrix(1 0 0 -1 0 2400)">
+  <g id="imagem">
+    <path id="camada-escura" fill="#4a085e" d="M0 0H2400V2400H0Z"/>
+    <path id="camada-intermediaria" fill="#702191" d="M0 1512C800 1702 1600 1582 2400 1732V0H0Z"/>
+    <path id="camada-violeta" fill="#8530b0" d="M0 724C800 724 1600 924 2400 1084V0H0Z"/>
+    <path id="camada-clara" fill="#a346cc" d="M0 360C800 360 1600 240 2400 0V0H0Z"/>
+  </g>
+</g></svg>

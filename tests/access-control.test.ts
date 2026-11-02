@@ -1,0 +1,261 @@
+import { beforeEach, test } from 'node:test';
+import assert from 'node:assert/strict';
+import { NextRequest } from 'next/server';
+import { prisma } from '../src/lib/prisma';
+import { createSessionToken, hashPassword } from '../src/lib/auth';
+import { getCurrentUser, SESSION_COOKIE_NAME } from '../src/lib/session';
+import { updateAccount, AccountUpdateError } from '../src/lib/user-administration';
+import { proxy } from '../src/proxy';
+import { POST as register } from '../src/app/api/auth/register/route';
+import { POST as login } from '../src/app/api/auth/login/route';
+import { POST as logout } from '../src/app/api/auth/logout/route';
+import { GET as me } from '../src/app/api/auth/me/route';
+import { GET as accounts } from '../src/app/api/admin/users/route';
+import { PATCH as patchAccount } from '../src/app/api/admin/users/[id]/route';
+import { GET as course } from '../src/app/api/courses/ros2-jazzy/route';
+import { GET as lesson } from '../src/app/api/lessons/[id]/route';
+import { GET as stats } from '../src/app/api/gestao/stats/route';
+import { getAuthenticatedUserId } from '../src/lib/progress';
+
+process.env.JWT_SECRET = 'test-only-signing-key-32-characters-minimum';
+type Row = Record<string, any>;
+function stub(object: any, key: string, implementation: (...args: any[]) => any) { object[key] = implementation; }
+let users: Row[] = [];
+let sessions: Row[] = [];
+let passwordHash = '';
+function project(row: Row | undefined, select?: Row) {
+  if (!row) return null;
+  return select ? Object.fromEntries(Object.keys(select).filter(key => select[key] === true).map(key => [key, row[key]])) : { ...row };
+}
+stub(prisma.user, 'findUnique', async ({ where, select }: any) => project(users.find(user => Object.entries(where).every(([key, value]) => user[key] === value)), select));
+stub(prisma.user, 'findMany', async ({ select }: any) => users.map(user => project(user, select)));
+stub(prisma.user, 'count', async ({ where }: any) => users.filter(user => Object.entries(where).every(([key, value]) => user[key] === value)).length);
+stub(prisma.user, 'create', async ({ data, select }: any) => { const row = { id: `user-${users.length}`, ...data }; users.push(row); return project(row, select); });
+stub(prisma.user, 'update', async ({ where, data, select }: any) => {
+  const index = users.findIndex(user => user.id === where.id);
+  users[index] = { ...users[index], ...data };
+  return project(users[index], select);
+});
+stub(prisma.user, 'delete', async ({ where }: any) => {
+  const user = users.find(row => row.id === where.id);
+  users = users.filter(row => row.id !== where.id);
+  sessions = sessions.filter(row => row.userId !== where.id);
+  return user;
+});
+stub(prisma.session, 'create', async ({ data }: any) => { sessions.push(data); return data; });
+stub(prisma.session, 'findUnique', async ({ where }: any) => {
+  const session = sessions.find(row => row.sessionToken === where.sessionToken);
+  const user = session && users.find(row => row.id === session.userId);
+  return session && user ? { ...session, user: project(user, { id: true, email: true, name: true, role: true, status: true, avatar: true }) } : null;
+});
+stub(prisma.session, 'deleteMany', async ({ where }: any) => {
+  sessions = sessions.filter(row => !Object.entries(where).every(([key, value]) => row[key] === value));
+  return { count: 1 };
+});
+stub(prisma, '$transaction', async (callback: any) => callback(prisma));
+
+beforeEach(async () => {
+  passwordHash ||= await hashPassword('valid-password');
+  users = [
+    { id: 'admin', email: 'admin@test.local', name: 'Admin', role: 'ADMIN', status: 'APPROVED', passwordHash },
+    { id: 'student', email: 'student@test.local', name: 'Student', role: 'STUDENT', status: 'APPROVED', passwordHash },
+    { id: 'pending', email: 'pending@test.local', name: 'Pending', role: 'STUDENT', status: 'PENDING', passwordHash },
+  ];
+  sessions = [];
+});
+function request(path: string, token?: string, body?: unknown, method?: string) {
+  return new NextRequest(`http://localhost:3000${path}`, {
+    method: method ?? (body ? 'POST' : 'GET'),
+    headers: { ...(token ? { cookie: `${SESSION_COOKIE_NAME}=${token}` } : {}), 'Content-Type': 'application/json' },
+    ...(body ? { body: JSON.stringify(body) } : {}),
+  });
+}
+async function tokenFor(id: string, claims: Row = {}) {
+  const user = users.find(user => user.id === id)!;
+  const sid = `sid-${sessions.length}`;
+  sessions.push({ sessionToken: sid, userId: id, expiresAt: new Date(Date.now() + 60_000) });
+  return createSessionToken({ sub: id, name: user.name, email: user.email, role: user.role, sid, ...claims });
+}
+
+test('anonymous visitors cannot access pages or any protected API category', async () => {
+  for (const path of ['/', '/ensino', '/curso/1', '/ensino/curso/1', '/gestao', '/new-route']) {
+    const response = await proxy(request(path));
+    assert.equal(response.status, 307, path);
+    assert.equal(new URL(response.headers.get('location')!).pathname, '/login');
+  }
+  for (const path of ['/api/courses/ros2-jazzy', '/api/lessons/1', '/api/progress/ros2-jazzy', '/api/progress/lesson', '/api/progress/exercise', '/api/gestao/stats', '/api/admin/users']) {
+    assert.equal((await proxy(request(path))).status, 401, path);
+  }
+});
+
+test('login and registration remain publicly accessible', async () => {
+  for (const path of ['/login', '/register', '/api/auth/login', '/api/auth/register']) assert.equal((await proxy(request(path))).status, 200);
+});
+
+test('invalid JWTs and legacy JWTs without a server session grant no access', async () => {
+  assert.equal(await getCurrentUser(request('/', 'forged-token')), null);
+  const token = await createSessionToken({ sub: 'admin', name: 'Admin', email: 'admin@test.local', role: 'ADMIN' });
+  assert.equal(await getCurrentUser(request('/', token)), null);
+});
+
+test('registration always creates a pending student without issuing a session', async () => {
+  const response = await register(request('/api/auth/register', undefined, { name: 'New Person', email: 'NEW@test.local', password: 'valid-password', role: 'ADMIN', status: 'APPROVED' }));
+  assert.equal(response.status, 201);
+  const data = await response.json();
+  assert.equal(data.user.role, 'STUDENT');
+  assert.equal(data.user.status, 'PENDING');
+  assert.equal(data.pendingApproval, true);
+  assert.equal(data.user.passwordHash, undefined);
+  assert.equal(response.headers.get('set-cookie'), null);
+  assert.equal(sessions.length, 0);
+});
+
+test('malformed signup and login payloads return validation errors', async () => {
+  for (const handler of [register, login]) {
+    const response = await handler(new NextRequest('http://localhost:3000/api/auth', { method: 'POST', body: '{invalid' }));
+    assert.equal(response.status, 400);
+  }
+  assert.equal((await register(request('/api/auth/register', undefined, { name: {}, email: 'x@test.local', password: 'valid-password' }))).status, 400);
+  assert.equal((await login(request('/api/auth/login', undefined, { email: 'admin@test.local', password: {} }))).status, 400);
+});
+
+test('pending, rejected and suspended users cannot sign in', async () => {
+  for (const status of ['PENDING', 'REJECTED', 'SUSPENDED']) {
+    users[2].status = status;
+    const response = await login(request('/api/auth/login', undefined, { email: 'pending@test.local', password: 'valid-password' }));
+    assert.equal(response.status, 403);
+    assert.equal(response.headers.get('set-cookie'), null);
+  }
+});
+
+test('approved login persists a revocable session and logout revokes the token', async () => {
+  const response = await login(request('/api/auth/login', undefined, { email: 'STUDENT@test.local', password: 'valid-password' }));
+  assert.equal(response.status, 200);
+  assert.equal(sessions.length, 1);
+  const cookie = response.headers.get('set-cookie')!;
+  assert.match(cookie, /HttpOnly/i);
+  const token = cookie.split(';')[0].split('=')[1];
+  assert.equal((await getCurrentUser(request('/', token)))?.id, 'student');
+  assert.equal((await logout(request('/api/auth/logout', token, undefined, 'POST'))).status, 200);
+  assert.equal(await getCurrentUser(request('/', token)), null);
+});
+
+test('all non-admin roles can access learning but cannot access management', async () => {
+  for (const role of ['STUDENT', 'MEMBER', 'INSTRUCTOR']) {
+    users[1].role = role;
+    const token = await tokenFor('student');
+    assert.equal((await proxy(request('/ensino', token))).status, 200);
+    assert.equal(new URL((await proxy(request('/gestao', token))).headers.get('location')!).pathname, '/');
+    assert.equal((await proxy(request('/api/gestao/stats', token))).status, 403);
+    assert.equal((await accounts(request('/api/admin/users', token))).status, 403);
+    assert.equal((await stats(request('/api/gestao/stats', token))).status, 403);
+  }
+});
+
+test('role claims in a valid JWT never override the live database role', async () => {
+  const token = await tokenFor('student', { role: 'ADMIN' });
+  assert.equal((await getCurrentUser(request('/', token)))?.role, 'STUDENT');
+  assert.equal((await accounts(request('/api/admin/users', token))).status, 403);
+});
+
+test('route handlers independently reject anonymous requests without the proxy', async () => {
+  assert.equal((await course(request('/api/courses/ros2-jazzy'))).status, 401);
+  assert.equal((await lesson(request('/api/lessons/1'), { params: Promise.resolve({ id: '1' }) })).status, 401);
+  assert.equal((await stats(request('/api/gestao/stats'))).status, 401);
+  assert.equal(await getAuthenticatedUserId(request('/api/progress/lesson')), null);
+  assert.equal((await patchAccount(request('/api/admin/users/student', undefined, { role: 'ADMIN' }, 'PATCH'), { params: Promise.resolve({ id: 'student' }) })).status, 401);
+});
+
+test('suspension, deletion and expiry invalidate existing sessions', async () => {
+  const token = await tokenFor('student');
+  sessions[0].expiresAt = new Date(0);
+  assert.equal(await getCurrentUser(request('/', token)), null);
+  sessions[0].expiresAt = new Date(Date.now() + 60_000);
+  users[1].status = 'SUSPENDED';
+  assert.equal(await getAuthenticatedUserId(request('/api/progress/lesson', token)), null);
+  assert.equal((await (await me(request('/api/auth/me', token))).json()).authenticated, false);
+  users.splice(1, 1);
+  assert.equal(await getCurrentUser(request('/', token)), null);
+});
+
+test('administrators can list accounts without password hashes', async () => {
+  const token = await tokenFor('admin');
+  const response = await accounts(request('/api/admin/users', token));
+  assert.equal(response.status, 200);
+  for (const row of (await response.json()).users) assert.equal(row.passwordHash, undefined);
+});
+
+test('only approved administrators can change accounts', async () => {
+  for (const id of ['student', 'pending']) await assert.rejects(updateAccount(id, 'pending', { status: 'APPROVED' }), (error: any) => error instanceof AccountUpdateError && error.status === 403);
+  users[0].status = 'SUSPENDED';
+  await assert.rejects(updateAccount('admin', 'pending', { status: 'APPROVED' }));
+});
+
+test('administrator can approve, promote, demote, suspend and reapprove accounts', async () => {
+  await updateAccount('admin', 'pending', { status: 'APPROVED', role: 'MEMBER' });
+  assert.equal(users[2].status, 'APPROVED');
+  const token = await tokenFor('pending');
+  await updateAccount('admin', 'pending', { role: 'ADMIN' });
+  assert.equal((await proxy(request('/api/admin/users', token))).status, 200);
+  await updateAccount('admin', 'pending', { role: 'STUDENT' });
+  assert.equal((await proxy(request('/api/admin/users', token))).status, 403);
+  await updateAccount('admin', 'pending', { status: 'SUSPENDED' });
+  assert.equal(sessions.length, 0);
+  assert.equal(await getCurrentUser(request('/', token)), null);
+  await updateAccount('admin', 'pending', { status: 'APPROVED' });
+  assert.equal(await getCurrentUser(request('/', token)), null, 'reactivation must not restore revoked sessions');
+});
+
+test('rejecting an account deletes it and removes it from the API list', async () => {
+  const token = await tokenFor('admin');
+  const response = await patchAccount(request('/api/admin/users/pending', token, { status: 'REJECTED' }, 'PATCH'), { params: Promise.resolve({ id: 'pending' }) });
+  assert.equal(response.status, 200);
+  assert.deepEqual(await response.json(), { success: true, deleted: true, userId: 'pending', user: null });
+  assert.equal(users.some(row => row.id === 'pending'), false);
+  const list = await (await accounts(request('/api/admin/users', token))).json();
+  assert.equal(list.users.some((row: Row) => row.id === 'pending'), false);
+  const signup = await register(request('/api/auth/register', undefined, { name: 'New Signup', email: 'pending@test.local', password: 'valid-password' }));
+  assert.equal(signup.status, 201, 'the email is available for a new signup');
+  assert.equal((await signup.json()).user.status, 'PENDING');
+});
+
+test('rejection deletes active sessions and prevents login with the deleted account', async () => {
+  const token = await tokenFor('student');
+  await updateAccount('admin', 'student', { status: 'REJECTED' });
+  assert.equal(sessions.length, 0);
+  assert.equal(await getCurrentUser(request('/', token)), null);
+  const response = await login(request('/api/auth/login', undefined, { email: 'student@test.local', password: 'valid-password' }));
+  assert.equal(response.status, 401);
+});
+
+test('non-admin users cannot reject and delete accounts', async () => {
+  const token = await tokenFor('student');
+  const response = await patchAccount(request('/api/admin/users/pending', token, { status: 'REJECTED' }, 'PATCH'), { params: Promise.resolve({ id: 'pending' }) });
+  assert.equal(response.status, 403);
+  assert.equal(users.some(row => row.id === 'pending'), true);
+});
+
+test('last approved administrator cannot be demoted, rejected, suspended or made pending', async () => {
+  for (const change of [{ role: 'MEMBER' }, { status: 'SUSPENDED' }, { status: 'REJECTED' }, { status: 'PENDING' }]) {
+    await assert.rejects(updateAccount('admin', 'admin', change), (error: any) => error.status === 409);
+  }
+  assert.equal(users[0].role, 'ADMIN');
+  assert.equal(users[0].status, 'APPROVED');
+});
+
+test('self-demotion is allowed when another approved administrator exists', async () => {
+  users[1].role = 'ADMIN';
+  await updateAccount('admin', 'admin', { role: 'STUDENT' });
+  assert.equal(users[0].role, 'STUDENT');
+});
+
+test('unknown fields, invalid roles and invalid statuses cannot be written', async () => {
+  for (const change of [{ role: 'OWNER' }, { status: 'ACTIVE' }, { passwordHash: 'x' }, {}, null]) {
+    await assert.rejects(updateAccount('admin', 'student', change), (error: any) => error.status === 400);
+  }
+});
+
+test('cross-origin writes are blocked', async () => {
+  const req = new NextRequest('http://localhost:3000/api/auth/register', { method: 'POST', headers: { origin: 'https://attacker.example', host: 'localhost:3000' } });
+  assert.equal((await proxy(req)).status, 403);
+});
