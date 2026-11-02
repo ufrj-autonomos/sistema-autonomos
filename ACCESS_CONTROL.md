@@ -2,12 +2,14 @@
 
 Somente contas com situação `APPROVED` podem entrar. O início apresenta os cursos
 e o progresso da própria pessoa. Somente `ADMIN`
-aprovado acessa `/gestao`, `/api/gestao/*` e `/api/admin/*`.
-Os perfis `STUDENT`, `MEMBER` e `INSTRUCTOR` acessam início e ensino.
+aprovado acessa `/gestao`, suas subseções, `/api/gestao/*` e `/api/admin/*`.
+Os perfis `STUDENT`, `MEMBER` e `INSTRUCTOR` acessam início, ensino e presença individual.
 
 ## Administração
 
-Em **Gestão → Contas e permissões**, use os filtros de nome/email e situação para:
+A gestão tem navegação própria em sidebar, menu lateral no celular e páginas por
+sistema. Em **Gestão → Contas e permissões** (`/gestao/contas`), use os filtros de
+nome/email e situação para:
 
 - Nas contas pendentes, usar **Aceitar** (verde) ou **Negar e excluir** (vermelho).
 - Após aceitar, alterar perfil e situação pelos controles exibidos na conta.

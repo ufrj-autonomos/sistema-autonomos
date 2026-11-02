@@ -25,7 +25,7 @@ export function DivisionsSection({ divisions, projects }: DivisionsSectionProps)
         </span>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 2xl:grid-cols-2 gap-6">
         {divisions.map((div) => {
           const isHarpia = div.slug === "harpia";
           const divProjects = projects.filter((p) => p.division === div.slug);
@@ -41,11 +41,10 @@ export function DivisionsSection({ divisions, projects }: DivisionsSectionProps)
               } p-6 sm:p-7 flex flex-col justify-between transition-all duration-200 hover:border-white/30`}
             >
               {/* Grid de fundo */}
-              <div className="absolute inset-0 bg-grid opacity-20 pointer-events-none" />
 
               <div>
                 {/* Header da Divisão */}
-                <div className="flex items-start justify-between gap-4 pb-5 border-b border-white/10">
+                <div className="flex flex-wrap items-start justify-between gap-4 pb-5 border-b border-white/10">
                   <div className="flex items-center gap-3.5">
                     <div
                       className={`flex h-12 w-12 items-center justify-center rounded-xl border p-1 ${

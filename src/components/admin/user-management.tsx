@@ -10,7 +10,7 @@ type Status = typeof ACCOUNT_STATUSES[number];
 type Account = { id: string; name: string; email: string; role: Role; status: Status };
 const control = 'min-h-11 rounded-lg border border-zinc-700 bg-zinc-950 px-3 py-2 text-base text-zinc-200 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-zinc-300 disabled:opacity-50 sm:text-sm';
 
-export function UserManagement() {
+export function UserManagement({ standalone = false }: { standalone?: boolean }) {
   const { user, refreshSession } = useSession();
   const router = useRouter();
   const [users, setUsers] = useState<Account[]>([]);
@@ -72,11 +72,12 @@ export function UserManagement() {
 
   const visible = users.filter(account => (filter === 'ALL' || account.status === filter) && `${account.name} ${account.email}`.toLocaleLowerCase('pt-BR').includes(search.toLocaleLowerCase('pt-BR')));
   const pendingCount = users.filter(account => account.status === 'PENDING').length;
+  const Heading = standalone ? 'h1' : 'h2';
 
   return <section id="contas" aria-labelledby="accounts-heading" className="space-y-5">
     <div>
-      <h2 id="accounts-heading" className="font-display text-2xl font-semibold">Contas e permissões</h2>
-      <p className="mt-2 max-w-3xl text-sm leading-relaxed text-zinc-400">Aprove novos cadastros e defina o perfil de cada pessoa. Rejeitar exclui definitivamente a conta e seu progresso. Apenas administradores acessam a gestão. Alunos, membros e instrutores acessam o início e os cursos.</p>
+      <Heading id="accounts-heading" className={`font-display font-semibold ${standalone ? 'text-3xl' : 'text-2xl'}`}>Contas e permissões</Heading>
+      <p className="mt-3 max-w-3xl text-sm leading-relaxed text-zinc-400">Aprove novos cadastros e defina o perfil de cada pessoa. Rejeitar exclui definitivamente a conta e seu progresso. Apenas administradores acessam a gestão. Alunos, membros e instrutores acessam o início, os cursos e a própria presença.</p>
       {!loading && <p className="mt-2 text-sm text-zinc-300">{pendingCount} {pendingCount === 1 ? 'cadastro aguardando aprovação' : 'cadastros aguardando aprovação'}</p>}
     </div>
     <div className="flex flex-col gap-3 sm:flex-row sm:items-end">

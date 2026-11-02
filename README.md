@@ -82,3 +82,16 @@ Rejeitar exclui a conta; suspender revoga suas sessões. O último administrador
 aprovado não pode ser removido nem perder suas permissões.
 
 Regras de acesso: [ACCESS_CONTROL.md](ACCESS_CONTROL.md).
+
+## Área de gestão
+
+A gestão tem layout próprio e sidebar compartilhada, com menu lateral no celular.
+A visão geral destaca aprovações pendentes e presença semanal. Os sistemas ficam
+em páginas independentes: `/gestao/contas`, `/gestao/integrantes`,
+`/gestao/presenca`, `/gestao/divisoes` e `/gestao/sistema`.
+Somente administradores aprovados podem acessar essas páginas.
+
+Novos sistemas entram no catálogo `src/lib/management-navigation.ts`, utilizado
+pela sidebar, pelos links da visão geral e pela localização no cabeçalho. Cada
+página também mantém sua autorização no servidor. O botão **Área do membro**
+retorna à navegação de início, ensino e presença individual.

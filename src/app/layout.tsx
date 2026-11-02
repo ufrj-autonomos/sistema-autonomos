@@ -1,8 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { Space_Grotesk, Inter, JetBrains_Mono } from "next/font/google";
 import "./globals.css";
-import { Navbar } from "@/components/layout/navbar";
-import { Footer } from "@/components/layout/footer";
+import { PlatformShell } from "@/components/layout/platform-shell";
 import { AuthProvider } from "@/contexts/auth-context";
 import { getAppOrigin } from "@/lib/environment";
 
@@ -72,11 +71,7 @@ export default function RootLayout({
         className={`${inter.variable} ${spaceGrotesk.variable} ${jetbrainsMono.variable} font-sans antialiased min-h-screen bg-[#0A0A0B] text-[#F4F4F5] flex flex-col selection:bg-zinc-800 selection:text-white`}
       >
         <AuthProvider>
-          <Navbar />
-          <main className="flex-1 flex flex-col">
-            {children}
-          </main>
-          <Footer />
+          <PlatformShell>{children}</PlatformShell>
         </AuthProvider>
       </body>
     </html>

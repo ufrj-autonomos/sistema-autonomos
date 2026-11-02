@@ -189,7 +189,7 @@ export function Navbar({ className }: NavbarProps) {
           {isAdmin && (
           <div className="hidden xl:flex items-center gap-1.5 pr-2 border-r border-white/10">
             <Link
-              href="/gestao#harpia"
+              href="/gestao/divisoes#harpia"
               className="flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-mono text-zinc-400 hover:text-zinc-100 hover:bg-white/5 transition-all"
               title="Divisão Harpia — Aeronaves Autônomas"
             >
@@ -197,7 +197,7 @@ export function Navbar({ className }: NavbarProps) {
               <span>Harpia</span>
             </Link>
             <Link
-              href="/gestao#nautilus"
+              href="/gestao/divisoes#nautilus"
               className="flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-mono text-zinc-400 hover:text-zinc-100 hover:bg-white/5 transition-all"
               title="Divisão Nautilus — Veículos Subaquáticos"
             >
@@ -421,7 +421,7 @@ export function Navbar({ className }: NavbarProps) {
             </p>
             <div className="flex flex-col gap-1.5">
               <Link
-                href="/gestao#harpia"
+                href="/gestao/divisoes#harpia"
                 onClick={() => setIsMobileMenuOpen(false)}
                 className="flex items-center justify-between px-3.5 py-2 rounded-lg text-sm text-zinc-300 hover:bg-white/5 hover:text-white transition"
               >
@@ -432,7 +432,7 @@ export function Navbar({ className }: NavbarProps) {
                 <ArrowRight className="w-3.5 h-3.5 text-zinc-500" />
               </Link>
               <Link
-                href="/gestao#nautilus"
+                href="/gestao/divisoes#nautilus"
                 onClick={() => setIsMobileMenuOpen(false)}
                 className="flex items-center justify-between px-3.5 py-2 rounded-lg text-sm text-zinc-300 hover:bg-white/5 hover:text-white transition"
               >

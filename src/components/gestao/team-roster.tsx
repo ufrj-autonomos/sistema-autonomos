@@ -166,8 +166,8 @@ export function TeamRoster({ initialMembers }: TeamRosterProps) {
       </div>
 
       {/* Tabela Responsiva (Desktop) */}
-      <div className="hidden md:block rounded-xl border border-white/10 bg-[#111113] overflow-hidden">
-        <table className="w-full text-left font-mono text-xs">
+      <div className="hidden md:block rounded-xl border border-white/10 bg-[#111113] overflow-x-auto">
+        <table className="w-full min-w-[800px] text-left font-mono text-xs">
           <thead className="border-b border-white/10 bg-black/40 text-zinc-400">
             <tr>
               <th className="py-3.5 pl-4 pr-3 font-semibold uppercase">Integrante</th>

@@ -50,7 +50,7 @@ export interface LogoProps {
 
   /**
    * Destino de link opcional:
-   * - true: Link padrão da divisão ('/' para autonomos, '/gestao#harpia', '/gestao#nautilus')
+   * - true: Link padrão da divisão ('/' para autonomos, '/gestao/divisoes#harpia', '/gestao/divisoes#nautilus')
    * - string: URL customizada (ex: '/', '/gestao', '/ensino')
    * - false | null | undefined: Renderiza elemento estático (não clicável)
    */
@@ -319,9 +319,9 @@ export function Logo({
   const computedHref =
     href === true
       ? division === "harpia"
-        ? "/gestao#harpia"
+        ? "/gestao/divisoes#harpia"
         : division === "nautilus"
-        ? "/gestao#nautilus"
+        ? "/gestao/divisoes#nautilus"
         : "/"
       : typeof href === "string"
       ? href
