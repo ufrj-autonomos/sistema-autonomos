@@ -2,11 +2,17 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { prisma } from '../src/lib/prisma';
 import { getGestaoStats } from '../src/lib/gestao';
+import { PrismaClient as InstitutionalClient } from '../src/generated/institutional';
 
 function stub(object: any, name: string, fn: (...args: any[]) => any) { object[name] = fn; }
 process.env.DATABASE_URL = 'postgresql://test:password@db.example.invalid:5432/postgres';
 stub(prisma, '$queryRaw', async () => [{ value: 1 }]);
-for (const model of [prisma.team, prisma.member, prisma.project]) stub(model, 'findMany', async () => []);
+process.env.INSTITUTIONAL_DATABASE_URL = 'postgresql://institutional_editor:password@db.example.invalid:5432/postgres';
+const institutional = new InstitutionalClient({ datasourceUrl: process.env.INSTITUTIONAL_DATABASE_URL });
+(globalThis as any).institutionalDb = institutional;
+for (const model of [institutional.team, institutional.member, institutional.project]) stub(model, 'findMany', async () => []);
+// Generic legacy data must never populate the directory or management indicators.
+for (const model of [prisma.team, prisma.member, prisma.project]) stub(model, 'findMany', async () => { throw new Error('Legacy directory must not be read'); });
 for (const model of [prisma.user, prisma.lesson, prisma.exercise]) stub(model, 'count', async () => 0);
 stub(prisma.course, 'findUnique', async () => null);
 

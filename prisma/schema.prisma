@@ -302,8 +302,28 @@ model Member {
   attendanceVisits AttendanceVisit[]
   attendancePunches AttendancePunch[]
   attendanceAudits AttendanceAudit[]
+  internalDetails MemberDetails?
 
   @@index([teamId])
+}
+
+// Public identities live in the institutional database. These IDs are external
+// references, never inferred from a name or from matching auto-increment IDs.
+model MemberDetails {
+  id                    String   @id @default(cuid())
+  institutionalMemberId Int      @unique
+  memberId              Int?     @unique
+  member                Member?  @relation(fields: [memberId], references: [id], onDelete: SetNull)
+  cpf                   String?  @unique
+  notes                 String?  @db.Text
+  updatedAt             DateTime @updatedAt
+}
+
+model ProjectDetails {
+  id                     String   @id @default(cuid())
+  institutionalProjectId Int      @unique
+  notes                  String?  @db.Text
+  updatedAt              DateTime @updatedAt
 }
 
 model AttendanceSettings {

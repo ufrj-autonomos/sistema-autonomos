@@ -4,6 +4,7 @@ import { bridgeHeaders, verifyBridge } from '../src/lib/institutional/bridge';
 import { recordData } from '../src/lib/institutional/records';
 import { contactData } from '../src/lib/institutional/contact';
 import { adminModels } from '../src/lib/institutional/admin-config';
+import { privateData } from '../src/lib/directory-validation';
 
 const secret = 'isolated-institutional-signature-secret-at-least-32';
 test('bridge signatures bind the body and purpose and reject altered or expired requests', () => {
@@ -38,4 +39,13 @@ test('contacts accept only bounded fields, known teams and valid email addresses
   assert.throws(() => contactData({ ...data, id: 1 }));
   assert.throws(() => contactData({ ...data, teamSlug: 'unexpected' }));
   assert.throws(() => contactData({ ...data, message: 'a'.repeat(6001) }));
+});
+
+test('private information cannot be written into public records and CPF is validated', () => {
+  for (const field of ['cpf', 'notes', 'userId', 'missedWeeks']) assert.throws(() => recordData('member', { [field]: 'private' }, false));
+  assert.deepEqual(privateData({ cpf: '529.982.247-25', notes: '  Privado  ', userId: '' }, true), { cpf: '52998224725', notes: 'Privado', userId: null });
+  for (const cpf of ['11111111111', '52998224724', '123', '52998224725abc']) assert.throws(() => privateData({ cpf, notes: '', userId: '' }, true));
+  assert.throws(() => privateData({ cpf: '', notes: '', userId: '', showOnSite: true }, true));
+  assert.deepEqual(recordData('member', { showOnSite: false }, false), { showOnSite: false });
+  assert.deepEqual(recordData('project', { showOnSite: true }, false), { showOnSite: true });
 });

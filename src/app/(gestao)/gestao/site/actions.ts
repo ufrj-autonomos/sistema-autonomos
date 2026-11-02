@@ -6,15 +6,21 @@ import { revalidatePath } from 'next/cache';
 import { requirePageUser } from '@/lib/session';
 import { getInstitutionalModel, recordData, institutionalFailure, InstitutionalError } from '@/lib/institutional/records';
 import { publishInstitutionalSite } from '@/lib/institutional/publish';
+import { directoryPath } from '@/lib/institutional/routes';
 
 async function changed(table: string) {
   revalidatePath('/gestao/site', 'layout');
   revalidatePath(`/gestao/site/${table.toLowerCase()}`);
+  revalidatePath(directoryPath(table), 'page');
+  revalidatePath(`${directoryPath(table)}/[id]`, 'page');
+  revalidatePath('/gestao');
+  revalidatePath('/gestao/divisoes');
+  revalidatePath('/gestao/presenca');
   return { success: true, warning: await publishInstitutionalSite() };
 }
 export async function createRecord(table: string, data: unknown): Promise<{ success: boolean; error?: string; warning?: string }> {
   await requirePageUser(true);
-  try { const { model } = getInstitutionalModel(table); await model.create({ data: recordData(table, data, true) }); return await changed(table); }
+  try { const { model } = getInstitutionalModel(table); const parsed = recordData(table, data, true); if (['member', 'project'].includes(table) && !('showOnSite' in parsed)) parsed.showOnSite = false; await model.create({ data: parsed }); return await changed(table); }
   catch (error) { return { success: false, error: institutionalFailure(error) }; }
 }
 export async function updateRecord(table: string, id: number, data: unknown): Promise<{ success: boolean; error?: string; warning?: string }> {

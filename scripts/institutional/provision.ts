@@ -33,7 +33,7 @@ async function main() {
         if (table !== 'ContactMessage') {
           await tx.$executeRawUnsafe(`GRANT SELECT ON public."${table}" TO institutional_reader`);
           await tx.$executeRawUnsafe(`DROP POLICY IF EXISTS institutional_reader_access ON public."${table}"`);
-          await tx.$executeRawUnsafe(`CREATE POLICY institutional_reader_access ON public."${table}" FOR SELECT TO institutional_reader USING (true)`);
+          await tx.$executeRawUnsafe(`CREATE POLICY institutional_reader_access ON public."${table}" FOR SELECT TO institutional_reader USING (${table === 'Member' || table === 'Project' ? '"showOnSite"' : table === 'GalleryImage' ? '"projectId" IS NULL OR EXISTS (SELECT 1 FROM public."Project" p WHERE p.id = "projectId" AND p."showOnSite")' : 'true'})`);
         }
       }
       const sequences = await tx.$queryRaw<Array<{ name: string }>>`SELECT c.relname AS name FROM pg_class c JOIN pg_namespace n ON n.oid=c.relnamespace WHERE n.nspname='public' AND c.relkind='S'`;

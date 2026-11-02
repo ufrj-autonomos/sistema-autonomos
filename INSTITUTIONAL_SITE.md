@@ -1,7 +1,9 @@
 # Administração do site institucional
 
-A administração original do `site-autonomos` foi transportada para **Gestão →
-Site institucional** (`/gestao/site`). As tabelas, campos, editor Markdown,
+A administração original do `site-autonomos` foi transportada para a gestão.
+**Integrantes** (`/gestao/integrantes`) e **Projetos** (`/gestao/projetos`) são
+seções próprias. Os demais conteúdos ficam em **Site institucional**
+(`/gestao/site`). As tabelas, campos, editor Markdown,
 traduções e formulários originais foram reutilizados, com autorização de Gestão ou Admin no
 servidor. O conteúdo continua no projeto Supabase institucional; não foi importado
 para o banco de contas, cursos ou presença.
@@ -25,6 +27,56 @@ Não execute `db:push` do esquema principal no banco institucional. O esquema
 institucional documenta a estrutura já existente; `db:generate` apenas gera os
 clientes e não modifica nenhum banco. O deploy aplica somente as migrações do
 banco principal, como antes.
+
+## Cadastro compartilhado de integrantes e projetos
+
+O banco institucional é a fonte dos dados públicos e compartilhados. A gestão lê
+e edita os registros existentes diretamente, preservando seus IDs, traduções,
+imagens e associações. A visão geral e as divisões também consultam essa fonte.
+Não se usa o diretório genérico do banco interno como alternativa em caso de erro.
+
+`MemberDetails` e `ProjectDetails`, no banco interno, guardam somente os dados
+privados e a referência explícita ao ID institucional. CPF e observações nunca
+entram no banco público. Gestão e Admin podem consultá-los e editá-los.
+
+Em **Integrantes → editar → Dados internos**, a gestão pode vincular uma conta
+aprovada da mesma pessoa. O vínculo usa o `Member` interno já existente e preserva
+todos os períodos, visitas, marcações e auditorias de presença. Não há associação
+automática por nome nem pela coincidência dos IDs dos dois bancos. Desvincular
+uma conta também preserva o histórico. Uma conta e um CPF só podem pertencer a um
+cadastro institucional. Contas suspensas já vinculadas continuam disponíveis para
+consulta; a suspensão segue controlada em Contas e permissões.
+
+A lista e a edição do integrante mostram as semanas abaixo da meta usando o
+cálculo de presença existente, sem contar semanas em andamento como faltas.
+Sem vínculo, o acompanhamento aparece como não associado. A presença usa o nome
+e a área atuais do cadastro institucional quando há vínculo; os registros internos
+antigos continuam preservados. Remover um cadastro institucional não apaga presença
+ou dados privados: prefira desativar/ocultar quando precisar preservar o acesso ao cadastro.
+
+`showOnSite` controla a publicação de integrantes e projetos, independentemente
+de `active`. Os registros que já existiam continuam públicos; novos formulários
+começam com **Exibir no site** desmarcado. O leitor público tem políticas RLS que
+ocultam integrantes, projetos e galerias associadas a projetos ocultos, incluindo
+consultas por slug, contagens, relações e sitemap. O editor continua vendo todos.
+O site público atual já usa esse leitor e não precisa de outra conexão ou acesso
+ao banco interno. O cache público é invalidado após alterações, com aviso se a
+publicação não for confirmada.
+
+Antes de publicar a versão com o diretório unificado:
+
+1. Aplique `npm run db:deploy` no banco interno.
+2. Defina temporariamente `INSTITUTIONAL_OWNER_DATABASE_URL` e execute
+   `npm run db:institutional-directory`. O script aplica somente o SQL aditivo
+   de `scripts/institutional/shared-directory.sql`; ele pode ser repetido e não
+   substitui conteúdo ou a visibilidade dos registros existentes.
+3. Publique o sistema. Não é necessário executar seed, importar os cadastros
+   genéricos ou recriar os dados do site. As rotas antigas de membros e projetos
+   em `/gestao/site` redirecionam para suas novas seções.
+
+O proprietário é necessário apenas para essa migração. O editor de runtime não
+recebe permissão de alterar tabelas ou políticas. Em um banco institucional novo,
+o provisionamento já instala as políticas com o filtro de visibilidade.
 
 ## Variáveis na Vercel
 

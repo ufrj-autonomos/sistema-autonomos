@@ -1,4 +1,5 @@
 import { prisma } from '@/lib/prisma';
+import { db } from '@/lib/institutional/db';
 import type { DivisionData, GestaoStatsResponse, MemberRecord, ProjectRecord } from '@/components/gestao/types';
 
 export async function getGestaoStats(): Promise<GestaoStatsResponse> {
@@ -6,9 +7,9 @@ export async function getGestaoStats(): Promise<GestaoStatsResponse> {
   await prisma.$queryRaw`SELECT 1`;
   const dbLatencyMs = Date.now() - started;
   const [teams, members, projects, totalUsers, totalStudents, course, totalLessons, totalExercises, availableVideos, pendingVideos, textOnlyLessons] = await Promise.all([
-    prisma.team.findMany({ include: { members: true, projects: true } }),
-    prisma.member.findMany({ include: { team: true }, orderBy: [{ active: 'desc' }, { id: 'asc' }] }),
-    prisma.project.findMany({ include: { team: true }, orderBy: { year: 'desc' } }),
+    db.team.findMany({ include: { members: true, projects: true } }),
+    db.member.findMany({ include: { team: true }, orderBy: [{ active: 'desc' }, { id: 'asc' }] }),
+    db.project.findMany({ include: { team: true }, orderBy: { year: 'desc' } }),
     prisma.user.count(),
     prisma.user.count({ where: { status: 'APPROVED', courseProgress: { some: {} } } }),
     prisma.course.findUnique({ where: { slug: 'ros2-jazzy' }, include: { _count: { select: { modules: true } } } }),
@@ -51,7 +52,7 @@ export async function getGestaoStats(): Promise<GestaoStatsResponse> {
     success: true, timestamp,
     kpis: {
       totalMembers: members.filter(member => member.active).length, totalMembersLabel: `${members.length} cadastrados no diretório`,
-      activeProjects: projects.filter(project => /operacional|testes?|ativo/i.test(project.status) && !/inativo/i.test(project.status)).length,
+      activeProjects: projects.filter(project => /^(operacao|operacional|testes?|ativo|desenvolvimento)$/i.test(project.status) && !/inativo/i.test(project.status)).length,
       activeProjectsLabel: `${projects.length} projetos cadastrados`, totalStudents, totalStudentsLabel: `${totalUsers} contas registradas no sistema`,
       platformUptime: 'Não monitorado', platformStatus: 'online', dbLatencyMs,
     },

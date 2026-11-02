@@ -49,22 +49,6 @@ export default async function AdminDashboard() {
 
   const STATS = [
     {
-      title: "Membros",
-      count: totalMembers,
-      sub: `${activeMembers} ativos no momento`,
-      path: "member",
-      icon: Users,
-      color: "from-blue-500/20 to-blue-500/5 text-blue-400 border-blue-500/30",
-    },
-    {
-      title: "Projetos",
-      count: totalProjects,
-      sub: "Veículos, subsistemas e P&D",
-      path: "project",
-      icon: Rocket,
-      color: "from-emerald-500/20 to-emerald-500/5 text-emerald-400 border-emerald-500/30",
-    },
-    {
       title: "Eventos na História",
       count: totalEvents,
       sub: "Marcos históricos com suporte a .md",
@@ -109,10 +93,10 @@ export default async function AdminDashboard() {
               <span>Painel de Controle Central</span>
             </div>
             <h1 className="font-display text-2xl sm:text-4xl font-semibold tracking-tight text-foreground">
-              Visão Geral do Sistema
+              Site institucional
             </h1>
             <p className="text-sm text-muted-foreground leading-relaxed">
-              Gerencie membros, equipes, projetos de engenharia, fotos e marcos da história da UFRJ Autônomos. Suporte completo a formatação em Markdown (.md).
+              Gerencie equipes, competições, patrocinadores, fotos e marcos da história da UFRJ Autônomos. Integrantes e projetos têm seções próprias na gestão. Suporte completo a formatação em Markdown (.md).
             </p>
           </div>
 
@@ -125,7 +109,7 @@ export default async function AdminDashboard() {
               <span>Novo Evento (.md)</span>
             </Link>
             <Link
-              href="/gestao/site/member/new"
+              href="/gestao/integrantes/new"
               className="inline-flex items-center gap-2 rounded-lg border border-border bg-card px-4 py-2.5 text-xs font-medium text-foreground hover:bg-muted transition-colors"
             >
               <Plus className="h-4 w-4" />

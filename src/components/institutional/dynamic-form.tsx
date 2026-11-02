@@ -25,6 +25,7 @@ import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from "@/comp
 import { MarkdownEditor } from "@/components/institutional/markdown-editor";
 import { toast } from "sonner";
 import { useInstitutionalAsset } from "./site-context";
+import { directoryPath } from "@/lib/institutional/routes";
 import { cn } from "@/lib/utils";
 
 function JsonArrayInput({
@@ -186,7 +187,7 @@ export function DynamicForm({
     setIsSaving(true);
     setError(null);
 
-    const parsedData = { ...formData };
+    const parsedData = Object.fromEntries(Object.entries(formData).filter(([key]) => config.fields.some(field => field.name === key) || (config.table === "member" && ["roleEn", "roleFr"].includes(key))));
 
     try {
       // 1. Upload pending files first
@@ -313,7 +314,7 @@ export function DynamicForm({
       toast.success(
         isNew ? "Registro criado com sucesso!" : "Registro atualizado com sucesso!"
       );
-      router.push(`/gestao/site/${tableSlug}`);
+      router.push(directoryPath(tableSlug));
     } catch (err: any) {
       console.error(err);
       setError(err.message || "Ocorreu um erro ao salvar o registro.");
@@ -558,9 +559,12 @@ export function DynamicForm({
           </label>
           <button
             type="button"
+            role="switch"
+            aria-checked={isChecked}
+            aria-label={field.label}
             onClick={() => handleChange(field, !isChecked)}
             className={cn(
-              "flex items-center gap-2 px-3 py-1.5 rounded-md border text-xs font-mono transition-colors cursor-pointer",
+              "flex min-h-11 items-center gap-2 px-3 py-1.5 rounded-md border text-xs transition-colors cursor-pointer focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary",
               isChecked
                 ? isGenderField
                   ? "border-rose-500/40 bg-rose-500/10 text-rose-400 font-medium"
@@ -579,6 +583,8 @@ export function DynamicForm({
                 ? isChecked
                   ? "Feminino (adapta Coordenadora, Diretora, etc.)"
                   : "Masculino (Coordenador, Diretor, etc.)"
+                : field.name === "showOnSite"
+                ? isChecked ? "Visível no site" : "Somente na gestão"
                 : isChecked
                 ? "Sim / Ativo"
                 : "Não / Inativo"}
@@ -866,7 +872,7 @@ export function DynamicForm({
         <div className="flex items-center gap-3 w-full sm:w-auto">
           <button
             type="button"
-            onClick={() => router.push(`/gestao/site/${tableSlug}`)}
+            onClick={() => router.push(directoryPath(tableSlug))}
             className="flex-1 sm:flex-none rounded-lg border border-border px-4 py-2.5 text-xs font-medium text-foreground hover:bg-muted transition-colors"
             disabled={isSaving}
           >

@@ -88,7 +88,7 @@ Regras de acesso: [ACCESS_CONTROL.md](ACCESS_CONTROL.md).
 A gestão tem layout próprio e sidebar compartilhada, com menu lateral no celular.
 A visão geral destaca aprovações pendentes e presença semanal. Os sistemas ficam
 em páginas independentes: `/gestao/contas`, `/gestao/integrantes`,
-`/gestao/presenca`, `/gestao/divisoes` e `/gestao/sistema`.
+`/gestao/projetos`, `/gestao/presenca`, `/gestao/divisoes` e `/gestao/sistema`.
 Contas aprovadas de Gestão e Admin podem acessar essas páginas.
 
 Novos sistemas entram no catálogo `src/lib/management-navigation.ts`, utilizado
@@ -98,7 +98,12 @@ retorna à navegação de início, ensino e presença individual.
 
 ## Site institucional
 
-As telas originais do admin do `site-autonomos` foram incorporadas à gestão em
-`/gestao/site`, com conexão separada ao banco institucional e acesso de
-Gestão e Admin. Não há cópia de dados para o banco interno. Configuração dos dois projetos,
+Integrantes e projetos têm seções próprias na gestão. Os cadastros atualizados do
+site são a fonte dos dados compartilhados, inclusive para indicadores e divisões;
+os dados genéricos internos não os substituem. CPF, observações internas e vínculos
+com contas/presença ficam exclusivamente no banco do sistema, com acesso de Gestão
+e Admin. Cada cadastro pode ser exibido ou ocultado no site.
+
+Os demais conteúdos do admin do `site-autonomos` ficam em `/gestao/site`, com
+conexão separada ao banco institucional. Configuração dos dois projetos,
 variáveis da Vercel e ordem da troca: [INSTITUTIONAL_SITE.md](INSTITUTIONAL_SITE.md).

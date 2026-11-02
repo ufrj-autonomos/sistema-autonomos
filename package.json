@@ -25,7 +25,8 @@
     "test:database": "node --import tsx tests/database-production.test.ts && node --import tsx tests/attendance-database.test.ts && node --import tsx tests/institutional-database.test.ts",
     "test:attendance": "node --import tsx tests/attendance.test.ts",
     "test:institutional": "node --import tsx tests/institutional.test.ts",
-    "check:proxy": "node scripts/check-proxy-bundle.mjs"
+    "check:proxy": "node scripts/check-proxy-bundle.mjs",
+    "db:institutional-directory": "node --import tsx scripts/institutional/migrate-directory.ts"
   },
   "prisma": {
     "seed": "tsx prisma/seed.ts"

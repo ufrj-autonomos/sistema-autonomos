@@ -1,5 +1,5 @@
 import { requirePageUser } from '@/lib/session';
-import { notFound } from "next/navigation";
+import { redirect, notFound } from "next/navigation";
 import Link from "next/link";
 import { ArrowLeft, Sparkles, FileText } from "lucide-react";
 import { adminModels } from "@/lib/institutional/admin-config";
@@ -10,6 +10,8 @@ export default async function AdminFormPage(props: { params: Promise<{ table: st
   await requirePageUser(true);
   const params = await props.params;
   const { table: tableSlug, id } = params;
+  if (tableSlug === "member") redirect(`/gestao/integrantes/${id}`);
+  if (tableSlug === "project") redirect(`/gestao/projetos/${id}`);
   const config = adminModels[tableSlug];
 
   if (!config) {

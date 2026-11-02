@@ -43,11 +43,12 @@ export const adminModels: Record<string, AdminModel> = {
     ]
   },
   member: {
-    name: "Membros",
+    name: "Integrantes",
     table: "member",
     primaryKey: "id",
-    listFields: ["name", "role", "area", "age", "teamId", "active"],
+    listFields: ["name", "role", "area", "age", "teamId", "active", "showOnSite"],
     fields: [
+      { name: "showOnSite", label: "Exibir no site", type: "boolean", description: "Desmarque para manter este cadastro visível apenas na gestão." },
       { name: "name", label: "Nome", type: "string", required: true, description: "Nome completo do membro. Ex: João da Silva" },
       { name: "teamId", label: "Equipe / Divisão", type: "select", options: [{ label: 'UFRJ Autônomos (Geral: Gestão, Marketing, Diretoria)', value: '' }, ...teamOptions], required: false, description: "Selecione a equipe. Deixe como Autônomos para membros de Gestão, Marketing, Diretoria e Capitania." },
       { name: "role", label: "Cargo", type: "select", required: true, description: "Cargo atual do membro.", options: [
@@ -93,8 +94,9 @@ export const adminModels: Record<string, AdminModel> = {
     name: "Projetos",
     table: "project",
     primaryKey: "id",
-    listFields: ["name", "slug", "importance", "teamId", "status", "year"],
+    listFields: ["name", "slug", "importance", "teamId", "status", "year", "showOnSite"],
     fields: [
+      { name: "showOnSite", label: "Exibir no site", type: "boolean", description: "Desmarque para manter este cadastro visível apenas na gestão." },
       { name: "name", label: "Nome", type: "string", required: true, description: "Nome do projeto. Ex: Robô AUV Lua" },
       { name: "importance", label: "Importância (1 a 10)", type: "number", required: true, description: "Prioridade de exibição (1 a 10). Projetos com valor maior (ex: 10) aparecem no topo." },
       { name: "teamId", label: "Equipe", type: "select", options: teamOptions, required: true, description: "Equipe responsável pelo projeto." },

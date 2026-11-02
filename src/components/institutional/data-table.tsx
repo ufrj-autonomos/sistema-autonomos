@@ -23,6 +23,7 @@ import type { AdminModel } from "@/lib/institutional/admin-config";
 import { deleteRecord } from "@/app/(gestao)/gestao/site/actions";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/institutional/ui/dialog";
 import { useInstitutionalAsset } from "./site-context";
+import { directoryPath } from "@/lib/institutional/routes";
 import { cn } from "@/lib/utils";
 
 export function DataTable({
@@ -506,7 +507,7 @@ export function DataTable({
                                 isActive ? "bg-emerald-400" : "bg-muted-foreground"
                               )}
                             />
-                            {isActive ? "Ativo" : "Inativo"}
+                            {fieldKey === "showOnSite" ? (isActive ? "Visível no site" : "Somente na gestão") : (isActive ? "Ativo" : "Inativo")}
                           </span>
                         </td>
                       );
@@ -575,7 +576,7 @@ export function DataTable({
                   <td className="px-5 py-3 text-right">
                     <div className="flex items-center justify-end gap-1.5">
                       <Link
-                        href={`/gestao/site/${tableSlug}/${row.id}`}
+                        href={`${directoryPath(tableSlug)}/${row.id}`}
                         className="inline-flex items-center gap-1 rounded-md border border-border bg-card px-2.5 py-1 text-xs text-foreground hover:bg-muted transition-colors"
                         title="Editar registro"
                       >

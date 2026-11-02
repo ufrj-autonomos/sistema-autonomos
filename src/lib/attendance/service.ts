@@ -6,6 +6,7 @@ import { dateKey, localDateTime, weekKey, weekRange } from './time';
 import { memberSummary, reportSummary, visitDto } from './summary';
 import type { AttendanceReport, ScanResult } from './types';
 import { GOAL_LABELS } from './format';
+import { db as institutionalDb } from '@/lib/institutional/db';
 
 export class AttendanceError extends Error {
   constructor(message: string, public status = 400) { super(message); }
@@ -26,11 +27,17 @@ export async function attendanceReport(key = weekKey(), userId?: string, now = n
   if (!settings) throw new AttendanceError('O controle de presença ainda não foi configurado.', 503);
   const members = await prisma.member.findMany({
     where: userId ? { userId } : { attendancePeriods: { some: {} } },
-    include: { user: { select: { email: true } }, attendancePeriods: { orderBy: { startsOn: 'asc' } },
+    include: { internalDetails: { select: { institutionalMemberId: true } }, user: { select: { email: true } }, attendancePeriods: { orderBy: { startsOn: 'asc' } },
       attendanceVisits: { where: { checkedInAt: { lt: range.end } }, orderBy: { checkedInAt: 'desc' } } },
     orderBy: { name: 'asc' },
   });
-  const summaries = members.map(member => memberSummary({ id: member.id, name: member.name, area: member.area, email: member.user?.email || null }, member.attendancePeriods, member.attendanceVisits, range.key, now, settings.maxSessionSeconds))
+  const ids = members.flatMap(member => member.internalDetails ? [member.internalDetails.institutionalMemberId] : []);
+  const identities = ids.length ? await institutionalDb.member.findMany({ where: { id: { in: ids } }, select: { id: true, name: true, area: true } }) : [];
+  const byId = new Map(identities.map(member => [member.id, member]));
+  const summaries = members.map(member => {
+    const identity = member.internalDetails ? byId.get(member.internalDetails.institutionalMemberId) : undefined;
+    return memberSummary({ id: member.id, name: identity?.name || member.name, area: identity?.area || member.area, email: member.user?.email || null }, member.attendancePeriods, member.attendanceVisits, range.key, now, settings.maxSessionSeconds);
+  })
     .filter(member => userId || member.requiredSeconds > 0 || member.visits.length > 0);
   return {
     serverNow: now.toISOString(), week: { key: range.key, sunday: range.sunday, start: range.start.toISOString(), end: range.end.toISOString(), isCurrent: range.key === weekKey(now), isClosed: range.end <= now },
