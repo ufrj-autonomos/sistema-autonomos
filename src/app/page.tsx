@@ -1,6 +1,7 @@
 import { AttendanceCard } from '@/components/attendance/attendance-card';
 import { attendanceReport } from '@/lib/attendance/service';
 import Link from 'next/link';
+import { hasManagementAccess } from '@/lib/access-policy';
 import { ArrowRight, BookOpen, ShieldCheck } from 'lucide-react';
 import { requirePageUser } from '@/lib/session';
 import { prisma } from '@/lib/prisma';
@@ -24,7 +25,7 @@ export default async function HomePage() {
           <h1 className="font-display text-3xl font-semibold text-zinc-100 sm:text-4xl">Olá, {user.name.split(' ')[0]}.</h1>
           <p className="mt-3 max-w-2xl text-base leading-relaxed text-zinc-400">Este é o seu espaço na UFRJ Autônomos. Continue aprendendo sobre robótica.</p>
         </div>
-        {user.role === 'ADMIN' && <Link href="/gestao" className="inline-flex min-h-11 items-center gap-2 rounded-lg border border-zinc-700 px-4 py-2 text-sm text-zinc-200 hover:bg-zinc-900 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-zinc-300"><ShieldCheck className="h-4 w-4" />Abrir gestão</Link>}
+        {hasManagementAccess(user.role) && <Link href="/gestao" className="inline-flex min-h-11 items-center gap-2 rounded-lg border border-zinc-700 px-4 py-2 text-sm text-zinc-200 hover:bg-zinc-900 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-zinc-300"><ShieldCheck className="h-4 w-4" />Abrir gestão</Link>}
       </header>
 
       <AttendanceCard initial={attendance} />

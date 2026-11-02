@@ -1,31 +1,39 @@
 # Acesso à plataforma
 
-Somente contas com situação `APPROVED` podem entrar. O início apresenta os cursos
-e o progresso da própria pessoa. Somente `ADMIN`
-aprovado acessa `/gestao`, suas subseções, `/api/gestao/*` e `/api/admin/*`.
-Os perfis `STUDENT`, `MEMBER` e `INSTRUCTOR` acessam início, ensino e presença individual.
+Somente contas aprovadas podem entrar. Os perfis são **Trainee**, **Membro**,
+**Gestão** e **Admin**. Novos cadastros começam como Trainee e aguardam aprovação.
 
-## Administração
+| Perfil | Início, ensino e presença pessoal | Áreas de gestão | Contas e permissões |
+| --- | --- | --- | --- |
+| Trainee | Sim | Não | Sem acesso |
+| Membro | Sim | Não | Sem acesso |
+| Gestão | Sim | Sim, incluindo presença, site institucional e sistema | Consulta e aprovação/recusa de cadastros pendentes de Trainee/Membro |
+| Admin | Sim | Sim | Controle completo de cargos e situações |
 
-A gestão tem navegação própria em sidebar, menu lateral no celular e páginas por
-sistema. Em **Gestão → Contas e permissões** (`/gestao/contas`), use os filtros de
-nome/email e situação para:
+## Contas e permissões
 
-- Nas contas pendentes, usar **Aceitar** (verde) ou **Negar e excluir** (vermelho).
-- Após aceitar, alterar perfil e situação pelos controles exibidos na conta.
-- Suspender contas e reaprovar quando necessário.
-- Alterar o perfil para aluno, membro, instrutor ou administrador.
+Em **Gestão → Contas e permissões**, todos os perfis de gestão podem consultar a
+lista. Gestão vê os botões **Aceitar** e **Negar e excluir** somente em cadastros
+pendentes de Trainee ou Membro; após aceitar, a conta fica somente para consulta.
+Gestão não pode enviar cargo no pedido, promover a si próprio ou outras contas,
+suspender, reativar ou excluir contas já aprovadas. Contas pendentes com cargo de
+Gestão/Admin só podem ser liberadas por Admin, para evitar promoção indireta.
 
-Alterações de perfil valem na próxima requisição, mesmo com um cookie antigo.
-Rejeitar exclui definitivamente a conta, suas sessões e seu progresso nos cursos.
-Ela sai da lista assim que a ação é iniciada. Se a exclusão falhar, a conta é
-restaurada na lista e o erro é exibido. Contas rejeitadas anteriormente não aparecem.
-O perfil de integrante, se houver, é preservado e desvinculado da conta. O email
-fica disponível para um novo cadastro, que precisará de aprovação novamente.
-Suspensão e retorno à situação pendente revogam todas as sessões da conta.
-Reaprovar exige novo login. O último administrador aprovado não pode perder esse
-perfil nem ter sua conta desativada. A verificação ocorre em transação serializável;
-em caso de alteração concorrente, a API retorna conflito e solicita uma nova tentativa.
+Admin pode aprovar, recusar, alterar cargos, suspender e reaprovar contas. Somente
+Admin pode conceder Gestão ou Admin. O último Admin aprovado não pode ser removido,
+suspenso ou perder o cargo; Gestão não substitui esse Admin na proteção.
+
+As mesmas regras são validadas nas APIs e na transação de alteração, mesmo com
+requisições diretas ou um cookie com cargo antigo. Rejeitar exclui a conta, suas
+sessões e seu progresso, preservando e desvinculando o perfil de integrante e o
+histórico de presença. A linha some imediatamente e é restaurada se a exclusão
+falhar. Suspender ou voltar à situação pendente revoga as sessões da conta.
+Reaprovar exige novo login.
+
+Os nomes dos cargos no Prisma são `TRAINEE`, `MEMBER`, `MANAGEMENT` e `ADMIN`.
+`@map` mantém os valores históricos de armazenamento de Trainee/Gestão, sem
+renomear tipos no PostgreSQL nem invalidar o código da implantação anterior.
+Nenhuma conta existente é promovida nesta atualização; Gestão é atribuída por Admin.
 
 ## Banco e configuração
 

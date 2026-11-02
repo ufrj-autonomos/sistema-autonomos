@@ -1,7 +1,7 @@
 import { ensureAttendanceEnrollment, closeAttendanceEnrollment } from './attendance/enrollment';
 import { AccountStatus, Prisma, Role } from '@prisma/client';
 import { prisma } from './prisma';
-import { ACCOUNT_STATUSES, ROLES } from './access-policy';
+import { ACCOUNT_STATUSES, ROLES, hasManagementAccess } from './access-policy';
 import { safeUserSelect } from './session';
 
 export class AccountUpdateError extends Error {
@@ -21,9 +21,12 @@ export async function updateAccount(actorId: string, targetId: string, input: un
   try {
     return await prisma.$transaction(async tx => {
       const actor = await tx.user.findUnique({ where: { id: actorId } });
-      if (actor?.role !== 'ADMIN' || actor.status !== 'APPROVED') throw new AccountUpdateError('Acesso exclusivo para administradores aprovados.', 403);
+      if (!actor || !hasManagementAccess(actor.role) || actor.status !== 'APPROVED') throw new AccountUpdateError('Acesso exclusivo para Gestão e Admin aprovados.', 403);
       const target = await tx.user.findUnique({ where: { id: targetId } });
       if (!target) throw new AccountUpdateError('Conta não encontrada.', 404);
+      if (actor.role !== 'ADMIN' && (Object.keys(data).length !== 1 || data.role !== undefined || target.status !== 'PENDING' || !['TRAINEE', 'MEMBER'].includes(target.role) || !['APPROVED', 'REJECTED'].includes(String(data.status)))) {
+        throw new AccountUpdateError('Gestão pode apenas aceitar ou recusar cadastros pendentes de Trainee e Membro. Somente Admin altera cargos e situações.', 403);
+      }
       const role = (data.role ?? target.role) as Role;
       const status = (data.status ?? target.status) as AccountStatus;
       if (target.role === 'ADMIN' && target.status === 'APPROVED' && (role !== 'ADMIN' || status !== 'APPROVED')) {

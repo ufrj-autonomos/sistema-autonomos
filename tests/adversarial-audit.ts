@@ -133,7 +133,7 @@ async function runAdversarialAudit() {
       sub: 'user-audit-123',
       email: 'audit@autonomos.ufrj.br',
       name: 'Auditor',
-      role: 'STUDENT',
+      role: 'TRAINEE',
     });
 
     // Tampered token (change payload)
@@ -168,7 +168,7 @@ async function runAdversarialAudit() {
       sub: 'ghost-user-id-does-not-exist',
       email: 'ghost@autonomos.ufrj.br',
       name: 'Ghost',
-      role: 'STUDENT',
+      role: 'TRAINEE',
     });
     const ghostRes = await meModule.GET(new Request('http://localhost:3000/api/auth/me', {
       headers: { cookie: `autonomos_session=${ghostToken}` },
@@ -188,7 +188,7 @@ async function runAdversarialAudit() {
         email: testCascadeEmail,
         name: 'Cascade Test User',
         passwordHash: '$2a$10$dummyhashforcadcadedeleterobustnesstest',
-        role: 'STUDENT',
+        role: 'TRAINEE',
       },
     });
 

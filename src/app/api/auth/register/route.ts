@@ -53,7 +53,7 @@ export async function POST(req: NextRequest) {
         email: normalizedEmail,
         name: name.trim(),
         passwordHash,
-        role: 'STUDENT',
+        role: 'TRAINEE',
         status: 'PENDING',
       },
       select: {

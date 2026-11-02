@@ -2,7 +2,7 @@
 
 A administração original do `site-autonomos` foi transportada para **Gestão →
 Site institucional** (`/gestao/site`). As tabelas, campos, editor Markdown,
-traduções e formulários originais foram reutilizados, com autorização ADMIN no
+traduções e formulários originais foram reutilizados, com autorização de Gestão ou Admin no
 servidor. O conteúdo continua no projeto Supabase institucional; não foi importado
 para o banco de contas, cursos ou presença.
 

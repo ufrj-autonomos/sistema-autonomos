@@ -16,8 +16,8 @@ datasource db {
 // ---------------------------------------------------------------------------
 
 enum Role {
-  STUDENT
-  INSTRUCTOR
+  TRAINEE    @map("STUDENT")
+  MANAGEMENT @map("INSTRUCTOR")
   MEMBER
   ADMIN
 }
@@ -69,7 +69,7 @@ model User {
   email        String   @unique
   name         String
   passwordHash String
-  role         Role     @default(STUDENT)
+  role         Role     @default(TRAINEE)
   status       AccountStatus @default(PENDING)
   avatar       String?
   createdAt    DateTime @default(now())

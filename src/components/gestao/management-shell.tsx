@@ -4,6 +4,7 @@ import { useEffect, useRef, useState, type ReactNode } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { ArrowLeft, ArrowUpRight, ChevronRight, Clock3, LayoutDashboard, Globe, LogOut, Menu, Network, Server, ShieldCheck, Users, X } from 'lucide-react';
+import { hasManagementAccess, ROLE_LABELS } from '@/lib/access-policy';
 import { useSession } from '@/contexts/auth-context';
 import type { SafeUser } from '@/lib/session';
 import { getManagementSection, MANAGEMENT_SECTIONS, INSTITUTIONAL_LINKS } from '@/lib/management-navigation';
@@ -28,7 +29,7 @@ export function ManagementShell({ children, initialUser }: { children: ReactNode
     desktop.addEventListener('change', closeOnDesktop);
     return () => desktop.removeEventListener('change', closeOnDesktop);
   }, []);
-  useEffect(() => { if (!isLoading && user && user.role !== 'ADMIN') router.replace('/'); }, [user, isLoading, router]);
+  useEffect(() => { if (!isLoading && user && !hasManagementAccess(user.role)) router.replace('/'); }, [user, isLoading, router]);
   function closeMenu() { mobileMenu.current?.close(); menuTrigger.current?.focus(); }
   async function signOut() { setLeaving(true); try { await logout(); } finally { setLeaving(false); } }
   function navigation(mobile = false) {
@@ -56,7 +57,7 @@ export function ManagementShell({ children, initialUser }: { children: ReactNode
         <Link href="/" className={`flex min-h-11 items-center gap-3 rounded-lg px-3 text-sm text-zinc-300 hover:bg-zinc-800 ${focus}`}><ArrowLeft className="h-[18px] w-[18px]" />Área do membro<ArrowUpRight className="ml-auto h-4 w-4 text-zinc-400" /></Link>
         <div className="mt-3 flex items-center gap-3 border-t border-zinc-800 px-3 pt-4">
           <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-zinc-800 text-sm font-semibold" aria-hidden="true">{currentUser.name.slice(0, 1).toLocaleUpperCase('pt-BR')}</div>
-          <div className="min-w-0 flex-1"><p className="truncate text-sm text-zinc-200" title={currentUser.name}>{currentUser.name}</p><p className="mt-0.5 text-xs text-zinc-400">Administrador</p></div>
+          <div className="min-w-0 flex-1"><p className="truncate text-sm text-zinc-200" title={currentUser.name}>{currentUser.name}</p><p className="mt-0.5 text-xs text-zinc-400">{ROLE_LABELS[currentUser.role as keyof typeof ROLE_LABELS] || 'Conta aprovada'}</p></div>
           <button type="button" disabled={leaving} onClick={() => void signOut()} aria-label={leaving ? 'Saindo da conta' : 'Sair da conta'} title="Sair da conta" className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-lg text-zinc-400 hover:bg-zinc-800 hover:text-white disabled:opacity-50 ${focus}`}><LogOut className="h-[18px] w-[18px]" /></button>
         </div>
       </div>
@@ -72,7 +73,7 @@ export function ManagementShell({ children, initialUser }: { children: ReactNode
       <header className="sticky top-0 z-30 flex min-h-16 items-center gap-3 border-b border-zinc-800 bg-[#0A0A0B] px-4 sm:px-8 print:hidden">
         <button ref={menuTrigger} type="button" onClick={() => mobileMenu.current?.showModal()} aria-label="Abrir menu da gestão" aria-haspopup="dialog" className={`-ml-2 flex h-11 w-11 shrink-0 items-center justify-center rounded-lg text-zinc-300 hover:bg-zinc-800 lg:hidden ${focus}`}><Menu className="h-5 w-5" /></button>
         <nav aria-label="Localização" className="min-w-0 flex-1"><ol className="flex items-center gap-2 text-sm"><li><Link href="/gestao" className={`rounded-sm text-zinc-400 hover:text-white ${focus}`}>Gestão</Link></li><li aria-hidden="true"><ChevronRight className="h-3.5 w-3.5 text-zinc-500" /></li><li className="truncate text-zinc-200">{isQr ? <Link href="/gestao/presenca" className={`rounded-sm hover:text-white ${focus}`}>{section?.label}</Link> : <span aria-current="page">{section?.label || 'Página não encontrada'}</span>}</li>{isQr && <><li aria-hidden="true"><ChevronRight className="h-3.5 w-3.5 text-zinc-500" /></li><li aria-current="page" className="truncate text-zinc-200">QR code</li></>}</ol></nav>
-        <span className="hidden items-center gap-2 text-xs text-zinc-400 sm:inline-flex"><ShieldCheck className="h-4 w-4" />Acesso administrativo</span>
+        <span className="hidden items-center gap-2 text-xs text-zinc-400 sm:inline-flex"><ShieldCheck className="h-4 w-4" />Acesso à gestão</span>
       </header>
       <main id="management-content" tabIndex={-1} className="mx-auto w-full max-w-[1600px] px-4 py-7 outline-none sm:px-8 sm:py-9 print:p-0">{children}</main>
     </div>

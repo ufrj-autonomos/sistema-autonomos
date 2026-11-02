@@ -77,7 +77,7 @@ O catálogo de ROS 2 Jazzy contém 11 módulos e 108 aulas, com 52 vídeos vincu
 YouTube na atualização de 1º de novembro de 2026. Os dados iniciais ficam em
 `prisma/seed.ts`, e os textos traduzidos em `prisma/translated-lessons.json`.
 
-Somente contas aprovadas podem entrar. A gestão é exclusiva para administradores.
+Somente contas aprovadas podem entrar. A gestão é acessível a Gestão e Admin. Somente Admin altera cargos e situações; Gestão aceita ou recusa cadastros pendentes.
 Rejeitar exclui a conta; suspender revoga suas sessões. O último administrador
 aprovado não pode ser removido nem perder suas permissões.
 
@@ -89,7 +89,7 @@ A gestão tem layout próprio e sidebar compartilhada, com menu lateral no celul
 A visão geral destaca aprovações pendentes e presença semanal. Os sistemas ficam
 em páginas independentes: `/gestao/contas`, `/gestao/integrantes`,
 `/gestao/presenca`, `/gestao/divisoes` e `/gestao/sistema`.
-Somente administradores aprovados podem acessar essas páginas.
+Contas aprovadas de Gestão e Admin podem acessar essas páginas.
 
 Novos sistemas entram no catálogo `src/lib/management-navigation.ts`, utilizado
 pela sidebar, pelos links da visão geral e pela localização no cabeçalho. Cada
@@ -99,6 +99,6 @@ retorna à navegação de início, ensino e presença individual.
 ## Site institucional
 
 As telas originais do admin do `site-autonomos` foram incorporadas à gestão em
-`/gestao/site`, com conexão separada ao banco institucional e acesso exclusivo de
-ADMIN. Não há cópia de dados para o banco interno. Configuração dos dois projetos,
+`/gestao/site`, com conexão separada ao banco institucional e acesso de
+Gestão e Admin. Não há cópia de dados para o banco interno. Configuração dos dois projetos,
 variáveis da Vercel e ordem da troca: [INSTITUTIONAL_SITE.md](INSTITUTIONAL_SITE.md).

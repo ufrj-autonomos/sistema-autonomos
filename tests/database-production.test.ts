@@ -43,7 +43,7 @@ async function main() {
     const passwordHash = await hashPassword(randomUUID());
     const actor = await prisma.user.create({ data: { name: 'Temporary production verification', email: `verification-admin-${marker}@example.invalid`, passwordHash, role: 'ADMIN', status: 'APPROVED' } });
     ids.push(actor.id);
-    const target = await prisma.user.create({ data: { name: 'Temporary production verification', email: `verification-user-${marker}@example.invalid`, passwordHash, role: 'STUDENT', status: 'APPROVED' } });
+    const target = await prisma.user.create({ data: { name: 'Temporary production verification', email: `verification-user-${marker}@example.invalid`, passwordHash, role: 'TRAINEE', status: 'APPROVED' } });
     ids.push(target.id);
     const course = await prisma.course.create({ data: { slug: `verification-${marker}`, title: 'Temporary verification', description: 'Temporary fixture', published: false,
       modules: { create: { title: 'Temporary module', orderIndex: 1, lessons: { create: { title: 'Temporary lesson', slug: 'temporary', orderIndex: 1, textContent: 'Temporary fixture', exercises: { create: { title: 'Temporary exercise', prompt: 'Temporary fixture' } } } } } },

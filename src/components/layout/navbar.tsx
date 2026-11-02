@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
+import { hasManagementAccess } from "@/lib/access-policy";
 import { usePathname } from "next/navigation";
 import {
   Menu,
@@ -86,13 +87,13 @@ export function Navbar({ className }: NavbarProps) {
     return pathname === href || pathname.startsWith(`${href}/`);
   }
 
-  const isAdmin = user?.role === "ADMIN";
+  const canAccessManagement = hasManagementAccess(user?.role);
   const NAV_LINKS = [
     { label: "Início", href: "/", icon: Home },
     { label: "Ensino", href: "/ensino", icon: BookOpen },
     { label: "Presença", href: "/presenca", icon: Clock3 },
     { label: "Gestão", href: "/gestao", icon: ShieldCheck },
-  ].filter(item => Boolean(user) && (item.href !== "/gestao" || isAdmin));
+  ].filter(item => Boolean(user) && (item.href !== "/gestao" || canAccessManagement));
 
   // Iniciais do usuário para avatar de fallback
   const userInitials = user?.name
@@ -110,24 +111,23 @@ export function Navbar({ className }: NavbarProps) {
     switch (user?.role) {
       case "ADMIN":
         return {
-          label: "Administrador",
+          label: "Admin",
           badgeClass: "bg-emerald-500/10 text-emerald-400 border-emerald-500/20",
         };
-      case "INSTRUCTOR":
+      case "MANAGEMENT":
         return {
-          label: "Instrutor",
+          label: "Gestão",
           badgeClass: "bg-purple-500/10 text-purple-400 border-purple-500/20",
         };
       case "MEMBER":
-      case "TEAM_MEMBER":
         return {
-          label: "Membro Técnico",
+          label: "Membro",
           badgeClass: "bg-cyan-500/10 text-cyan-400 border-cyan-500/20",
         };
-      case "STUDENT":
+      case "TRAINEE":
       default:
         return {
-          label: "Aluno",
+          label: "Trainee",
           badgeClass: "bg-zinc-500/10 text-zinc-400 border-zinc-500/20",
         };
     }
@@ -186,7 +186,7 @@ export function Navbar({ className }: NavbarProps) {
         {/* Lado Direito: Portais das Divisões + Widget de Autenticação + Menu Mobile */}
         <div className="flex items-center gap-3">
           {/* Portais Rápidos das Divisões (Harpia & Nautilus) em Desktop */}
-          {isAdmin && (
+          {canAccessManagement && (
           <div className="hidden xl:flex items-center gap-1.5 pr-2 border-r border-white/10">
             <Link
               href="/gestao/divisoes#harpia"
@@ -282,7 +282,7 @@ export function Navbar({ className }: NavbarProps) {
                     <span>Plataforma de Ensino</span>
                   </Link>
 
-                  {isAdmin && (
+                  {canAccessManagement && (
                   <Link
                     href="/gestao"
                     onClick={() => setIsUserDropdownOpen(false)}
@@ -414,7 +414,7 @@ export function Navbar({ className }: NavbarProps) {
           </nav>
 
           {/* Seção das Divisões de Robótica */}
-          {isAdmin && (
+          {canAccessManagement && (
           <div className="pt-2 border-t border-white/10">
             <p className="text-[11px] font-mono uppercase tracking-wider text-zinc-500 px-3 mb-2">
               Divisões Autônomos

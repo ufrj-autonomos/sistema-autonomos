@@ -323,7 +323,7 @@ async function runM4SmokeTests() {
       sub: testUserId,
       email: testUserEmail,
       name: "Estudante M4 Smoke Test",
-      role: "STUDENT",
+      role: "TRAINEE",
     });
     const newSessionCookie = `autonomos_session=${newSessionToken}`;
 

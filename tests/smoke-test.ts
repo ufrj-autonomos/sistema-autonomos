@@ -79,7 +79,7 @@ async function runSmokeTests() {
       sub: 'test-user-id-123',
       email: 'teste@autonomos.ufrj.br',
       name: 'Teste Autonomos',
-      role: 'STUDENT',
+      role: 'TRAINEE',
     });
     assert(typeof token === 'string' && token.split('.').length === 3, 'JWT gerado no formato canônico com 3 partes');
 
@@ -184,7 +184,7 @@ async function runSmokeTests() {
       sub: registerJson.user.id,
       email: uniqueEmail,
       name: 'Smoke Test User',
-      role: 'STUDENT',
+      role: 'TRAINEE',
     });
     const meRouteModule = await import('../src/app/api/auth/me/route');
     const meReq = new Request('http://localhost:3000/api/auth/me', {

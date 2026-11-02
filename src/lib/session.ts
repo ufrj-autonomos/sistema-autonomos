@@ -3,6 +3,7 @@ import { redirect } from 'next/navigation';
 import { NextRequest, NextResponse } from 'next/server';
 import { randomUUID } from 'node:crypto';
 import { createSessionToken, verifySessionToken, SessionPayload } from './auth';
+import { hasManagementAccess } from './access-policy';
 import { prisma } from './prisma';
 
 import { SESSION_COOKIE_NAME, SESSION_MAX_AGE } from './session-cookie';
@@ -58,17 +59,17 @@ export async function createUserSession(user: SafeUser) {
   return token;
 }
 
-export async function requirePageUser(adminOnly = false) {
+export async function requirePageUser(managementOnly = false) {
   const user = await getCurrentUser();
   if (!user) redirect('/login');
-  if (adminOnly && user.role !== 'ADMIN') redirect('/');
+  if (managementOnly && !hasManagementAccess(user.role)) redirect('/');
   return user;
 }
 
-export async function authorizeApi(req: NextRequest, adminOnly = false) {
+export async function authorizeApi(req: NextRequest, managementOnly = false) {
   const user = await getCurrentUser(req);
   if (!user) return { user: null, error: NextResponse.json({ error: 'Entre com uma conta aprovada para continuar.' }, { status: 401 }) };
-  if (adminOnly && user.role !== 'ADMIN') return { user: null, error: NextResponse.json({ error: 'Acesso exclusivo para administradores.' }, { status: 403 }) };
+  if (managementOnly && !hasManagementAccess(user.role)) return { user: null, error: NextResponse.json({ error: 'Acesso exclusivo para Gestão e Admin.' }, { status: 403 }) };
   return { user, error: null };
 }
 

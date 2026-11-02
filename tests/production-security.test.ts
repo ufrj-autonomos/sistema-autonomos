@@ -74,7 +74,7 @@ test('login enforces the same account limit for case and whitespace variants', a
 });
 
 test('a valid approved login resets its account bucket and issues a secure cookie', async () => {
-  knownUser = { id: 'approved-user', name: 'User', email: 'user@example.invalid', role: 'STUDENT', status: 'APPROVED', passwordHash: await hashPassword('valid-password') };
+  knownUser = { id: 'approved-user', name: 'User', email: 'user@example.invalid', role: 'TRAINEE', status: 'APPROVED', passwordHash: await hashPassword('valid-password') };
   const response = await login(authRequest({ email: 'user@example.invalid', password: 'valid-password' }));
   assert.equal(response.status, 200);
   assert.match(response.headers.get('set-cookie')!, /Secure/);

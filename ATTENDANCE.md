@@ -5,7 +5,7 @@ não é alterada e seu histórico não é importado.
 
 ## Usar e imprimir
 
-1. Entre com uma conta ADMIN e abra **Gestão → Presença no laboratório**.
+1. Entre com uma conta de Gestão ou Admin e abra **Gestão → Presença no laboratório**.
 2. Clique em **QR code do laboratório → Imprimir QR code**.
 3. Coloque o impresso dentro do laboratório.
 4. Cada membro lê esse mesmo QR pela câmera do celular ao entrar e ao sair.
@@ -48,7 +48,7 @@ voltar o foco à janela.
 
 ## Gestão e revisão
 
-`/gestao/presenca` é exclusivo de ADMIN e oferece:
+`/gestao/presenca` é acessível a Gestão e Admin e oferece:
 
 - Consulta por semana, busca por membro/email e filtros de área e situação.
 - Horas validadas, restante, cumprimento da meta e número de semanas abaixo dela.
@@ -59,7 +59,7 @@ Uma saída após mais de 12 horas deixa a visita **Para revisão**, sem creditar
 horas automaticamente. Entradas ainda abertas acima de 12 horas também são
 sinalizadas. A gestão pode inserir presença esquecida, corrigir/validar horários,
 desconsiderar registros e restaurá-los. Todo ajuste exige justificativa de pelo
-menos 10 caracteres e guarda administrador, horário e valores anteriores/novos.
+menos 10 caracteres e guarda autor, horário e valores anteriores/novos.
 Horários digitados pela gestão são interpretados em Brasília. Ajustes não aceitam
 horário futuro, saída anterior à entrada, duração acima de 24 horas ou sobreposição
 com outra visita não desconsiderada. Resolva registros conflitantes antes de criar

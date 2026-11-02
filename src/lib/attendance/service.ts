@@ -1,5 +1,6 @@
 import { timingSafeEqual } from 'node:crypto';
 import { Prisma } from '@prisma/client';
+import { hasManagementAccess } from '@/lib/access-policy';
 import { prisma } from '@/lib/prisma';
 import { dateKey, localDateTime, weekKey, weekRange } from './time';
 import { memberSummary, reportSummary, visitDto } from './summary';
@@ -95,7 +96,7 @@ export async function manageAttendanceVisit(actorId: string, input: unknown) {
   }
   return prisma.$transaction(async tx => {
     const actor = await tx.user.findUnique({ where: { id: actorId } });
-    if (actor?.role !== 'ADMIN' || actor.status !== 'APPROVED') throw new AttendanceError('Acesso exclusivo para administradores.', 403);
+    if (!actor || !hasManagementAccess(actor.role) || actor.status !== 'APPROVED') throw new AttendanceError('Acesso exclusivo para Gestão e Admin.', 403);
     let existing = !creating ? await tx.attendanceVisit.findUnique({ where: { id: data.visitId as string } }) : null;
     if (!creating && !existing) throw new AttendanceError('Registro não encontrado.', 404);
     const memberId = existing?.memberId || data.memberId as number;

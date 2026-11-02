@@ -486,7 +486,7 @@ async function runUnifiedE2ETests() {
       id: t3Data.user.id,
       email: t3Email,
       name: "Thiago Santos",
-      role: "STUDENT",
+      role: "TRAINEE",
     };
 
     const studentNavbarHtml = renderToString(

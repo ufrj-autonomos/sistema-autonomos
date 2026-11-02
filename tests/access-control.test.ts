@@ -68,8 +68,8 @@ beforeEach(async () => {
   passwordHash ||= await hashPassword('valid-password');
   users = [
     { id: 'admin', email: 'admin@test.local', name: 'Admin', role: 'ADMIN', status: 'APPROVED', passwordHash },
-    { id: 'student', email: 'student@test.local', name: 'Student', role: 'STUDENT', status: 'APPROVED', passwordHash },
-    { id: 'pending', email: 'pending@test.local', name: 'Pending', role: 'STUDENT', status: 'PENDING', passwordHash },
+    { id: 'student', email: 'student@test.local', name: 'Student', role: 'TRAINEE', status: 'APPROVED', passwordHash },
+    { id: 'pending', email: 'pending@test.local', name: 'Pending', role: 'TRAINEE', status: 'PENDING', passwordHash },
   ];
   sessions = [];
 });
@@ -108,11 +108,11 @@ test('invalid JWTs and legacy JWTs without a server session grant no access', as
   assert.equal(await getCurrentUser(request('/', token)), null);
 });
 
-test('registration always creates a pending student without issuing a session', async () => {
+test('registration always creates a pending trainee without issuing a session', async () => {
   const response = await register(request('/api/auth/register', undefined, { name: 'New Person', email: 'NEW@test.local', password: 'valid-password', role: 'ADMIN', status: 'APPROVED' }));
   assert.equal(response.status, 201);
   const data = await response.json();
-  assert.equal(data.user.role, 'STUDENT');
+  assert.equal(data.user.role, 'TRAINEE');
   assert.equal(data.user.status, 'PENDING');
   assert.equal(data.pendingApproval, true);
   assert.equal(data.user.passwordHash, undefined);
@@ -150,8 +150,8 @@ test('approved login persists a revocable session and logout revokes the token',
   assert.equal(await getCurrentUser(request('/', token)), null);
 });
 
-test('all non-admin roles can access learning but cannot access management', async () => {
-  for (const role of ['STUDENT', 'MEMBER', 'INSTRUCTOR']) {
+test('trainees and members can access learning but cannot access management', async () => {
+  for (const role of ['TRAINEE', 'MEMBER']) {
     users[1].role = role;
     const token = await tokenFor('student');
     assert.equal((await proxy(request('/ensino', token))).status, 200);
@@ -163,7 +163,7 @@ test('all non-admin roles can access learning but cannot access management', asy
 
 test('role claims in a valid JWT never override the live database role', async () => {
   const token = await tokenFor('student', { role: 'ADMIN' });
-  assert.equal((await getCurrentUser(request('/', token)))?.role, 'STUDENT');
+  assert.equal((await getCurrentUser(request('/', token)))?.role, 'TRAINEE');
   assert.equal((await accounts(request('/api/admin/users', token))).status, 403);
 });
 
@@ -195,7 +195,7 @@ test('administrators can list accounts without password hashes', async () => {
 });
 
 test('accounts rejected before the deletion flow are excluded from the list', async () => {
-  users.push({ id: 'old-rejected', name: 'Rejected User', email: 'rejected@test.local', role: 'STUDENT', status: 'REJECTED', passwordHash });
+  users.push({ id: 'old-rejected', name: 'Rejected User', email: 'rejected@test.local', role: 'TRAINEE', status: 'REJECTED', passwordHash });
   const token = await tokenFor('admin');
   const response = await accounts(request('/api/admin/users', token));
   assert.equal(response.status, 200);
@@ -204,7 +204,7 @@ test('accounts rejected before the deletion flow are excluded from the list', as
   assert.equal(list.some((row: Row) => row.id === 'pending'), true);
 });
 
-test('only approved administrators can change accounts', async () => {
+test('trainees, pending users and suspended administrators cannot change accounts', async () => {
   for (const id of ['student', 'pending']) await assert.rejects(updateAccount(id, 'pending', { status: 'APPROVED' }), (error: any) => error instanceof AccountUpdateError && error.status === 403);
   users[0].status = 'SUSPENDED';
   await assert.rejects(updateAccount('admin', 'pending', { status: 'APPROVED' }));
@@ -216,7 +216,7 @@ test('administrator can approve, promote, demote, suspend and reapprove accounts
   const token = await tokenFor('pending');
   await updateAccount('admin', 'pending', { role: 'ADMIN' });
   assert.equal((await accounts(request('/api/admin/users', token))).status, 200);
-  await updateAccount('admin', 'pending', { role: 'STUDENT' });
+  await updateAccount('admin', 'pending', { role: 'TRAINEE' });
   assert.equal((await accounts(request('/api/admin/users', token))).status, 403);
   await updateAccount('admin', 'pending', { status: 'SUSPENDED' });
   assert.equal(sessions.length, 0);
@@ -247,7 +247,7 @@ test('rejection deletes active sessions and prevents login with the deleted acco
   assert.equal(response.status, 401);
 });
 
-test('non-admin users cannot reject and delete accounts', async () => {
+test('trainees cannot reject and delete accounts', async () => {
   const token = await tokenFor('student');
   const response = await patchAccount(request('/api/admin/users/pending', token, { status: 'REJECTED' }, 'PATCH'), { params: Promise.resolve({ id: 'pending' }) });
   assert.equal(response.status, 403);
@@ -264,8 +264,8 @@ test('last approved administrator cannot be demoted, rejected, suspended or made
 
 test('self-demotion is allowed when another approved administrator exists', async () => {
   users[1].role = 'ADMIN';
-  await updateAccount('admin', 'admin', { role: 'STUDENT' });
-  assert.equal(users[0].role, 'STUDENT');
+  await updateAccount('admin', 'admin', { role: 'TRAINEE' });
+  assert.equal(users[0].role, 'TRAINEE');
 });
 
 test('unknown fields, invalid roles and invalid statuses cannot be written', async () => {
@@ -305,4 +305,60 @@ test('signed preflight cookies never grant access after server session revocatio
   const legacy = await createSessionToken({ sub: 'admin', name: 'Admin', email: 'admin@test.local', role: 'ADMIN' });
   assert.equal((await proxy(request('/gestao', legacy))).status, 307);
   assert.equal((await proxy(request('/api/admin/users', 'invalid'))).status, 401);
+});
+
+test('Gestão can enter management, list accounts and approve or reject pending members', async () => {
+  users.push({ id: 'manager', email: 'manager@test.local', name: 'Gestão', role: 'MANAGEMENT', status: 'APPROVED', passwordHash });
+  const token = await tokenFor('manager');
+  assert.equal((await accounts(request('/api/admin/users', token))).status, 200);
+  const approved = await patchAccount(request('/api/admin/users/pending', token, { status: 'APPROVED' }, 'PATCH'), { params: Promise.resolve({ id: 'pending' }) });
+  assert.equal(approved.status, 200);
+  assert.equal(users[2].role, 'TRAINEE', 'approval cannot assign or change a role');
+  users.push({ id: 'deny-pending', email: 'denied@test.local', name: 'Pending member', role: 'MEMBER', status: 'PENDING', passwordHash });
+  const denied = await updateAccount('manager', 'deny-pending', { status: 'REJECTED' });
+  assert.equal(denied.deleted, true);
+  assert.equal(users.some(user => user.id === 'deny-pending'), false);
+});
+
+test('Gestão cannot change roles, suspend users, reactivate accounts or remove approved members', async () => {
+  users.push({ id: 'manager', email: 'manager@test.local', name: 'Gestão', role: 'MANAGEMENT', status: 'APPROVED', passwordHash });
+  const unchanged = JSON.stringify(users);
+  for (const [id, changes] of [
+    ['pending', { role: 'ADMIN', status: 'APPROVED' }],
+    ['pending', { role: 'MEMBER' }],
+    ['pending', { status: 'SUSPENDED' }],
+    ['student', { status: 'REJECTED' }],
+    ['student', { status: 'PENDING' }],
+    ['student', { status: 'APPROVED' }],
+    ['student', { status: 'SUSPENDED' }],
+    ['manager', { role: 'ADMIN' }],
+    ['admin', { role: 'MEMBER' }],
+  ] as const) {
+    await assert.rejects(updateAccount('manager', id, changes), (error: any) => error instanceof AccountUpdateError && error.status === 403);
+  }
+  assert.equal(JSON.stringify(users), unchanged);
+  const token = await tokenFor('manager');
+  assert.equal((await patchAccount(request('/api/admin/users/student', token, { role: 'MANAGEMENT' }, 'PATCH'), { params: Promise.resolve({ id: 'student' }) })).status, 403);
+});
+
+test('Gestão cannot approve privileged pending accounts or use stale management claims', async () => {
+  users.push({ id: 'manager', email: 'manager@test.local', name: 'Gestão', role: 'MANAGEMENT', status: 'APPROVED', passwordHash });
+  for (const role of ['MANAGEMENT','ADMIN']) {
+    users[2].role = role;
+    for (const status of ['APPROVED','REJECTED']) await assert.rejects(updateAccount('manager', 'pending', { status }), (error: any) => error.status === 403);
+  }
+  const token = await tokenFor('manager');
+  users.find(user => user.id === 'manager')!.role = 'MEMBER';
+  assert.equal((await accounts(request('/api/admin/users', token))).status, 403);
+  await assert.rejects(updateAccount('manager', 'pending', { status: 'APPROVED' }), (error: any) => error.status === 403);
+});
+
+test('only Admin grants Gestão or Admin and the last Admin remains protected', async () => {
+  users.push({ id: 'manager', email: 'manager@test.local', name: 'Gestão', role: 'MANAGEMENT', status: 'APPROVED', passwordHash });
+  await updateAccount('admin', 'student', { role: 'MANAGEMENT' });
+  assert.equal(users[1].role, 'MANAGEMENT');
+  await assert.rejects(updateAccount('admin', 'admin', { role: 'MANAGEMENT' }), (error: any) => error.status === 409);
+  await updateAccount('admin', 'student', { role: 'ADMIN' });
+  await updateAccount('admin', 'admin', { role: 'MANAGEMENT' });
+  assert.equal(users[0].role, 'MANAGEMENT');
 });

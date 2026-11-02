@@ -237,7 +237,7 @@ async function runAdversarialM4Challenger() {
       sub: "expired-user-id",
       email: "expired@ufrj.br",
       name: "Expired User",
-      role: "STUDENT",
+      role: "TRAINEE",
     })
       .setProtectedHeader({ alg: "HS256" })
       .setIssuedAt(Math.floor(Date.now() / 1000) - 3600)
@@ -287,7 +287,7 @@ async function runAdversarialM4Challenger() {
       sub: "cuid_ghost_non_existent_9999",
       email: "ghost@autonomos.ufrj.br",
       name: "Ghost User",
-      role: "STUDENT",
+      role: "TRAINEE",
     });
     const ghostCookie = `autonomos_session=${ghostToken}`;
 
@@ -578,7 +578,7 @@ async function runAdversarialM4Challenger() {
       sub: concUserId,
       email: concEmail,
       name: "Estudante Concorrente",
-      role: "STUDENT",
+      role: "TRAINEE",
     });
     const concCookie = `autonomos_session=${concToken}`;
 

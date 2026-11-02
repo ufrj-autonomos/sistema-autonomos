@@ -405,7 +405,7 @@ async function runAdversarialTestSuite() {
       authRes.status === 200 &&
         authJson.authenticated === true &&
         authJson.user.email === "aluno@autonomos.ufrj.br" &&
-        authJson.user.role === "STUDENT"
+        authJson.user.role === "TRAINEE"
     );
   } catch (err: any) {
     recordTest("Auth API", "Authenticated student /api/auth/me failed", false, err.message);

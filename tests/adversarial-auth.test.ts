@@ -395,7 +395,7 @@ async function runAdversarialSuite() {
       sub: regJson1.user.id,
       email: baseEmail,
       name: 'Adversarial Primary',
-      role: 'STUDENT',
+      role: 'TRAINEE',
     });
     const [header, payload, sig] = validToken.split('.');
     const decodedPayload = JSON.parse(Buffer.from(payload, 'base64url').toString('utf8'));
@@ -428,7 +428,7 @@ async function runAdversarialSuite() {
       sub: regJson1.user.id,
       email: baseEmail,
       name: 'Adversarial Primary',
-      role: 'STUDENT',
+      role: 'TRAINEE',
     })
       .setProtectedHeader({ alg: 'HS256' })
       .setIssuedAt(Math.floor(Date.now() / 1000) - 7200) // 2 hours ago
@@ -453,7 +453,7 @@ async function runAdversarialSuite() {
       sub: '99999999-9999-9999-9999-999999999999',
       email: 'nonexistent_id@autonomos.ufrj.br',
       name: 'Ghost User',
-      role: 'STUDENT',
+      role: 'TRAINEE',
     })
       .setProtectedHeader({ alg: 'HS256' })
       .setIssuedAt()
@@ -616,7 +616,7 @@ async function runAdversarialSuite() {
       legitRegRes.status === 201 &&
       legitRegJson.success === true &&
       legitRegJson.user.email === legitEmail &&
-      legitRegJson.user.role === 'STUDENT' &&
+      legitRegJson.user.role === 'TRAINEE' &&
       !('passwordHash' in legitRegJson.user) &&
       !('password' in legitRegJson.user),
       '201 Created with valid user fields and NO passwordHash',
@@ -712,8 +712,8 @@ async function runAdversarialSuite() {
     const privEscJson = await privEscRes.json();
     recordTest(
       'Privilege Escalation Defense',
-      'Register with role="ADMIN" in body forces role="STUDENT" (prevents client-side admin creation)',
-      privEscRes.status === 201 && privEscJson.user.role === 'STUDENT',
+      'Register with role="ADMIN" in body forces role="TRAINEE" (prevents client-side admin creation)',
+      privEscRes.status === 201 && privEscJson.user.role === 'TRAINEE',
       'role forced to STUDENT (not ADMIN)',
       `user.role: ${privEscJson.user?.role}`
     );
@@ -723,8 +723,8 @@ async function runAdversarialSuite() {
     recordTest(
       'Privilege Escalation Defense',
       'Database persisted role is strictly STUDENT',
-      privEscDbUser?.role === 'STUDENT',
-      'STUDENT',
+      privEscDbUser?.role === 'TRAINEE',
+      'TRAINEE',
       `Persisted role: ${privEscDbUser?.role}`
     );
 

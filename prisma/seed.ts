@@ -1774,13 +1774,13 @@ async function main() {
     where: { email: 'aluno@autonomos.ufrj.br' },
     update: {
       name: 'Aluno Teste',
-      role: Role.STUDENT,
+      role: Role.TRAINEE,
       passwordHash: studentPasswordHash,
     },
     create: {
       email: 'aluno@autonomos.ufrj.br',
       name: 'Aluno Teste',
-      role: Role.STUDENT,
+      role: Role.TRAINEE,
       passwordHash: studentPasswordHash,
     },
   });

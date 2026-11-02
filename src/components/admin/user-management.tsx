@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useSession } from '@/contexts/auth-context';
-import { ACCOUNT_STATUSES, ROLES, ROLE_LABELS, STATUS_LABELS } from '@/lib/access-policy';
+import { ACCOUNT_STATUSES, ROLES, ROLE_LABELS, STATUS_LABELS, hasManagementAccess } from '@/lib/access-policy';
 
 type Role = typeof ROLES[number];
 type Status = typeof ACCOUNT_STATUSES[number];
@@ -53,7 +53,7 @@ export function UserManagement({ standalone = false }: { standalone?: boolean })
       setNotice(data.deleted ? `Conta de ${account.name} rejeitada e excluída.` : `Conta de ${account.name} atualizada.`);
       if (account.id === user?.id) {
         const current = await refreshSession();
-        if (!current || current.role !== 'ADMIN') { router.replace('/'); router.refresh(); }
+        if (!current || !hasManagementAccess(current.role)) { router.replace('/'); router.refresh(); }
       }
     } catch (err) {
       if (rejecting) {
@@ -72,12 +72,14 @@ export function UserManagement({ standalone = false }: { standalone?: boolean })
 
   const visible = users.filter(account => (filter === 'ALL' || account.status === filter) && `${account.name} ${account.email}`.toLocaleLowerCase('pt-BR').includes(search.toLocaleLowerCase('pt-BR')));
   const pendingCount = users.filter(account => account.status === 'PENDING').length;
+  const canEditAccounts = user?.role === 'ADMIN';
+  const canReviewPending = (account: Account) => canEditAccounts || (user?.role === 'MANAGEMENT' && ['TRAINEE', 'MEMBER'].includes(account.role));
   const Heading = standalone ? 'h1' : 'h2';
 
   return <section id="contas" aria-labelledby="accounts-heading" className="space-y-5">
     <div>
       <Heading id="accounts-heading" className={`font-display font-semibold ${standalone ? 'text-3xl' : 'text-2xl'}`}>Contas e permissões</Heading>
-      <p className="mt-3 max-w-3xl text-sm leading-relaxed text-zinc-400">Aprove novos cadastros e defina o perfil de cada pessoa. Rejeitar exclui definitivamente a conta e seu progresso. Apenas administradores acessam a gestão. Alunos, membros e instrutores acessam o início, os cursos e a própria presença.</p>
+      <p className="mt-3 max-w-3xl text-sm leading-relaxed text-zinc-400">Gestão e Admin podem aceitar ou recusar novos cadastros. Somente Admin pode alterar cargos e situações das contas. Rejeitar exclui definitivamente a conta e seu progresso.</p>
       {!loading && <p className="mt-2 text-sm text-zinc-300">{pendingCount} {pendingCount === 1 ? 'cadastro aguardando aprovação' : 'cadastros aguardando aprovação'}</p>}
     </div>
     <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
@@ -92,7 +94,7 @@ export function UserManagement({ standalone = false }: { standalone?: boolean })
       {visible.map(account => <div key={account.id} className="flex flex-col gap-4 py-5 lg:flex-row lg:items-center lg:justify-between">
         <div className="min-w-0 lg:max-w-xs"><h3 className="break-words font-medium text-zinc-100">{account.name}{account.id === user?.id && <span className="ml-2 text-sm text-zinc-400">(você)</span>}</h3><p className="mt-1 break-all text-sm text-zinc-400">{account.email}</p><p className={`mt-2 text-sm ${account.status === 'APPROVED' ? 'text-emerald-300' : account.status === 'PENDING' ? 'text-amber-300' : 'text-zinc-300'}`}>{STATUS_LABELS[account.status]}</p></div>
         <div className="flex flex-wrap items-end gap-3">
-          {account.status === 'PENDING' ? (
+          {account.status === 'PENDING' && canReviewPending(account) ? (
             <>
               <button
                 type="button"
@@ -113,12 +115,12 @@ export function UserManagement({ standalone = false }: { standalone?: boolean })
                 {busy === account.id ? 'Aceitando...' : 'Aceitar'}
               </button>
             </>
-          ) : (
+          ) : canEditAccounts && account.status !== 'PENDING' ? (
             <>
               <label className="flex flex-col gap-1.5 text-sm text-zinc-400">Perfil<span className="sr-only"> de {account.name}</span><select aria-label={`Perfil de ${account.name}`} value={account.role} disabled={!!busy} onChange={event => void update(account, { role: event.target.value as Role })} className={control}>{ROLES.map(role => <option key={role} value={role}>{ROLE_LABELS[role]}</option>)}</select></label>
               <label className="flex flex-col gap-1.5 text-sm text-zinc-400">Situação<span className="sr-only"> de {account.name}</span><select aria-label={`Situação de ${account.name}`} value={account.status} disabled={!!busy} onChange={event => void update(account, { status: event.target.value as Status })} className={control}>{ACCOUNT_STATUSES.map(status => <option key={status} value={status}>{status === 'REJECTED' ? 'Rejeitar e excluir' : STATUS_LABELS[status]}</option>)}</select></label>
             </>
-          )}
+          ) : <div className="text-sm text-zinc-400"><p>Cargo: {ROLE_LABELS[account.role]}</p>{account.status === 'PENDING' && <p className="mt-1">Liberação exclusiva de Admin.</p>}</div>}
         </div>
       </div>)}
     </div>}

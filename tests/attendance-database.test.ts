@@ -22,7 +22,7 @@ async function main() {
   try {
     const marker = randomUUID();
     const admin = await prisma.user.create({ data: { name: 'Isolated admin', email: `${marker}-admin@example.invalid`, passwordHash: 'unused', role: 'ADMIN', status: 'APPROVED' } }); ids.push(admin.id);
-    const user = await prisma.user.create({ data: { name: 'Isolated member', email: `${marker}-member@example.invalid`, passwordHash: 'unused', role: 'STUDENT', status: 'PENDING' } }); ids.push(user.id);
+    const user = await prisma.user.create({ data: { name: 'Isolated member', email: `${marker}-member@example.invalid`, passwordHash: 'unused', role: 'TRAINEE', status: 'PENDING' } }); ids.push(user.id);
     await updateAccount(admin.id, user.id, { status: 'APPROVED' });
     const member = await prisma.member.findUniqueOrThrow({ where: { userId: user.id } }); memberIds.push(member.id);
     assert.equal(await prisma.attendancePeriod.count({ where: { memberId: member.id, endsOn: null } }), 1, 'approval enrolls the member');

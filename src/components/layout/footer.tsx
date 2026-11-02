@@ -2,6 +2,7 @@
 
 import { useSession } from "@/contexts/auth-context";
 import Link from "next/link";
+import { hasManagementAccess } from "@/lib/access-policy";
 import {
   Github,
   Instagram,
@@ -20,7 +21,7 @@ export interface FooterProps {
 
 export function Footer({ className }: FooterProps) {
   const { user } = useSession();
-  const isAdmin = user?.role === "ADMIN";
+  const canAccessManagement = hasManagementAccess(user?.role);
   const currentYear = new Date().getFullYear();
 
   return (
@@ -119,7 +120,7 @@ export function Footer({ className }: FooterProps) {
             </p>
             <div className="space-y-3.5 text-sm">
               <Link
-                href={isAdmin ? "/gestao/divisoes#harpia" : "/"}
+                href={canAccessManagement ? "/gestao/divisoes#harpia" : "/"}
                 className="group block p-2.5 rounded-xl border border-white/5 hover:border-[#A346CC]/30 hover:bg-[#A346CC]/5 transition-all"
               >
                 <div className="flex items-center gap-2">
@@ -137,7 +138,7 @@ export function Footer({ className }: FooterProps) {
               </Link>
 
               <Link
-                href={isAdmin ? "/gestao/divisoes#nautilus" : "/"}
+                href={canAccessManagement ? "/gestao/divisoes#nautilus" : "/"}
                 className="group block p-2.5 rounded-xl border border-white/5 hover:border-[#387aef]/30 hover:bg-[#387aef]/5 transition-all"
               >
                 <div className="flex items-center gap-2">
@@ -189,7 +190,7 @@ export function Footer({ className }: FooterProps) {
                   <span>Curso ROS 2 Jazzy (108 Aulas)</span>
                 </Link>
               </li>
-              {isAdmin && (<>
+              {canAccessManagement && (<>
               <li>
                 <Link
                   href="/gestao"
