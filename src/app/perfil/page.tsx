@@ -405,7 +405,7 @@ function ProfileFormContent() {
             </label>
 
             <label className="block text-sm font-medium text-zinc-200">
-              CPF (opcional)
+              CPF
               <input
                 type="text"
                 inputMode="numeric"
