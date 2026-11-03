@@ -2,9 +2,28 @@
 import { revalidatePath } from 'next/cache';
 import { requirePageUser } from '@/lib/session';
 import { savePrivateDetails } from '@/lib/directory';
+import { updateRecord } from './site/actions';
 import { directoryPath } from '@/lib/institutional/routes';
 import { memberPreferences } from '@/lib/member-directory';
 import { prisma } from '@/lib/prisma';
+
+export async function updateMemberQuickField(id: number, field: string, value: unknown) {
+  await requirePageUser(true);
+  try {
+    if (!Number.isSafeInteger(id) || id < 1) throw new Error('Integrante inválido.');
+    const allowedFields = ['active', 'showOnSite', 'isFemale', 'role', 'area', 'teamId'];
+    if (!allowedFields.includes(field)) throw new Error('Campo não permitido para edição rápida.');
+
+    const result = await updateRecord('member', id, { [field]: value });
+    if (!result.success) throw new Error(result.error || 'Erro ao atualizar campo.');
+    return { success: true as const, warning: result.warning };
+  } catch (error) {
+    return {
+      success: false as const,
+      error: error instanceof Error ? error.message : 'Não foi possível atualizar o campo.',
+    };
+  }
+}
 
 export async function saveDirectoryDetails(table: 'member' | 'project', id: number, input: unknown) {
   await requirePageUser(true);

@@ -4,7 +4,7 @@ import { useMemo, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { ArrowDown, ArrowUp, ArrowUpDown, Check, ChevronDown, Clock, Columns3, Edit3, Globe, Loader2, LockKeyhole, Search, SlidersHorizontal, Trash2, X } from 'lucide-react';
-import { saveMemberPreferences } from '@/app/(gestao)/gestao/directory-actions';
+import { saveMemberPreferences, updateMemberQuickField } from '@/app/(gestao)/gestao/directory-actions';
 import { deleteRecord } from '@/app/(gestao)/gestao/site/actions';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/institutional/ui/dialog';
 import { useInstitutionalAsset } from '@/components/institutional/site-context';
@@ -30,7 +30,91 @@ export function MemberDirectory({ rows, initialPreferences }: { rows: MemberDire
   const [deleting, setDeleting] = useState(false);
   const [target, setTarget] = useState<MemberDirectoryRow | null>(null);
   const [reviewingId, setReviewingId] = useState<string | null>(null);
+  const [confirmModal, setConfirmModal] = useState<{
+    member: MemberDirectoryRow;
+    field: string;
+    fieldLabel: string;
+    currentValueLabel: string;
+    newValue: unknown;
+    newValueLabel: string;
+  } | null>(null);
+  const [updatingField, setUpdatingField] = useState(false);
+  const [selectedEnumMember, setSelectedEnumMember] = useState<{
+    member: MemberDirectoryRow;
+    field: 'role' | 'area';
+  } | null>(null);
   const router = useRouter();
+
+  async function handleConfirmFieldUpdate() {
+    if (!confirmModal) return;
+    setUpdatingField(true);
+    setError('');
+    setMessage('');
+    try {
+      const res = await updateMemberQuickField(
+        confirmModal.member.id,
+        confirmModal.field,
+        confirmModal.newValue
+      );
+      if (!res.success) {
+        setError(res.error || 'Não foi possível alterar o campo.');
+      } else {
+        setMessage(`Campo "${confirmModal.fieldLabel}" de ${confirmModal.member.name} alterado com sucesso!`);
+        if (res.warning) setError(res.warning);
+        setConfirmModal(null);
+        router.refresh();
+      }
+    } catch {
+      setError('Erro ao atualizar campo. Tente novamente.');
+    } finally {
+      setUpdatingField(false);
+    }
+  }
+
+  function requestBooleanChange(row: MemberDirectoryRow, field: 'active' | 'showOnSite' | 'isFemale') {
+    const cur = row[field];
+    const nxt = !cur;
+    const labels = {
+      active: {
+        label: 'Status',
+        cur: cur ? 'Ativo' : 'Inativo',
+        nxt: nxt ? 'Ativo' : 'Inativo',
+      },
+      showOnSite: {
+        label: 'Exibição no site',
+        cur: cur ? 'Visível' : 'Oculto',
+        nxt: nxt ? 'Visível' : 'Oculto',
+      },
+      isFemale: {
+        label: 'Adaptação feminino',
+        cur: cur ? 'Sim' : 'Não',
+        nxt: nxt ? 'Sim' : 'Não',
+      },
+    };
+    setConfirmModal({
+      member: row,
+      field,
+      fieldLabel: labels[field].label,
+      currentValueLabel: labels[field].cur,
+      newValue: nxt,
+      newValueLabel: labels[field].nxt,
+    });
+  }
+
+  function requestEnumChange(row: MemberDirectoryRow, field: 'role' | 'area', newValue: string) {
+    const cur = row[field];
+    if (cur === newValue) return;
+    const fieldLabel = field === 'role' ? 'Cargo' : 'Área';
+    setSelectedEnumMember(null);
+    setConfirmModal({
+      member: row,
+      field,
+      fieldLabel,
+      currentValueLabel: cur || 'Não informada',
+      newValue,
+      newValueLabel: newValue,
+    });
+  }
   const asset = useInstitutionalAsset();
   const keys = view === 'site' ? SITE_COLUMNS : view === 'internal' ? INTERNAL_COLUMNS : custom;
   const columns = keys.map(key => MEMBER_COLUMNS.find(column => column.key === key)!);
@@ -100,9 +184,94 @@ export function MemberDirectory({ rows, initialPreferences }: { rows: MemberDire
     const value = memberValue(row, key);
     const isPendingField = Boolean(row.pendingChange && key in row.pendingChange.changes);
     const badge = isPendingField ? <span className="ml-1.5 inline-flex items-center gap-1 rounded bg-amber-950/80 px-1.5 py-0.5 text-[10px] font-medium text-amber-300 border border-amber-700/60" title="Alteração proposta pelo integrante, aguardando aprovação da Gestão">Pendente</span> : null;
+
+    if (key === 'active' || key === 'showOnSite') {
+      const boolVal = Boolean(value);
+      return (
+        <div className="flex items-center gap-1.5">
+          <button
+            type="button"
+            onClick={() => requestBooleanChange(row, key)}
+            className={`inline-flex items-center gap-1.5 rounded-md px-2.5 py-1 text-xs font-medium transition-colors cursor-pointer border ${
+              boolVal
+                ? 'bg-emerald-950/80 text-emerald-200 border-emerald-800/60 hover:bg-emerald-900'
+                : 'bg-zinc-800 text-zinc-300 border-zinc-700 hover:bg-zinc-700'
+            } ${focus}`}
+            title={`Clique para alterar ${key === 'active' ? 'status (ativo/inativo)' : 'visibilidade no site'}`}
+          >
+            <span className={`h-1.5 w-1.5 rounded-full ${boolVal ? 'bg-emerald-400' : 'bg-zinc-500'}`} />
+            {key === 'active' ? (boolVal ? 'Ativo' : 'Inativo') : (boolVal ? 'Visível' : 'Oculto')}
+          </button>
+          {badge}
+        </div>
+      );
+    }
+
+    if (key === 'isFemale') {
+      const boolVal = Boolean(value);
+      return (
+        <div className="flex items-center gap-1.5">
+          <button
+            type="button"
+            onClick={() => requestBooleanChange(row, 'isFemale')}
+            className={`inline-flex items-center gap-1 rounded-md px-2.5 py-1 text-xs font-medium transition-colors cursor-pointer border ${
+              boolVal
+                ? 'bg-rose-950/80 text-rose-200 border-rose-800/60 hover:bg-rose-900'
+                : 'bg-zinc-800 text-zinc-300 border-zinc-700 hover:bg-zinc-700'
+            } ${focus}`}
+            title="Clique para alternar adaptação de cargo feminino"
+          >
+            {boolVal ? 'Sim' : 'Não'}
+          </button>
+          {badge}
+        </div>
+      );
+    }
+
+    if (key === 'role' || (key === 'area' && view === 'site')) {
+      const isRole = key === 'role';
+      const roleColors: Record<string, string> = {
+        'Capitão': 'bg-amber-500/10 text-amber-300 border-amber-500/30',
+        'Vice-Capitão': 'bg-amber-500/10 text-amber-300 border-amber-500/30',
+        'Coordenador': 'bg-blue-500/10 text-blue-300 border-blue-500/30',
+        'Vice-Coordenador': 'bg-blue-500/10 text-blue-300 border-blue-500/30',
+        'Diretor de Gente e Gestão': 'bg-purple-500/10 text-purple-300 border-purple-500/30',
+        'Diretor de Operações': 'bg-purple-500/10 text-purple-300 border-purple-500/30',
+        'Coordenador de Marketing': 'bg-rose-500/10 text-rose-300 border-rose-500/30',
+        'Membro': 'bg-zinc-800 text-zinc-200 border-zinc-700',
+        'Trainee': 'bg-indigo-500/10 text-indigo-300 border-indigo-500/30',
+        'Professor Orientador': 'bg-emerald-500/10 text-emerald-300 border-emerald-500/30',
+        'Alumni': 'bg-zinc-800 text-zinc-400 border-zinc-700',
+      };
+      const areaColors: Record<string, string> = {
+        'Gestão': 'bg-amber-500/10 text-amber-300 border-amber-500/30',
+        'Marketing': 'bg-rose-500/10 text-rose-300 border-rose-500/30',
+        'Software': 'bg-emerald-500/10 text-emerald-300 border-emerald-500/30',
+        'Eletrônica': 'bg-cyan-500/10 text-cyan-300 border-cyan-500/30',
+        'Mecânica': 'bg-orange-500/10 text-orange-300 border-orange-500/30',
+        'Orientação': 'bg-purple-500/10 text-purple-300 border-purple-500/30',
+      };
+      const color = isRole
+        ? (roleColors[String(value)] || 'bg-zinc-800 text-zinc-200 border-zinc-700')
+        : (areaColors[String(value)] || 'bg-zinc-800 text-zinc-200 border-zinc-700');
+
+      return (
+        <div className="flex items-center gap-1.5">
+          <button
+            type="button"
+            onClick={() => setSelectedEnumMember({ member: row, field: isRole ? 'role' : 'area' })}
+            className={`inline-flex items-center gap-1.5 rounded-md px-2.5 py-1 text-xs font-medium border cursor-pointer hover:ring-1 hover:ring-zinc-400 transition-all ${color} ${focus}`}
+            title={`Clique para alterar ${isRole ? 'cargo' : 'área'}`}
+          >
+            <span>{value ? String(value) : '—'}</span>
+            <ChevronDown className="h-3 w-3 opacity-60" />
+          </button>
+          {badge}
+        </div>
+      );
+    }
+
     if (value === null || value === '') return <span className="text-zinc-500" aria-label="Não informado">—{badge}</span>;
-    if (key === 'active' || key === 'showOnSite') return <span className={`inline-flex items-center gap-1.5 rounded-md px-2 py-1 text-xs ${value ? 'bg-emerald-950 text-emerald-200' : 'bg-zinc-800 text-zinc-300'}`}><span className={`h-1.5 w-1.5 rounded-full ${value ? 'bg-emerald-400' : 'bg-zinc-500'}`} />{key === 'active' ? value ? 'Ativo' : 'Inativo' : value ? 'Visível' : 'Oculto'}</span>;
-    if (key === 'isFemale') return <span>{value ? 'Sim' : 'Não'}{badge}</span>;
     if (key === 'birthDate') return new Intl.DateTimeFormat('pt-BR', { timeZone: 'UTC' }).format(new Date(`${value}T00:00:00Z`));
     if (key === 'cpf') return String(value).replace(/^(\d{3})(\d{3})(\d{3})(\d{2})$/, '$1.$2.$3-$4');
     if (key === 'photo') return <div className="flex items-center gap-1.5"><img src={asset(String(value))} alt={`Foto de ${row.name}`} className="h-10 w-10 rounded-full object-cover" width={40} height={40} loading="lazy" />{badge}</div>;
@@ -188,5 +357,107 @@ export function MemberDirectory({ rows, initialPreferences }: { rows: MemberDire
       </div> : <div className="flex min-h-56 flex-col items-center justify-center px-6 py-12 text-center"><Search className="mb-3 h-6 w-6 text-zinc-500" /><h2 className="text-base font-medium text-zinc-100">{rows.length ? 'Nenhum integrante corresponde à busca' : 'Seu diretório ainda está vazio'}</h2><p className="mt-2 max-w-sm text-sm text-zinc-400">{rows.length ? 'Ajuste a busca, a área, a equipe ou o status para encontrar outras pessoas.' : 'Cadastre o primeiro integrante para organizar os dados da equipe.'}</p>{hasFilters && <button type="button" onClick={clearFilters} className={`mt-4 text-sm text-zinc-200 underline underline-offset-4 ${focus}`}>Limpar filtros</button>}</div>}
     </div>
     <Dialog open={Boolean(target)} onOpenChange={open => { if (!open && !deleting) setTarget(null); }}><DialogContent className="border-zinc-700 bg-zinc-950 text-zinc-100"><DialogHeader><DialogTitle>Excluir integrante?</DialogTitle></DialogHeader><DialogDescription className="text-sm leading-relaxed text-zinc-400">O cadastro de <strong className="font-medium text-zinc-200">{target?.name}</strong> será removido da gestão e do site. O histórico de presença será preservado. Para retirar apenas do site, edite o cadastro e desmarque “Exibir no site”.</DialogDescription>{error && <p role="alert" className="text-sm text-red-300">{error}</p>}<DialogFooter><button type="button" disabled={deleting} onClick={() => setTarget(null)} className={secondary}>Cancelar</button><button type="button" disabled={deleting} onClick={() => void remove()} className={`min-h-11 rounded-lg bg-red-900 px-4 text-sm font-medium text-red-100 hover:bg-red-800 disabled:opacity-50 ${focus}`}>{deleting ? 'Excluindo…' : 'Excluir cadastro'}</button></DialogFooter></DialogContent></Dialog>
+
+    {/* Modal de seleção para Enum (Cargo ou Área) */}
+    <Dialog open={Boolean(selectedEnumMember)} onOpenChange={open => { if (!open) setSelectedEnumMember(null); }}>
+      <DialogContent className="border-zinc-700 bg-zinc-950 text-zinc-100 max-w-sm">
+        <DialogHeader>
+          <DialogTitle>
+            Alterar {selectedEnumMember?.field === 'role' ? 'Cargo' : 'Área'} de {selectedEnumMember?.member.name}
+          </DialogTitle>
+        </DialogHeader>
+        <DialogDescription className="text-xs text-zinc-400">
+          Selecione o novo valor para {selectedEnumMember?.field === 'role' ? 'o cargo' : 'a área'}. Você precisará confirmar antes de salvar.
+        </DialogDescription>
+        <div className="py-2 space-y-1.5 max-h-64 overflow-y-auto">
+          {selectedEnumMember?.field === 'role' ? (
+            [
+              'Capitão',
+              'Vice-Capitão',
+              'Coordenador',
+              'Vice-Coordenador',
+              'Diretor de Gente e Gestão',
+              'Diretor de Operações',
+              'Coordenador de Marketing',
+              'Membro',
+              'Trainee',
+              'Alumni',
+              'Professor Orientador',
+            ].map(opt => (
+              <button
+                key={opt}
+                type="button"
+                onClick={() => requestEnumChange(selectedEnumMember.member, 'role', opt)}
+                className={`w-full text-left px-3 py-2 text-xs rounded-md transition-colors flex items-center justify-between ${
+                  selectedEnumMember.member.role === opt
+                    ? 'bg-zinc-800 text-white font-medium border border-zinc-600'
+                    : 'text-zinc-300 hover:bg-zinc-900'
+                }`}
+              >
+                <span>{opt}</span>
+                {selectedEnumMember.member.role === opt && <span className="text-[10px] text-zinc-400">Atual</span>}
+              </button>
+            ))
+          ) : (
+            ['Software', 'Eletrônica', 'Mecânica', 'Gestão', 'Marketing', 'Orientação'].map(opt => (
+              <button
+                key={opt}
+                type="button"
+                onClick={() => selectedEnumMember && requestEnumChange(selectedEnumMember.member, 'area', opt)}
+                className={`w-full text-left px-3 py-2 text-xs rounded-md transition-colors flex items-center justify-between ${
+                  selectedEnumMember?.member.area === opt
+                    ? 'bg-zinc-800 text-white font-medium border border-zinc-600'
+                    : 'text-zinc-300 hover:bg-zinc-900'
+                }`}
+              >
+                <span>{opt}</span>
+                {selectedEnumMember?.member.area === opt && <span className="text-[10px] text-zinc-400">Atual</span>}
+              </button>
+            ))
+          )}
+        </div>
+        <DialogFooter>
+          <button type="button" onClick={() => setSelectedEnumMember(null)} className={secondary}>
+            Cancelar
+          </button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+
+    {/* Pop-up de confirmação de alteração rápida */}
+    <Dialog open={Boolean(confirmModal)} onOpenChange={open => { if (!open && !updatingField) setConfirmModal(null); }}>
+      <DialogContent className="border-zinc-700 bg-zinc-950 text-zinc-100 max-w-md">
+        <DialogHeader>
+          <DialogTitle>Confirmar alteração</DialogTitle>
+        </DialogHeader>
+        <DialogDescription className="text-sm leading-relaxed text-zinc-300">
+          Deseja alterar <strong className="text-zinc-100">{confirmModal?.fieldLabel}</strong> de{' '}
+          <strong className="text-amber-300">{confirmModal?.currentValueLabel}</strong> para{' '}
+          <strong className="text-emerald-400">{confirmModal?.newValueLabel}</strong> para o integrante{' '}
+          <strong className="text-zinc-100">{confirmModal?.member.name}</strong>?
+        </DialogDescription>
+        <div className="rounded-lg bg-zinc-900/60 border border-zinc-800 p-3 text-xs text-zinc-400">
+          Esta alteração será salva imediatamente no cadastro e refletida na plataforma.
+        </div>
+        <DialogFooter className="flex items-center justify-end gap-2 pt-2">
+          <button
+            type="button"
+            disabled={updatingField}
+            onClick={() => setConfirmModal(null)}
+            className={secondary}
+          >
+            Cancelar
+          </button>
+          <button
+            type="button"
+            disabled={updatingField}
+            onClick={() => void handleConfirmFieldUpdate()}
+            className={`min-h-11 rounded-lg bg-emerald-600 px-4 text-sm font-semibold text-white hover:bg-emerald-500 disabled:opacity-50 ${focus}`}
+          >
+            {updatingField ? 'Salvando...' : 'Confirmar alteração'}
+          </button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   </section>;
 }

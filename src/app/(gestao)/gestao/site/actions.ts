@@ -45,7 +45,25 @@ export async function createRecord(table: string, data: unknown): Promise<{ succ
 }
 export async function updateRecord(table: string, id: number, data: unknown): Promise<{ success: boolean; error?: string; warning?: string }> {
   await requirePageUser(true);
-  try { if (!Number.isSafeInteger(id) || id < 1) throw new InstitutionalError('Registro inválido.'); const { model } = getInstitutionalModel(table); await model.update({ where: { id }, data: recordData(table, data, false) }); return await changed(table); }
+  try {
+    if (!Number.isSafeInteger(id) || id < 1) throw new InstitutionalError('Registro inválido.');
+    const { model } = getInstitutionalModel(table);
+    const parsed = recordData(table, data, false);
+    const updated = await model.update({ where: { id }, data: parsed });
+    if (table === 'member' && updated) {
+      const syncData: Record<string, unknown> = {};
+      if ('name' in parsed && typeof parsed.name === 'string') syncData.name = parsed.name;
+      if ('area' in parsed && (typeof parsed.area === 'string' || parsed.area === null)) syncData.area = parsed.area;
+      if ('course' in parsed && (typeof parsed.course === 'string' || parsed.course === null)) syncData.course = parsed.course;
+      if (Object.keys(syncData).length > 0) {
+        await prisma.member.updateMany({
+          where: { institutionalMemberId: id },
+          data: syncData,
+        });
+      }
+    }
+    return await changed(table);
+  }
   catch (error) { return { success: false, error: institutionalFailure(error) }; }
 }
 export async function deleteRecord(table: string, id: number): Promise<{ success: boolean; error?: string; warning?: string }> {

@@ -68,11 +68,23 @@ export async function MemberListPage() {
     const effectiveInstagram = 'instagram' in (pendingChangesObj || {}) ? (pendingChangesObj!.instagram as string | null) : record.instagram;
     const effectiveIsFemale = typeof pendingChangesObj?.isFemale === 'boolean' ? pendingChangesObj.isFemale : record.isFemale;
 
+    const effectiveArea =
+      record.area && record.area !== 'Não informada'
+        ? record.area
+        : (member?.area && member.area !== 'Não informada'
+            ? member.area
+            : (member?.role === 'MANAGEMENT' ? 'Gestão' : record.area));
+
+    const effectiveInternalArea =
+      member?.area && member.area !== 'Não informada'
+        ? member.area
+        : (member?.role === 'MANAGEMENT' ? 'Gestão' : (record.area && record.area !== 'Não informada' ? record.area : null));
+
     return {
       id: record.id,
       name: effectiveName,
       role: record.role,
-      area: record.area,
+      area: effectiveArea,
       age: record.age,
       teamId: record.teamId,
       teamName: record.team?.name || 'Autônomos / Geral',
@@ -97,7 +109,7 @@ export async function MemberListPage() {
       pendingChange,
       internal: {
         name: member?.name || null,
-        area: member?.area || null,
+        area: effectiveInternalArea,
         email: member?.email || null,
         phone: member?.phone || null,
         dre: member?.dre || null,
@@ -110,7 +122,7 @@ export async function MemberListPage() {
         notes: member?.notes || null,
         missedWeeks: member
           ? memberSummary(
-              { id: member.id, name: record.name, area: member.area || record.area, email: member.email || null },
+              { id: member.id, name: record.name, area: effectiveInternalArea || effectiveArea || 'Software', email: member.email || null },
               member.attendancePeriods,
               member.attendanceVisits,
               weekKey()

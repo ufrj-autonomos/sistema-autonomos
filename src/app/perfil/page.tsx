@@ -401,6 +401,7 @@ function ProfileFormContent() {
                 <option value="Eletrônica">Eletrônica</option>
                 <option value="Mecânica">Mecânica</option>
                 <option value="Gestão">Gestão</option>
+                <option value="Marketing">Marketing</option>
               </select>
             </label>
 

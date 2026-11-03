@@ -54,10 +54,11 @@ export async function updateAccount(actorId: string, targetId: string, input: un
           newlyApprovedEmail = { to: target.email, name: target.name };
         }
         if (!target.institutionalMemberId) {
+          const defaultArea = target.role === 'MANAGEMENT' ? 'Gestão' : (target.area ?? null);
           memberIdToProvisionInSite = {
             id: target.id,
             name: target.name,
-            area: target.area ?? null,
+            area: defaultArea,
             course: target.course ?? null,
           };
         }

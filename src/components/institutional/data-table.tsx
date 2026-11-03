@@ -20,8 +20,9 @@ import {
   Layers,
 } from "lucide-react";
 import type { AdminModel } from "@/lib/institutional/admin-config";
-import { deleteRecord } from "@/app/(gestao)/gestao/site/actions";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/institutional/ui/dialog";
+import { deleteRecord, updateRecord } from "@/app/(gestao)/gestao/site/actions";
+import { useRouter } from "next/navigation";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/institutional/ui/dialog";
 import { useInstitutionalAsset } from "./site-context";
 import { directoryPath } from "@/lib/institutional/routes";
 import { cn } from "@/lib/utils";
@@ -36,6 +37,7 @@ export function DataTable({
   tableSlug: string;
 }) {
   const assetUrl = useInstitutionalAsset();
+  const router = useRouter();
   const [search, setSearch] = useState("");
   const [teamFilter, setTeamFilter] = useState<string>("all");
   const [statusFilter, setStatusFilter] = useState<string>("all");
@@ -44,6 +46,22 @@ export function DataTable({
   const [isDeleting, setIsDeleting] = useState<number | null>(null);
   const [deleteConfirmTarget, setDeleteConfirmTarget] = useState<any | null>(null);
   const [previewImage, setPreviewImage] = useState<{ url: string; title: string } | null>(null);
+
+  // Quick inline update confirmation
+  const [quickConfirm, setQuickConfirm] = useState<{
+    row: any;
+    field: string;
+    fieldLabel: string;
+    currentValLabel: string;
+    newVal: any;
+    newValLabel: string;
+  } | null>(null);
+  const [isUpdatingField, setIsUpdatingField] = useState(false);
+  const [selectModal, setSelectModal] = useState<{
+    row: any;
+    field: string;
+    fieldConfig: any;
+  } | null>(null);
 
   // Filter records based on search query and filter pills
   const filteredData = useMemo(() => {
@@ -111,11 +129,32 @@ export function DataTable({
         alert(`Erro ao excluir: ${result?.error || "Desconhecido"}`);
       } else {
         setDeleteConfirmTarget(null);
+        router.refresh();
       }
     } catch (err: any) {
       alert("Erro ao excluir. Verifique se o registro está associado a outras tabelas.");
     } finally {
       setIsDeleting(null);
+    }
+  }
+
+  async function handleConfirmQuickUpdate() {
+    if (!quickConfirm) return;
+    setIsUpdatingField(true);
+    try {
+      const res = await updateRecord(config.table, quickConfirm.row.id, {
+        [quickConfirm.field]: quickConfirm.newVal,
+      });
+      if (!res.success) {
+        alert(`Erro ao atualizar: ${res.error || "Desconhecido"}`);
+      } else {
+        setQuickConfirm(null);
+        router.refresh();
+      }
+    } catch {
+      alert("Erro ao atualizar campo.");
+    } finally {
+      setIsUpdatingField(false);
     }
   }
 
@@ -420,13 +459,25 @@ export function DataTable({
                       const isF = Boolean(rawVal);
                       return (
                         <td key={fieldKey} className="px-5 py-3">
-                          <span
+                          <button
+                            type="button"
+                            onClick={() =>
+                              setQuickConfirm({
+                                row,
+                                field: fieldKey,
+                                fieldLabel: field?.label || "Gênero",
+                                currentValLabel: isF ? "Feminino" : "Masculino",
+                                newVal: !isF,
+                                newValLabel: !isF ? "Feminino" : "Masculino",
+                              })
+                            }
                             className={cn(
-                              "inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-mono border",
+                              "inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-[11px] font-mono border cursor-pointer transition-all hover:scale-105",
                               isF
-                                ? "bg-rose-500/10 text-rose-400 border-rose-500/30"
-                                : "bg-muted/50 text-muted-foreground border-hairline"
+                                ? "bg-rose-500/10 text-rose-400 border-rose-500/30 hover:bg-rose-500/20"
+                                : "bg-muted/50 text-muted-foreground border-hairline hover:bg-muted"
                             )}
+                            title="Clique para alternar gênero"
                           >
                             <span
                               className={cn(
@@ -435,7 +486,7 @@ export function DataTable({
                               )}
                             />
                             {isF ? "Feminino" : "Masculino"}
-                          </span>
+                          </button>
                         </td>
                       );
                     }
@@ -476,30 +527,59 @@ export function DataTable({
 
                       return (
                         <td key={fieldKey} className="px-5 py-3">
-                          <span
+                          <button
+                            type="button"
+                            onClick={() =>
+                              field?.options
+                                ? setSelectModal({ row, field: fieldKey, fieldConfig: field })
+                                : null
+                            }
                             className={cn(
-                              "inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-[11px] font-mono border",
+                              "inline-flex items-center gap-1 rounded-md px-2.5 py-0.5 text-[11px] font-mono border transition-all",
+                              field?.options ? "cursor-pointer hover:ring-1 hover:ring-foreground/30" : "",
                               colorClass
                             )}
+                            title={field?.options ? "Clique para alterar área" : undefined}
                           >
-                            {rawVal}
-                          </span>
+                            <span>{rawVal}</span>
+                            {field?.options && <span className="text-[9px] opacity-60">▾</span>}
+                          </button>
                         </td>
                       );
                     }
 
-                    // 4. Active status
+                    // 4. Active status & booleans
                     if (fieldKey === "active" || typeof rawVal === "boolean") {
                       const isActive = Boolean(rawVal);
+                      const isShowOnSite = fieldKey === "showOnSite";
+                      const currentLabel = isShowOnSite
+                        ? isActive ? "Visível no site" : "Somente na gestão"
+                        : isActive ? "Ativo" : "Inativo";
+                      const nextLabel = isShowOnSite
+                        ? !isActive ? "Visível no site" : "Somente na gestão"
+                        : !isActive ? "Ativo" : "Inativo";
+
                       return (
                         <td key={fieldKey} className="px-5 py-3">
-                          <span
+                          <button
+                            type="button"
+                            onClick={() =>
+                              setQuickConfirm({
+                                row,
+                                field: fieldKey,
+                                fieldLabel: field?.label || (isShowOnSite ? "Exibição no site" : "Status"),
+                                currentValLabel: currentLabel,
+                                newVal: !isActive,
+                                newValLabel: nextLabel,
+                              })
+                            }
                             className={cn(
-                              "inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-mono border",
+                              "inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-[11px] font-mono border cursor-pointer transition-all hover:scale-105",
                               isActive
-                                ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/30"
-                                : "bg-muted text-muted-foreground border-hairline"
+                                ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/30 hover:bg-emerald-500/20"
+                                : "bg-muted text-muted-foreground border-hairline hover:bg-muted/80"
                             )}
+                            title="Clique para alternar"
                           >
                             <span
                               className={cn(
@@ -507,8 +587,8 @@ export function DataTable({
                                 isActive ? "bg-emerald-400" : "bg-muted-foreground"
                               )}
                             />
-                            {fieldKey === "showOnSite" ? (isActive ? "Visível no site" : "Somente na gestão") : (isActive ? "Ativo" : "Inativo")}
-                          </span>
+                            {currentLabel}
+                          </button>
                         </td>
                       );
                     }
@@ -549,7 +629,23 @@ export function DataTable({
                     // 6. Select options
                     if (field?.type === "select" && field.options) {
                       const opt = field.options.find((o) => String(o.value) === String(rawVal));
-                      if (opt) displayVal = opt.label;
+                      displayVal = opt ? opt.label : rawVal;
+
+                      if (displayVal !== null && displayVal !== undefined && displayVal !== "") {
+                        return (
+                          <td key={fieldKey} className="px-5 py-3">
+                            <button
+                              type="button"
+                              onClick={() => setSelectModal({ row, field: fieldKey, fieldConfig: field })}
+                              className="inline-flex items-center gap-1 rounded-md border border-border bg-card/60 px-2 py-0.5 text-xs text-foreground/90 hover:bg-muted cursor-pointer transition-colors"
+                              title={`Clique para alterar ${field.label}`}
+                            >
+                              <span>{String(displayVal)}</span>
+                              <span className="text-[9px] opacity-60">▾</span>
+                            </button>
+                          </td>
+                        );
+                      }
                     }
 
                     // 7. General formatting
@@ -684,6 +780,108 @@ export function DataTable({
               className="rounded-md bg-foreground px-3 py-1 text-xs font-medium text-background hover:bg-foreground/90"
             >
               Fechar
+            </button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+      {/* Select Option Modal */}
+      <Dialog open={!!selectModal} onOpenChange={(open) => !open && setSelectModal(null)}>
+        <DialogContent className="sm:max-w-sm bg-card border-border">
+          <DialogHeader>
+            <DialogTitle className="font-display text-sm font-semibold">
+              Alterar {selectModal?.fieldConfig?.label || selectModal?.field}
+            </DialogTitle>
+            <DialogDescription className="text-xs text-muted-foreground">
+              Selecione uma das opções abaixo. Você precisará confirmar antes de salvar.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="py-2 space-y-1 max-h-64 overflow-y-auto">
+            {selectModal?.fieldConfig?.options?.map((opt: any) => {
+              const currentVal = selectModal.row[selectModal.field];
+              const isSelected = String(currentVal) === String(opt.value);
+              return (
+                <button
+                  key={String(opt.value)}
+                  type="button"
+                  onClick={() => {
+                    const chosen = opt.value;
+                    const chosenLabel = opt.label;
+                    const curLabel =
+                      selectModal.fieldConfig.options.find((o: any) => String(o.value) === String(currentVal))?.label ||
+                      String(currentVal || "—");
+                    const targetRow = selectModal.row;
+                    const targetField = selectModal.field;
+                    const targetFieldLabel = selectModal.fieldConfig.label;
+                    setSelectModal(null);
+                    setQuickConfirm({
+                      row: targetRow,
+                      field: targetField,
+                      fieldLabel: targetFieldLabel,
+                      currentValLabel: curLabel,
+                      newVal: chosen,
+                      newValLabel: chosenLabel,
+                    });
+                  }}
+                  className={cn(
+                    "w-full text-left px-3 py-2 text-xs rounded-md transition-colors flex items-center justify-between",
+                    isSelected
+                      ? "bg-muted font-semibold text-foreground border border-border"
+                      : "text-muted-foreground hover:bg-muted/50 hover:text-foreground"
+                  )}
+                >
+                  <span>{opt.label}</span>
+                  {isSelected && <span className="text-[10px] text-muted-foreground">Atual</span>}
+                </button>
+              );
+            })}
+          </div>
+          <DialogFooter>
+            <button
+              type="button"
+              onClick={() => setSelectModal(null)}
+              className="rounded-md border border-border px-3.5 py-1.5 text-xs font-medium text-foreground hover:bg-muted"
+            >
+              Cancelar
+            </button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Quick Confirmation Popup for booleans & enums */}
+      <Dialog open={!!quickConfirm} onOpenChange={(open) => !open && !isUpdatingField && setQuickConfirm(null)}>
+        <DialogContent className="sm:max-w-md bg-card border-border">
+          <DialogHeader>
+            <DialogTitle className="font-display text-base font-semibold text-foreground">
+              Confirmar Alteração
+            </DialogTitle>
+          </DialogHeader>
+          <DialogDescription className="text-xs text-muted-foreground leading-relaxed pt-1">
+            Deseja alterar o campo <strong className="text-foreground">{quickConfirm?.fieldLabel}</strong> do registro{" "}
+            <strong className="text-foreground">
+              #{quickConfirm?.row?.id} ({quickConfirm?.row?.name || quickConfirm?.row?.title || config.name})
+            </strong>{" "}
+            de <strong className="text-amber-400">{quickConfirm?.currentValLabel}</strong> para{" "}
+            <strong className="text-emerald-400">{quickConfirm?.newValLabel}</strong>?
+          </DialogDescription>
+          <div className="bg-muted/40 border border-border/60 rounded-md p-2.5 text-xs text-muted-foreground">
+            A alteração será aplicada imediatamente ao banco de dados e refletida na listagem.
+          </div>
+          <DialogFooter className="flex items-center justify-end gap-2 pt-2 border-t border-border">
+            <button
+              type="button"
+              disabled={isUpdatingField}
+              onClick={() => setQuickConfirm(null)}
+              className="rounded-md border border-border px-3.5 py-1.5 text-xs font-medium text-foreground hover:bg-muted transition-colors disabled:opacity-50"
+            >
+              Cancelar
+            </button>
+            <button
+              type="button"
+              disabled={isUpdatingField}
+              onClick={handleConfirmQuickUpdate}
+              className="rounded-md bg-emerald-600 px-3.5 py-1.5 text-xs font-semibold text-white hover:bg-emerald-500 transition-colors disabled:opacity-50"
+            >
+              {isUpdatingField ? "Salvando..." : "Confirmar alteração"}
             </button>
           </DialogFooter>
         </DialogContent>
