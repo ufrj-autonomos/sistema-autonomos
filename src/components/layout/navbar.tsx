@@ -136,7 +136,8 @@ export function Navbar({ className }: NavbarProps) {
   })();
 
   return (
-    <header
+    <>
+      <header
       className={cn(
         "sticky top-0 z-50 w-full backdrop-blur-md bg-[#0A0A0B]/80 border-b border-white/10 transition-colors duration-200",
         className
@@ -356,77 +357,82 @@ export function Navbar({ className }: NavbarProps) {
           </button>
         </div>
       </div>
+    </header>
 
-      {/* Drawer Mobile: Fundo Escurecido (Backdrop) */}
-      {isMobileMenuOpen && (
-        <div
-          className="fixed inset-0 z-40 bg-black/70 backdrop-blur-xs md:hidden transition-opacity duration-300"
-          onClick={() => setIsMobileMenuOpen(false)}
-          aria-hidden="true"
-        />
-      )}
-
-      {/* Drawer Mobile: Painel Deslizante */}
+    {/* Drawer Mobile: Fundo Escurecido (Backdrop) fora do header para cobrir 100% da viewport */}
+    {isMobileMenuOpen && (
       <div
-        className={cn(
-          "fixed inset-y-0 right-0 z-50 w-full max-w-xs bg-[#0E0E10] border-l border-white/10 p-6 flex flex-col justify-between shadow-2xl transition-transform duration-300 ease-in-out md:hidden",
-          isMobileMenuOpen ? "translate-x-0" : "translate-x-full"
-        )}
-      >
-        <div className="space-y-6">
-          {/* Topo do Drawer */}
-          <div className="flex items-center justify-between border-b border-white/10 pb-4">
-            <Link
-              href="/"
-              onClick={() => setIsMobileMenuOpen(false)}
-              className="flex items-center gap-2"
-            >
-              <Logo size="sm" />
-            </Link>
-            <button
-              type="button"
-              onClick={() => setIsMobileMenuOpen(false)}
-              className="h-8 w-8 rounded-lg border border-white/10 flex items-center justify-center text-zinc-400 hover:text-white hover:bg-white/5"
-              aria-label="Fechar menu"
-            >
-              <X className="w-4 h-4" />
-            </button>
-          </div>
+        className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm md:hidden transition-opacity duration-300"
+        onClick={() => setIsMobileMenuOpen(false)}
+        aria-hidden="true"
+      />
+    )}
 
-          {/* Links Primários de Navegação */}
-          <nav className="flex flex-col gap-1.5" aria-label="Menu Mobile">
-            <p className="text-[11px] font-mono uppercase tracking-wider text-zinc-500 px-3 mb-1">
-              Navegação
-            </p>
-            {NAV_LINKS.map((item) => {
-              const active = isRouteActive(item.href);
-              const Icon = item.icon;
-              return (
-                <Link
-                  key={item.href}
-                  href={item.href}
-                  onClick={() => setIsMobileMenuOpen(false)}
-                  className={cn(
-                    "flex items-center justify-between px-3.5 py-2.5 rounded-lg text-sm font-medium transition-all",
-                    active
-                      ? "bg-white/10 text-zinc-100 border border-white/10"
-                      : "text-zinc-400 hover:text-zinc-100 hover:bg-white/5"
-                  )}
-                >
-                  <div className="flex items-center gap-2.5">
-                    <Icon className="w-4 h-4" />
-                    <span>{item.label}</span>
-                  </div>
-                  {active && (
-                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
-                  )}
-                </Link>
-              );
-            })}
-          </nav>
+    {/* Drawer Mobile: Painel Deslizante desacoplado do header */}
+    <div
+      role="dialog"
+      aria-modal="true"
+      aria-label="Menu principal de navegação"
+      className={cn(
+        "fixed inset-y-0 right-0 z-50 w-full max-w-xs bg-[#0E0E10] border-l border-white/10 flex flex-col shadow-2xl transition-transform duration-300 ease-in-out md:hidden h-[100dvh] overflow-hidden",
+        isMobileMenuOpen ? "translate-x-0" : "translate-x-full pointer-events-none"
+      )}
+    >
+      {/* Topo do Drawer */}
+      <div className="flex items-center justify-between border-b border-white/10 p-5 shrink-0 bg-[#0E0E10]">
+        <Link
+          href="/"
+          onClick={() => setIsMobileMenuOpen(false)}
+          className="flex items-center gap-2"
+        >
+          <Logo size="sm" />
+        </Link>
+        <button
+          type="button"
+          onClick={() => setIsMobileMenuOpen(false)}
+          className="h-8 w-8 rounded-lg border border-white/10 flex items-center justify-center text-zinc-400 hover:text-white hover:bg-white/5 cursor-pointer"
+          aria-label="Fechar menu"
+        >
+          <X className="w-4 h-4" />
+        </button>
+      </div>
 
-          {/* Seção das Divisões de Robótica */}
-          {canAccessManagement && (
+      {/* Corpo com Scroll Suave */}
+      <div className="flex-1 overflow-y-auto overscroll-contain p-5 space-y-6">
+        {/* Links Primários de Navegação */}
+        <nav className="flex flex-col gap-1.5" aria-label="Menu Mobile">
+          <p className="text-[11px] font-mono uppercase tracking-wider text-zinc-500 px-3 mb-1">
+            Navegação
+          </p>
+          {NAV_LINKS.map((item) => {
+            const active = isRouteActive(item.href);
+            const Icon = item.icon;
+            return (
+              <Link
+                key={item.href}
+                href={item.href}
+                onClick={() => setIsMobileMenuOpen(false)}
+                className={cn(
+                  "flex items-center justify-between px-3.5 py-2.5 rounded-lg text-sm font-medium transition-all",
+                  active
+                    ? "bg-white/10 text-zinc-100 border border-white/10"
+                    : "text-zinc-400 hover:text-zinc-100 hover:bg-white/5 border border-transparent"
+                )}
+              >
+                <div className="flex items-center gap-2.5">
+                  <Icon className="w-4 h-4" />
+                  <span>{item.label}</span>
+                </div>
+                {active && (
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
+                )}
+              </Link>
+            );
+          })}
+        </nav>
+
+        {/* Seção das Divisões de Robótica */}
+        {canAccessManagement && (
           <div className="pt-2 border-t border-white/10">
             <p className="text-[11px] font-mono uppercase tracking-wider text-zinc-500 px-3 mb-2">
               Divisões Autônomos
@@ -456,72 +462,72 @@ export function Navbar({ className }: NavbarProps) {
               </Link>
             </div>
           </div>
-          )}
-        </div>
+        )}
+      </div>
 
-        {/* Rodapé do Drawer: Autenticação & Status */}
-        <div className="pt-6 border-t border-white/10 space-y-4">
-          {user ? (
-            <div className="space-y-3">
-              <div className="flex items-center gap-3 p-2.5 rounded-lg bg-white/5 border border-white/10">
-                {user.avatar ? (
-                  <img
-                    src={user.avatar}
-                    alt={user.name}
-                    className="w-9 h-9 rounded-full object-cover border border-white/10"
-                  />
-                ) : (
-                  <div className="w-9 h-9 rounded-full bg-zinc-800 border border-white/10 flex items-center justify-center text-xs font-mono font-medium text-zinc-200">
-                    {userInitials}
-                  </div>
-                )}
-                <div className="overflow-hidden">
-                  <p className="text-sm font-semibold text-zinc-200 truncate">
-                    {user.name}
-                  </p>
-                  <p className="text-xs text-zinc-400 truncate">
-                    {user.email}
-                  </p>
+      {/* Rodapé Fixo do Drawer: Autenticação & Status */}
+      <div className="shrink-0 p-5 border-t border-white/10 bg-[#0A0A0B]/80 backdrop-blur-sm space-y-4">
+        {user ? (
+          <div className="space-y-3">
+            <div className="flex items-center gap-3 p-2.5 rounded-lg bg-white/5 border border-white/10">
+              {user.avatar ? (
+                <img
+                  src={user.avatar}
+                  alt={user.name}
+                  className="w-9 h-9 rounded-full object-cover border border-white/10"
+                />
+              ) : (
+                <div className="w-9 h-9 rounded-full bg-zinc-800 border border-white/10 flex items-center justify-center text-xs font-mono font-medium text-zinc-200">
+                  {userInitials}
                 </div>
+              )}
+              <div className="overflow-hidden">
+                <p className="text-sm font-semibold text-zinc-200 truncate">
+                  {user.name}
+                </p>
+                <p className="text-xs text-zinc-400 truncate">
+                  {user.email}
+                </p>
               </div>
-              <button
-                type="button"
-                onClick={() => handleLogout()}
-                className="w-full flex items-center justify-center gap-2 px-3 py-2 rounded-lg bg-red-500/10 border border-red-500/20 text-red-400 text-sm font-medium hover:bg-red-500/20 transition cursor-pointer"
-              >
-                <LogOut className="w-4 h-4" />
-                <span>Sair da conta</span>
-              </button>
             </div>
-          ) : (
-            <div className="flex flex-col gap-2">
-              <Link
-                href="/login"
-                onClick={() => setIsMobileMenuOpen(false)}
-                className="w-full flex items-center justify-center py-2.5 rounded-lg border border-white/10 text-sm font-medium text-zinc-200 hover:bg-white/5 transition"
-              >
-                Entrar
-              </Link>
-              <Link
-                href="/register"
-                onClick={() => setIsMobileMenuOpen(false)}
-                className="w-full flex items-center justify-center py-2.5 rounded-lg bg-zinc-100 text-zinc-950 text-sm font-semibold hover:bg-white transition"
-              >
-                Cadastrar
-              </Link>
-            </div>
-          )}
-
-          {/* Chip de Status do Sistema */}
-          <div className="pt-2 flex items-center justify-between text-[11px] font-mono text-zinc-500">
-            <span className="flex items-center gap-1.5">
-              <span className="w-2 h-2 rounded-full bg-emerald-500" />
-              Sistemas Online
-            </span>
-            <span>v1.0.0</span>
+            <button
+              type="button"
+              onClick={() => handleLogout()}
+              className="w-full flex items-center justify-center gap-2 px-3 py-2 rounded-lg bg-red-500/10 border border-red-500/20 text-red-400 text-sm font-medium hover:bg-red-500/20 transition cursor-pointer"
+            >
+              <LogOut className="w-4 h-4" />
+              <span>Sair da conta</span>
+            </button>
           </div>
+        ) : (
+          <div className="flex flex-col gap-2">
+            <Link
+              href="/login"
+              onClick={() => setIsMobileMenuOpen(false)}
+              className="w-full flex items-center justify-center py-2.5 rounded-lg border border-white/10 text-sm font-medium text-zinc-200 hover:bg-white/5 transition"
+            >
+              Entrar
+            </Link>
+            <Link
+              href="/register"
+              onClick={() => setIsMobileMenuOpen(false)}
+              className="w-full flex items-center justify-center py-2.5 rounded-lg bg-zinc-100 text-zinc-950 text-sm font-semibold hover:bg-white transition"
+            >
+              Cadastrar
+            </Link>
+          </div>
+        )}
+
+        {/* Chip de Status do Sistema */}
+        <div className="pt-2 flex items-center justify-between text-[11px] font-mono text-zinc-500">
+          <span className="flex items-center gap-1.5">
+            <span className="w-2 h-2 rounded-full bg-emerald-500" />
+            Sistemas Online
+          </span>
+          <span>v1.0.0</span>
         </div>
       </div>
-    </header>
+    </div>
+  </>
   );
 }
