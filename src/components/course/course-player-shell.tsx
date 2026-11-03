@@ -174,16 +174,27 @@ export function CoursePlayerShell({
             {!isTextLesson && (
               <div className="w-full">
                 {isVideoAvailable ? (
-                  <VideoPlayer
-                    youtubeVideoId={activeLesson.youtubeVideoId}
-                    title={activeLesson.title}
-                    duration={
-                      activeLesson.videoDurationSeconds ||
-                      activeLesson.durationSeconds
-                    }
-                    moduleTitle={activeLesson.module?.title}
-                    videoStatus={activeLesson.videoStatus}
-                  />
+                  <>
+                    <VideoPlayer
+                      youtubeVideoId={activeLesson.youtubeVideoId}
+                      title={activeLesson.title}
+                      duration={
+                        activeLesson.videoDurationSeconds ||
+                        activeLesson.durationSeconds
+                      }
+                      moduleTitle={activeLesson.module?.title}
+                      videoStatus={activeLesson.videoStatus}
+                    />
+                    <div className="mt-2.5 flex flex-wrap items-center justify-between gap-2 px-3 py-1.5 rounded-lg bg-zinc-900/60 border border-white/5 text-[11px] text-zinc-400 font-mono">
+                      <div className="flex items-center gap-1.5 text-emerald-400">
+                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                        <span>Legendas em Português ativas por padrão</span>
+                      </div>
+                      <span className="text-zinc-500 text-[10.5px]">
+                        Dica: Para áudio dublado ou ajustar a tradução, clique na engrenagem ⚙️ do player &gt; Faixa de áudio / Legendas
+                      </span>
+                    </div>
+                  </>
                 ) : (
                   <VideoPlaceholder
                     title={activeLesson.title}

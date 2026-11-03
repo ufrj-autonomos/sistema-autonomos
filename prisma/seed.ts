@@ -55,7 +55,24 @@ const MODULES_DATA: ModuleSeedItem[] = [
         rosDocsUrl: 'https://docs.ros.org/en/jazzy/index.html',
         content: `### Boas-vindas ao Curso ROS 2 Jazzy Jalisco
 Bem-vindo ao curso prático de **ROS 2 Jazzy Jalisco**, ministrado pela **UFRJ Autônomos**.
-Neste curso você aprenderá a construir nós inteligentes, configurar pipelines de comunicação distribuída e simular robôs autônomos.`,
+Neste curso você aprenderá a construir nós inteligentes, configurar pipelines de comunicação distribuída e simular robôs autônomos.
+
+---
+
+### 🎙️ Dica: Legendas e Áudio Dublado no YouTube
+
+Todos os vídeos da plataforma já são configurados para **abrir automaticamente com legendas em português (\`pt-BR\`)**.
+
+Caso queira ajustar a legenda automática ou alternar para a faixa dublada no YouTube:
+
+1. **Legendas em Português / Tradução Automática:**
+   - No player do YouTube, clique no ícone **CC** (Legendas) no canto inferior direito para ligar/desligar.
+   - Para traduzir caso esteja em outro idioma: clique na **Engrenagem (⚙️ Detalhes)** > **Legendas** > **Traduzir automaticamente** > Selecione **Português**.
+
+2. **Faixa de Áudio Dublada (quando disponível no YouTube):**
+   - Clique na **Engrenagem (⚙️ Detalhes)** no canto inferior do player.
+   - Selecione **Faixa de áudio**.
+   - Escolha **Português (dublado)**.`,
       },
       {
         orderIndex: 2,
@@ -119,9 +136,9 @@ Comparativo entre versões legadas e o **ROS 2 Jazzy Jalisco** (LTS com suporte 
         title: 'Install Ubuntu 24.04 on a Virtual Machine VirtualBox',
         slug: '006-install-ubuntu-24-04-virtualbox',
         type: 'video',
-        videoStatus: 'pending',
-        youtubeVideoId: null,
-        durationSeconds: 900,
+        videoStatus: 'available',
+        youtubeVideoId: 'ad3gJpq29_k',
+        durationSeconds: 1125,
         content: `Passo a passo para instalação do Ubuntu 24.04 LTS no VirtualBox, alocando no mínimo 4GB de RAM e 2 vCPUs.`,
       },
       {
@@ -297,7 +314,7 @@ printenv ROS_DISTRO # Deve exibir 'jazzy'
       { orderIndex: 70, title: 'Activity 04 - ROS 2 Custom Interfaces', slug: '070-activity-04-custom-interfaces', type: 'text', videoStatus: 'pending', youtubeVideoId: null, durationSeconds: 300, content: 'Desafio: Painel de LEDs e simulador de bateria com LedStateArray.msg.' },
       { orderIndex: 71, title: 'Activity 04 Solution 1 3', slug: '071-activity-04-solution-1-3', type: 'video', videoStatus: 'available', youtubeVideoId: 'DFUCVb4tm9k', durationSeconds: 634, content: 'Implementação de LedStateArray.msg.' },
       { orderIndex: 72, title: 'Activity 04 Solution 2 3', slug: '072-activity-04-solution-2-3', type: 'video', videoStatus: 'pending', youtubeVideoId: null, durationSeconds: 560, content: 'Implementação de SetLed.srv.' },
-      { orderIndex: 73, title: 'Activity 04 Solution 3 3', slug: '073-activity-04-solution-3-3', type: 'video', videoStatus: 'pending', youtubeVideoId: null, durationSeconds: 610, content: 'Integração do nó battery com cliente de serviço.' },
+      { orderIndex: 73, title: 'Activity 04 Solution 3 3', slug: '073-activity-04-solution-3-3', type: 'video', videoStatus: 'available', youtubeVideoId: '6ZPLhbyhPLI', durationSeconds: 1348, content: 'Integração do nó battery com cliente de serviço.' },
       { orderIndex: 74, title: 'Section Conclusion', slug: '074-section-conclusion-interfaces', type: 'text', videoStatus: 'pending', youtubeVideoId: null, durationSeconds: 150, content: 'Conclusão de interfaces customizadas.' },
     ],
   },
@@ -307,14 +324,14 @@ printenv ROS_DISTRO # Deve exibir 'jazzy'
     description: 'Parametrização estática e dinâmica de nós, arquivos YAML e validação com callbacks.',
     lessons: [
       { orderIndex: 75, title: 'Intro', slug: '075-intro-parameters', type: 'text', videoStatus: 'pending', youtubeVideoId: null, durationSeconds: 120, content: 'Conceito de parâmetros no ROS 2.' },
-      { orderIndex: 76, title: 'What is a ROS 2 Parameter', slug: '076-what-is-a-ros-2-parameter', type: 'video', videoStatus: 'pending', youtubeVideoId: null, durationSeconds: 340, content: 'Parâmetros por nó e tipagem estática.' },
-      { orderIndex: 77, title: 'Using Parameters in your Python Nodes', slug: '077-parameters-in-python', type: 'video', videoStatus: 'pending', youtubeVideoId: null, durationSeconds: 580, content: 'declare_parameter e get_parameter em Python.' },
-      { orderIndex: 78, title: 'Using Parameters in your C Nodes', slug: '078-parameters-in-cpp', type: 'video', videoStatus: 'pending', youtubeVideoId: null, durationSeconds: 560, content: 'declare_parameter em C++.' },
-      { orderIndex: 79, title: 'Experiment on Parameters with Turtlesim', slug: '079-parameters-turtlesim', type: 'video', videoStatus: 'pending', youtubeVideoId: null, durationSeconds: 430, content: 'Configuração dinâmica de cores do Turtlesim.' },
-      { orderIndex: 80, title: 'YAML Parameter Files', slug: '080-yaml-parameter-files', type: 'video', videoStatus: 'pending', youtubeVideoId: null, durationSeconds: 510, content: 'Estruturação hierárquica e injeção com --params-file.' },
+      { orderIndex: 76, title: 'What is a ROS 2 Parameter', slug: '076-what-is-a-ros-2-parameter', type: 'video', videoStatus: 'available', youtubeVideoId: 'P-TlnQrm7PY', durationSeconds: 171, content: 'Parâmetros por nó e tipagem estática.' },
+      { orderIndex: 77, title: 'Using Parameters in your Python Nodes', slug: '077-parameters-in-python', type: 'video', videoStatus: 'available', youtubeVideoId: 'hNzpsMAZ9Tw', durationSeconds: 707, content: 'declare_parameter e get_parameter em Python.' },
+      { orderIndex: 78, title: 'Using Parameters in your C Nodes', slug: '078-parameters-in-cpp', type: 'video', videoStatus: 'available', youtubeVideoId: 'n7AngQtAY5I', durationSeconds: 490, content: 'declare_parameter em C++.' },
+      { orderIndex: 79, title: 'Experiment on Parameters with Turtlesim', slug: '079-parameters-turtlesim', type: 'video', videoStatus: 'available', youtubeVideoId: 'ynDdTnXJUns', durationSeconds: 458, content: 'Configuração dinâmica de cores do Turtlesim.' },
+      { orderIndex: 80, title: 'YAML Parameter Files', slug: '080-yaml-parameter-files', type: 'video', videoStatus: 'available', youtubeVideoId: 'VFn8vvvN_LY', durationSeconds: 573, content: 'Estruturação hierárquica e injeção com --params-file.' },
       { orderIndex: 81, title: 'Activity 05 - ROS 2 Parameters', slug: '081-activity-05-parameters', type: 'text', videoStatus: 'pending', youtubeVideoId: null, durationSeconds: 300, content: 'Desafio: Parametrizar nome da estação de rádio e estado dos LEDs.' },
-      { orderIndex: 82, title: 'Activity 05 Solution 1 2', slug: '082-activity-05-solution-1-2', type: 'video', videoStatus: 'pending', youtubeVideoId: null, durationSeconds: 490, content: 'Solução da parametrização do rádio.' },
-      { orderIndex: 83, title: 'Activity 05 Solution 2 2', slug: '083-activity-05-solution-2-2', type: 'video', videoStatus: 'pending', youtubeVideoId: null, durationSeconds: 530, content: 'Carregamento do arquivo led_config.yaml.' },
+      { orderIndex: 82, title: 'Activity 05 Solution 1 2', slug: '082-activity-05-solution-1-2', type: 'video', videoStatus: 'available', youtubeVideoId: 'yXS1-zyZS90', durationSeconds: 386, content: 'Solução da parametrização do rádio.' },
+      { orderIndex: 83, title: 'Activity 05 Solution 2 2', slug: '083-activity-05-solution-2-2', type: 'video', videoStatus: 'available', youtubeVideoId: 'E_WY0yGy1Sg', durationSeconds: 455, content: 'Carregamento do arquivo led_config.yaml.' },
       { orderIndex: 84, title: 'Extra Parameter Callbacks', slug: '084-extra-parameter-callbacks', type: 'video', videoStatus: 'pending', youtubeVideoId: null, durationSeconds: 610, content: 'add_on_set_parameters_callback para validação em runtime.' },
       { orderIndex: 85, title: 'Section Conclusion', slug: '085-section-conclusion-parameters', type: 'text', videoStatus: 'pending', youtubeVideoId: null, durationSeconds: 150, content: 'Boas práticas na gestão de configurações.' },
     ],
