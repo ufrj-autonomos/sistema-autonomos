@@ -10,7 +10,13 @@ import { DynamicForm } from '@/components/institutional/dynamic-form';
 import { saveDirectoryDetails } from '@/app/(gestao)/gestao/directory-actions';
 
 const inputClass = 'mt-2 min-h-11 w-full rounded-lg border border-zinc-700 bg-zinc-950 px-3 py-2 text-sm text-zinc-100 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-zinc-300';
-type Details = Partial<Record<OperationalKey, string>> & { notes?: string; userId?: string; accountEmail?: string; attendance?: AttendanceMemberDto | null } | null;
+type Details = Partial<Record<OperationalKey, string>> & {
+  notes?: string;
+  userId?: string;
+  accountEmail?: string;
+  attendance?: AttendanceMemberDto | null;
+  pendingChange?: { id: string; createdAt: string; changes: Record<string, unknown> } | null;
+} | null;
 
 export function DirectoryEditor({ table, id, config, initialData, projectsList, relationsData, details, accounts, initialTab = 'shared' }: {
   table: 'member' | 'project'; id: number | null; config: AdminModel; initialData: Record<string, unknown>;
@@ -22,10 +28,32 @@ export function DirectoryEditor({ table, id, config, initialData, projectsList, 
   const [notes, setNotes] = useState(details?.notes || '');
   const [userId, setUserId] = useState(details?.userId || '');
   const [saving, setSaving] = useState(false);
+  const [reviewing, setReviewing] = useState(false);
   const [message, setMessage] = useState('');
   const [failed, setFailed] = useState(false);
   const router = useRouter();
   const attendance = details?.attendance;
+  const pendingChange = details?.pendingChange;
+
+  async function reviewPending(action: 'APPROVE' | 'REJECT') {
+    if (!pendingChange) return;
+    setReviewing(true); setMessage(''); setFailed(false);
+    try {
+      const res = await fetch('/api/admin/profile-changes', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ changeId: pendingChange.id, action }),
+      });
+      const data = await res.json();
+      setFailed(!res.ok);
+      setMessage(res.ok ? data.message : data.error || 'Falha ao revisar alterações.');
+      if (res.ok) router.refresh();
+    } catch {
+      setFailed(true); setMessage('Erro de conexão ao revisar alterações.');
+    } finally {
+      setReviewing(false);
+    }
+  }
   async function save(event: React.FormEvent) {
     event.preventDefault();
     if (!id) return;
@@ -43,6 +71,28 @@ export function DirectoryEditor({ table, id, config, initialData, projectsList, 
       {[['shared', 'Dados compartilhados e site'], ['private', 'Dados internos']].map(([key, label]) => <button key={key} type="button" aria-pressed={tab === key} onClick={() => setTab(key as 'shared' | 'private')} className={`min-h-11 rounded-lg px-4 text-sm font-medium focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-zinc-300 ${tab === key ? 'bg-zinc-100 text-zinc-950' : 'text-zinc-400 hover:bg-zinc-900 hover:text-zinc-100'}`}>{label}</button>)}
     </div>
     <div hidden={tab !== 'shared'}>
+      {pendingChange && (
+        <div className="mb-6 rounded-xl border border-amber-500/30 bg-amber-950/20 p-4 space-y-3 text-sm">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <p className="font-semibold text-amber-200">Alterações enviadas pelo integrante aguardando aprovação para o site</p>
+              <p className="mt-1 text-xs text-zinc-300">Ao aprovar, os campos abaixo serão aplicados ao banco institucional, traduzidos automaticamente (EN/FR) e publicados no site.</p>
+            </div>
+            <div className="flex items-center gap-2">
+              <button type="button" disabled={reviewing} onClick={() => void reviewPending('REJECT')} className="min-h-10 rounded-lg border border-red-800/60 bg-red-950/50 px-3 py-1.5 text-xs font-medium text-red-200 hover:bg-red-900/60 disabled:opacity-50">Recusar alterações</button>
+              <button type="button" disabled={reviewing} onClick={() => void reviewPending('APPROVE')} className="min-h-10 rounded-lg bg-emerald-700 px-3 py-1.5 text-xs font-semibold text-white hover:bg-emerald-600 disabled:opacity-50">{reviewing ? 'Processando...' : 'Aprovar e publicar no site'}</button>
+            </div>
+          </div>
+          <dl className="grid gap-3 sm:grid-cols-2 border-t border-amber-500/20 pt-3 text-xs">
+            {Object.entries(pendingChange.changes || {}).map(([field, value]) => (
+              <div key={field} className="rounded-lg bg-black/40 p-2.5 border border-white/10">
+                <dt className="font-mono uppercase text-amber-300">{field}</dt>
+                <dd className="mt-1 text-zinc-200 break-words whitespace-pre-wrap">{String(value ?? '—')}</dd>
+              </div>
+            ))}
+          </dl>
+        </div>
+      )}
       <p className="mb-5 max-w-prose text-sm text-zinc-400">Estes dados alimentam o cadastro da equipe e o site. A opção “Exibir no site” controla a publicação. Novos cadastros começam visíveis somente na gestão.</p>
       <DynamicForm config={config} initialData={initialData} isNew={!id} tableSlug={table} projectsList={projectsList} relationsData={relationsData} />
     </div>

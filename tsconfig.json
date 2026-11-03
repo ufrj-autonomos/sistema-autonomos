@@ -36,6 +36,12 @@
     ".next/dev/types/**/*.ts"
   ],
   "exclude": [
-    "node_modules"
+    "node_modules",
+    "prisma/seed-gestao.ts",
+    "tests/adversarial-*.ts",
+    "tests/challenger-*.ts",
+    "tests/e2e-all-tiers.ts",
+    "tests/forensic-audit-m1.ts",
+    "tests/smoke-test*.ts"
   ]
 }

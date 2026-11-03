@@ -2,7 +2,7 @@ import { AttendanceCard } from '@/components/attendance/attendance-card';
 import { attendanceReport } from '@/lib/attendance/service';
 import Link from 'next/link';
 import { hasManagementAccess } from '@/lib/access-policy';
-import { ArrowRight, BookOpen, ShieldCheck } from 'lucide-react';
+import { ArrowRight, BookOpen, ShieldCheck, UserCircle } from 'lucide-react';
 import { requirePageUser } from '@/lib/session';
 import { prisma } from '@/lib/prisma';
 
@@ -12,7 +12,7 @@ export default async function HomePage() {
   const user = await requirePageUser();
   const courses = await prisma.course.findMany({ where: { published: true }, orderBy: { orderIndex: 'asc' }, select: {
       id: true, title: true, subtitle: true, level: true, durationHours: true,
-      courseProgress: { where: { userId: user.id }, select: { percentage: true } },
+      courseProgress: { where: { memberId: user.id }, select: { percentage: true } },
       _count: { select: { modules: true } },
     } });
 
@@ -25,8 +25,24 @@ export default async function HomePage() {
           <h1 className="font-display text-3xl font-semibold text-zinc-100 sm:text-4xl">Olá, {user.name.split(' ')[0]}.</h1>
           <p className="mt-3 max-w-2xl text-base leading-relaxed text-zinc-400">Este é o seu espaço na UFRJ Autônomos. Continue aprendendo sobre robótica.</p>
         </div>
-        {hasManagementAccess(user.role) && <Link href="/gestao" className="inline-flex min-h-11 items-center gap-2 rounded-lg border border-zinc-700 px-4 py-2 text-sm text-zinc-200 hover:bg-zinc-900 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-zinc-300"><ShieldCheck className="h-4 w-4" />Abrir gestão</Link>}
+        <div className="flex flex-wrap items-center gap-3">
+          <Link href="/perfil" className="inline-flex min-h-11 items-center gap-2 rounded-lg border border-zinc-700 px-4 py-2 text-sm text-zinc-200 hover:bg-zinc-900 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-zinc-300"><UserCircle className="h-4 w-4" />Meu perfil</Link>
+          {hasManagementAccess(user.role) && <Link href="/gestao" className="inline-flex min-h-11 items-center gap-2 rounded-lg border border-zinc-700 px-4 py-2 text-sm text-zinc-200 hover:bg-zinc-900 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-zinc-300"><ShieldCheck className="h-4 w-4" />Abrir gestão</Link>}
+        </div>
       </header>
+
+      {!user.profileCompletedAt && (
+        <div className="mt-6 flex flex-wrap items-center justify-between gap-4 rounded-xl border border-amber-500/30 bg-amber-500/10 p-4 text-sm text-amber-200">
+          <div>
+            <p className="font-medium text-amber-100">Complete seu cadastro de integrante</p>
+            <p className="mt-1 text-zinc-300">Adicione seu telefone, curso, DRE, contato de emergência e suas informações para o site institucional.</p>
+          </div>
+          <Link href="/perfil?welcome=1" className="inline-flex min-h-10 items-center gap-2 rounded-lg bg-amber-400 px-4 py-2 text-sm font-semibold text-zinc-950 hover:bg-amber-300">
+            Completar perfil
+            <ArrowRight className="h-4 w-4" />
+          </Link>
+        </div>
+      )}
 
       <AttendanceCard initial={attendance} />
 

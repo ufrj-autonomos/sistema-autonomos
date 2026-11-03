@@ -24,7 +24,7 @@ model Team {
   tagsEn      String?
   tagsFr      String?
 
-  members       Member[]
+  members       InstitutionalMember[]
   projects      Project[]
   sponsors      Sponsor[]
   competitions  Competition[]
@@ -71,7 +71,7 @@ model Project {
   @@unique([teamId, slug])
 }
 
-model Member {
+model InstitutionalMember {
   id         Int      @id @default(autoincrement())
   teamId     Int?
   team       Team?    @relation(fields: [teamId], references: [id], onDelete: Cascade)
@@ -98,6 +98,8 @@ model Member {
   isFemale   Boolean  @default(false)
   age        Int?
   createdAt  DateTime @default(now())
+
+  @@map("Member")
 }
 
 model Sponsor {

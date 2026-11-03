@@ -77,8 +77,8 @@ export default async function EnsinoCatalogPage() {
   if (session?.sub && course?.id) {
     const prog = await prisma.courseProgress.findUnique({
       where: {
-        userId_courseId: {
-          userId: session.sub,
+        memberId_courseId: {
+          memberId: session.sub,
           courseId: course.id,
         },
       },

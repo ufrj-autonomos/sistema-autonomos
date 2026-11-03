@@ -9,6 +9,8 @@ import { proxy } from '../src/proxy';
 import { POST as register } from '../src/app/api/auth/register/route';
 import { POST as login } from '../src/app/api/auth/login/route';
 import { POST as logout } from '../src/app/api/auth/logout/route';
+import { POST as forgotPassword } from '../src/app/api/auth/forgot-password/route';
+import { POST as resetPassword } from '../src/app/api/auth/reset-password/route';
 import { GET as me } from '../src/app/api/auth/me/route';
 import { GET as accounts } from '../src/app/api/admin/users/route';
 import { PATCH as patchAccount } from '../src/app/api/admin/users/[id]/route';
@@ -19,48 +21,89 @@ import { getAuthenticatedUserId } from '../src/lib/progress';
 
 process.env.JWT_SECRET = 'test-only-signing-key-32-characters-minimum';
 process.env.NEXT_PUBLIC_APP_URL = 'https://app.example.invalid';
+delete process.env.INSTITUTIONAL_DATABASE_URL;
 type Row = Record<string, any>;
 function stub(object: any, key: string, implementation: (...args: any[]) => any) { object[key] = implementation; }
 let users: Row[] = [];
 let sessions: Row[] = [];
+let challenges: Row[] = [];
 let passwordHash = '';
-function project(row: Row | undefined, select?: Row) {
+function project(row: Row | undefined, select?: Row, include?: Row) {
   if (!row) return null;
-  return select ? Object.fromEntries(Object.keys(select).filter(key => select[key] === true).map(key => [key, row[key]])) : { ...row };
+  if (select) {
+    return Object.fromEntries(Object.keys(select).filter(key => select[key] === true).map(key => [key, row[key]]));
+  }
+  const copy = { ...row };
+  if (include?.credential && row.passwordHash) {
+    copy.credential = { memberId: row.id, passwordHash: row.passwordHash };
+  }
+  return copy;
 }
-stub(prisma.user, 'findUnique', async ({ where, select }: any) => project(users.find(user => Object.entries(where).every(([key, value]) => user[key] === value)), select));
-stub(prisma.user, 'findMany', async ({ select, where }: any) => users
-  .filter(user => !where?.status?.not || user.status !== where.status.not)
+stub(prisma.member, 'findUnique', async ({ where, select, include }: any) => project(users.find(user => Object.entries(where).every(([key, value]) => user[key] === value)), select, include));
+stub(prisma.member, 'findMany', async ({ select, where }: any) => users
+  .filter(user => (!where?.status?.not || user.status !== where.status.not) && (!where?.email?.not || user.email !== null))
   .map(user => project(user, select)));
-stub(prisma.user, 'count', async ({ where }: any) => users.filter(user => Object.entries(where).every(([key, value]) => user[key] === value)).length);
-stub(prisma.user, 'create', async ({ data, select }: any) => { const row = { id: `user-${users.length}`, ...data }; users.push(row); return project(row, select); });
-stub(prisma.user, 'update', async ({ where, data, select }: any) => {
+stub(prisma.member, 'count', async ({ where }: any) => users.filter(user => !where || Object.entries(where).every(([key, value]) => user[key] === value)).length);
+stub(prisma.member, 'create', async ({ data, select }: any) => {
+  const { credential, ...rest } = data;
+  const row = {
+    id: `user-${users.length}`,
+    ...rest,
+    ...(credential?.create?.passwordHash ? { passwordHash: credential.create.passwordHash } : {}),
+  };
+  users.push(row);
+  return project(row, select);
+});
+stub(prisma.member, 'update', async ({ where, data, select }: any) => {
   const index = users.findIndex(user => user.id === where.id);
   users[index] = { ...users[index], ...data };
   return project(users[index], select);
 });
-stub(prisma.user, 'delete', async ({ where }: any) => {
+stub(prisma.member, 'delete', async ({ where }: any) => {
   const user = users.find(row => row.id === where.id);
   users = users.filter(row => row.id !== where.id);
-  sessions = sessions.filter(row => row.userId !== where.id);
+  sessions = sessions.filter(row => (row.memberId ?? row.userId) !== where.id);
   return user;
+});
+stub(prisma.memberCredential, 'upsert', async ({ where, create, update }: any) => {
+  const index = users.findIndex(user => user.id === where.memberId);
+  if (index >= 0) users[index].passwordHash = update.passwordHash ?? create.passwordHash;
+  return { memberId: where.memberId, passwordHash: update.passwordHash ?? create.passwordHash };
+});
+stub(prisma.authChallenge, 'updateMany', async ({ where, data }: any) => {
+  challenges = challenges.map(c => c.memberId === where.memberId && c.consumedAt === null ? { ...c, ...data } : c);
+  return { count: 1 };
+});
+stub(prisma.authChallenge, 'create', async ({ data }: any) => {
+  const row = { id: `ch-${challenges.length}`, attempts: 0, consumedAt: null, createdAt: new Date(), ...data };
+  challenges.push(row);
+  return row;
+});
+stub(prisma.authChallenge, 'findFirst', async ({ where }: any) => {
+  return challenges.find(c => c.memberId === where.memberId && c.consumedAt === null && c.expiresAt > new Date()) || null;
+});
+stub(prisma.authChallenge, 'update', async ({ where, data }: any) => {
+  const idx = challenges.findIndex(c => c.id === where.id);
+  if (idx >= 0) challenges[idx] = { ...challenges[idx], ...data };
+  return challenges[idx];
 });
 stub(prisma.session, 'create', async ({ data }: any) => { sessions.push(data); return data; });
 stub(prisma.session, 'findUnique', async ({ where }: any) => {
   const session = sessions.find(row => row.sessionToken === where.sessionToken);
-  const user = session && users.find(row => row.id === session.userId);
-  return session && user ? { ...session, user: project(user, { id: true, email: true, name: true, role: true, status: true, avatar: true }) } : null;
+  const ownerId = session && (session.memberId ?? session.userId);
+  const member = ownerId && users.find(row => row.id === ownerId);
+  return session && member ? { ...session, memberId: ownerId, member: project(member, { id: true, email: true, name: true, role: true, status: true, avatar: true, institutionalMemberId: true, profileCompletedAt: true }) } : null;
 });
 stub(prisma.session, 'deleteMany', async ({ where }: any) => {
-  sessions = sessions.filter(row => !Object.entries(where).every(([key, value]) => row[key] === value));
+  sessions = sessions.filter(row => !Object.entries(where).every(([key, value]) => (key === 'memberId' ? (row.memberId ?? row.userId) : row[key]) === value));
   return { count: 1 };
 });
-stub(prisma.member, 'upsert', async ({ create }: any) => ({ id: 100, active: true, ...create }));
+stub(prisma.member, 'upsert', async ({ create }: any) => ({ id: 'member-100', status: 'APPROVED', ...create }));
 stub(prisma.attendancePeriod, 'findFirst', async () => null);
 stub(prisma.attendancePeriod, 'upsert', async ({ create }: any) => ({ id: 'period', ...create }));
 stub(prisma.attendancePeriod, 'findMany', async () => []);
 stub(prisma.attendanceVisit, 'updateMany', async () => ({ count: 0 }));
-stub(prisma, '$transaction', async (callback: any) => callback(prisma));
+stub(prisma, '$transaction', async (arg: any) => Array.isArray(arg) ? Promise.all(arg) : arg(prisma));
 stub(prisma, '$queryRaw', async () => [{ attempts: 1, expiresAt: new Date(Date.now() + 900_000) }]);
 stub(prisma.authRateLimit, 'deleteMany', async () => ({ count: 1 }));
 
@@ -72,6 +115,7 @@ beforeEach(async () => {
     { id: 'pending', email: 'pending@test.local', name: 'Pending', role: 'TRAINEE', status: 'PENDING', passwordHash },
   ];
   sessions = [];
+  challenges = [];
 });
 function request(path: string, token?: string, body?: unknown, method?: string) {
   return new NextRequest(`http://localhost:3000${path}`, {
@@ -361,4 +405,20 @@ test('only Admin grants Gestão or Admin and the last Admin remains protected', 
   await updateAccount('admin', 'student', { role: 'ADMIN' });
   await updateAccount('admin', 'admin', { role: 'MANAGEMENT' });
   assert.equal(users[0].role, 'MANAGEMENT');
+});
+
+test('existing directory member with email cannot register a duplicate account and can set password via forgot-password flow', async () => {
+  users.push({ id: 'existing-member', email: 'integrante@poli.ufrj.br', name: 'Integrante Existente', role: 'MEMBER', status: 'APPROVED', institutionalMemberId: 50 });
+  const duplicateSignup = await register(request('/api/auth/register', undefined, { name: 'Integrante Existente', email: 'INTEGRANTE@poli.ufrj.br', password: 'valid-password' }));
+  assert.equal(duplicateSignup.status, 409, 'existing member email must reject registration with 409');
+
+  const noPasswordLogin = await login(request('/api/auth/login', undefined, { email: 'integrante@poli.ufrj.br', password: 'valid-password' }));
+  assert.equal(noPasswordLogin.status, 401);
+
+  const forgot = await forgotPassword(request('/api/auth/forgot-password', undefined, { email: 'integrante@poli.ufrj.br' }));
+  assert.equal(forgot.status, 200);
+  assert.equal(challenges.length, 1);
+
+  const wrongCode = await resetPassword(request('/api/auth/reset-password', undefined, { email: 'integrante@poli.ufrj.br', code: '000000', password: 'new-password' }));
+  assert.equal(wrongCode.status, 400);
 });

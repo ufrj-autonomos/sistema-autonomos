@@ -6,13 +6,15 @@ export class InstitutionalError extends Error { constructor(message: string, pub
 export function getInstitutionalModel(table: string) {
   const config = Object.values(adminModels).find(item => item.table === table);
   if (!config) throw new InstitutionalError('Tabela institucional inválida.');
-  return { config, model: (db as any)[config.table] };
+  const modelKey = config.table === 'member' ? 'institutionalMember' : config.table;
+  return { config, model: (db as any)[modelKey] };
 }
 export function recordData(table: string, input: unknown, creating: boolean) {
   const config = Object.values(adminModels).find(item => item.table === table);
   if (!config) throw new InstitutionalError('Tabela institucional inválida.');
   if (!input || typeof input !== 'object' || Array.isArray(input) || JSON.stringify(input).length > 262144) throw new InstitutionalError('Dados inválidos ou muito extensos.');
-  const fields = Prisma.dmmf.datamodel.models.find(item => item.name.toLowerCase() === table.toLowerCase())!.fields;
+  const targetModelName = table.toLowerCase() === 'member' ? 'institutionalmember' : table.toLowerCase();
+  const fields = Prisma.dmmf.datamodel.models.find(item => item.name.toLowerCase() === targetModelName || item.name.toLowerCase() === table.toLowerCase())!.fields;
   const result: Record<string, unknown> = {};
   for (const [key, value] of Object.entries(input)) {
     if (['id', 'createdAt', 'updatedAt'].includes(key)) continue;

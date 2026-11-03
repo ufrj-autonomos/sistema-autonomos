@@ -1,8 +1,8 @@
 import { dateKey, nextWeek, overlapSeconds, weekKey, weekRange, MAX_SESSION_SECONDS } from './time';
-import type { AttendanceMemberDto, AttendanceReport, AttendanceVisitDto, VisitStatus } from './types';
+import type { AttendanceMemberDto, AttendanceReport, AttendanceVisitDto, MemberIdentifier, VisitStatus } from './types';
 
 export interface PeriodRecord { startsOn: Date; endsOn: Date | null; targetSeconds: number }
-export interface VisitRecord { id: string; memberId: number; checkedInAt: Date; checkedOutAt: Date | null; status: VisitStatus; source: string }
+export interface VisitRecord { id: string; memberId: MemberIdentifier; checkedInAt: Date; checkedOutAt: Date | null; status: VisitStatus; source: string }
 export function visitDto(visit: VisitRecord, now = new Date(), maxSeconds = MAX_SESSION_SECONDS): AttendanceVisitDto {
   return {
     id: visit.id, memberId: visit.memberId, checkedInAt: visit.checkedInAt.toISOString(), checkedOutAt: visit.checkedOutAt?.toISOString() || null,
@@ -11,7 +11,7 @@ export function visitDto(visit: VisitRecord, now = new Date(), maxSeconds = MAX_
     needsReview: visit.status === 'REVIEW' || (visit.status === 'OPEN' && now.getTime() - visit.checkedInAt.getTime() > maxSeconds * 1000),
   };
 }
-export function memberSummary(member: { id: number; name: string; area: string; email: string | null }, periods: PeriodRecord[], visits: VisitRecord[], selected: string, now = new Date(), maxSeconds = MAX_SESSION_SECONDS): AttendanceMemberDto {
+export function memberSummary(member: { id: MemberIdentifier; name: string; area: string; email: string | null }, periods: PeriodRecord[], visits: VisitRecord[], selected: string, now = new Date(), maxSeconds = MAX_SESSION_SECONDS): AttendanceMemberDto {
   const range = weekRange(selected);
   const current = weekRange(weekKey(now));
   const completedCutoff = range.end <= current.start ? nextWeek(selected) : current.key;

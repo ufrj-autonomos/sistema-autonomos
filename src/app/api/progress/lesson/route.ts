@@ -91,24 +91,24 @@ export async function POST(req: NextRequest) {
     const result = await prisma.$transaction(async (tx) => {
       // 4a. Garante existência do CourseProgress de forma atômica e adquire lock pessimista FOR UPDATE para serializar concorrência
       await tx.$executeRaw`
-        INSERT INTO "CourseProgress" ("id", "userId", "courseId", "percentage", "completedLessonsCount", "totalLessonsCount", "enrolledAt", "updatedAt")
+        INSERT INTO "CourseProgress" ("id", "memberId", "courseId", "percentage", "completedLessonsCount", "totalLessonsCount", "enrolledAt", "updatedAt")
         VALUES (gen_random_uuid()::text, ${userId}, ${courseId}, 0, 0, ${TOTAL_LESSONS}, NOW(), NOW())
-        ON CONFLICT ("userId", "courseId") DO NOTHING
+        ON CONFLICT ("memberId", "courseId") DO NOTHING
       `;
       const [lockedProg] = await tx.$queryRaw<Array<{ id: string; lastLessonId: string | null }>>`
-        SELECT id, "lastLessonId" FROM "CourseProgress" WHERE "userId" = ${userId} AND "courseId" = ${courseId} FOR UPDATE
+        SELECT id, "lastLessonId" FROM "CourseProgress" WHERE "memberId" = ${userId} AND "courseId" = ${courseId} FOR UPDATE
       `;
 
       // 4b. Upsert atômico do LessonProgress
       await tx.lessonProgress.upsert({
         where: {
-          userId_lessonId: {
-            userId,
+          memberId_lessonId: {
+            memberId: userId,
             lessonId: lesson.id,
           },
         },
         create: {
-          userId,
+          memberId: userId,
           lessonId: lesson.id,
           completed,
           completedAt: completed ? new Date() : null,
@@ -123,7 +123,7 @@ export async function POST(req: NextRequest) {
       const [completedLessons, completedExercises] = await Promise.all([
         tx.lessonProgress.findMany({
           where: {
-            userId,
+            memberId: userId,
             completed: true,
             lesson: {
               module: {
@@ -135,7 +135,7 @@ export async function POST(req: NextRequest) {
         }),
         tx.exerciseProgress.findMany({
           where: {
-            userId,
+            memberId: userId,
             completed: true,
             exercise: {
               lesson: {
@@ -168,8 +168,8 @@ export async function POST(req: NextRequest) {
       // 4f. Atualiza CourseProgress com o último acesso e percentual recalculado
       await tx.courseProgress.update({
         where: {
-          userId_courseId: {
-            userId,
+          memberId_courseId: {
+            memberId: userId,
             courseId,
           },
         },

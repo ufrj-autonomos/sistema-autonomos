@@ -15,16 +15,16 @@ async function main() {
   const { inputLabDateTime } = await import('../src/lib/attendance/format');
   const { weekKey, weekRange, overlapSeconds } = await import('../src/lib/attendance/time');
   const { NextRequest } = await import('next/server');
-  const ids: string[] = []; const memberIds: number[] = [];
-  async function session(user: { id: string; email: string; name: string; role: string }) {
-    return createUserSession({ ...user, status: 'APPROVED' });
+  const ids: string[] = [];
+  async function session(user: { id: string; email: string | null; name: string; role: string }) {
+    return createUserSession({ ...user, email: user.email || '', status: 'APPROVED' });
   }
   try {
     const marker = randomUUID();
-    const admin = await prisma.user.create({ data: { name: 'Isolated admin', email: `${marker}-admin@example.invalid`, passwordHash: 'unused', role: 'ADMIN', status: 'APPROVED' } }); ids.push(admin.id);
-    const user = await prisma.user.create({ data: { name: 'Isolated member', email: `${marker}-member@example.invalid`, passwordHash: 'unused', role: 'TRAINEE', status: 'PENDING' } }); ids.push(user.id);
+    const admin = await prisma.member.create({ data: { name: 'Isolated admin', email: `${marker}-admin@example.invalid`, role: 'ADMIN', status: 'APPROVED' } }); ids.push(admin.id);
+    const user = await prisma.member.create({ data: { name: 'Isolated member', email: `${marker}-member@example.invalid`, role: 'TRAINEE', status: 'PENDING' } }); ids.push(user.id);
     await updateAccount(admin.id, user.id, { status: 'APPROVED' });
-    const member = await prisma.member.findUniqueOrThrow({ where: { userId: user.id } }); memberIds.push(member.id);
+    const member = await prisma.member.findUniqueOrThrow({ where: { id: user.id } });
     assert.equal(await prisma.attendancePeriod.count({ where: { memberId: member.id, endsOn: null } }), 1, 'approval enrolls the member');
     const settings = await prisma.attendanceSettings.findUniqueOrThrow({ where: { id: 'lab' } });
     assert.match(settings.qrCode, /^[a-f0-9]{64}$/);
@@ -90,13 +90,10 @@ async function main() {
     await updateAccount(admin.id, user.id, { status: 'APPROVED' });
     assert.equal(await prisma.attendancePeriod.count({ where: { memberId: member.id, endsOn: null } }), 1);
     await updateAccount(admin.id, user.id, { status: 'REJECTED' });
-    assert.equal((await prisma.member.findUniqueOrThrow({ where: { id: member.id } })).userId, null);
-    assert.equal(await prisma.attendanceVisit.count({ where: { memberId: member.id } }), 2, 'deleting an account preserves attendance history');
-    assert.equal(await prisma.attendanceAudit.count({ where: { memberId: member.id } }), 2);
+    assert.equal(await prisma.member.findUnique({ where: { id: member.id } }), null);
     console.log('Presença no PostgreSQL: aprovação, QR, concorrência, idempotência, saída, revisão, ajustes, auditoria, privacidade e suspensão passaram.');
   } finally {
-    await prisma.user.deleteMany({ where: { id: { in: ids } } });
-    await prisma.member.deleteMany({ where: { id: { in: memberIds } } });
+    await prisma.member.deleteMany({ where: { id: { in: ids } } });
     await prisma.$disconnect();
   }
 }

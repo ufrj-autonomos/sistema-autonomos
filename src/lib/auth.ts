@@ -1,5 +1,11 @@
+import { createHmac } from 'node:crypto';
 import bcrypt from 'bcryptjs';
 import { SignJWT, jwtVerify } from 'jose';
+
+export function hashVerificationCode(memberId: string, code: string) {
+  const secret = process.env.JWT_SECRET || 'fallback-challenge-secret';
+  return createHmac('sha256', secret).update(`${memberId}:${code}`).digest('hex');
+}
 
 function getSigningKey() {
   const secret = process.env.JWT_SECRET;

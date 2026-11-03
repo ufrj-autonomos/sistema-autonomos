@@ -43,8 +43,8 @@ export async function GET(req: NextRequest) {
     // 3. Auto-matrícula: verifica se já existe CourseProgress para o usuário
     let courseProgress = await prisma.courseProgress.findUnique({
       where: {
-        userId_courseId: {
-          userId,
+        memberId_courseId: {
+          memberId: userId,
           courseId: course.id,
         },
       },
@@ -53,7 +53,7 @@ export async function GET(req: NextRequest) {
     if (!courseProgress) {
       courseProgress = await prisma.courseProgress.create({
         data: {
-          userId,
+          memberId: userId,
           courseId: course.id,
           percentage: 0.0,
           completedLessonsCount: 0,
@@ -67,7 +67,7 @@ export async function GET(req: NextRequest) {
     // 4. Consulta todas as lições concluídas do usuário neste curso
     const completedLessons = await prisma.lessonProgress.findMany({
       where: {
-        userId,
+        memberId: userId,
         completed: true,
         lesson: {
           module: {
@@ -84,7 +84,7 @@ export async function GET(req: NextRequest) {
     // 5. Consulta todos os exercícios concluídos do usuário neste curso
     const completedExercises = await prisma.exerciseProgress.findMany({
       where: {
-        userId,
+        memberId: userId,
         completed: true,
         exercise: {
           lesson: {

@@ -81,8 +81,12 @@ function LoginForm() {
         return;
       }
 
-      // Sucesso: redireciona para a página de destino e atualiza o estado
-      router.push(safeRedirect);
+      // Sucesso: se for o primeiro login após aprovação, direciona ao perfil para completar cadastro
+      if (result.firstLogin) {
+        router.push("/perfil?welcome=1");
+      } else {
+        router.push(safeRedirect);
+      }
       router.refresh();
     } catch {
       setErrorMessage("Erro inesperado durante login. Tente novamente mais tarde.");
@@ -137,6 +141,11 @@ function LoginForm() {
             Cadastro recebido. Aguarde a aprovação de um administrador. Depois, entre com seu email e senha.
           </p>
         )}
+        {searchParams.get("reset") === "1" && (
+          <p role="status" className="mt-4 rounded-lg border border-emerald-500/30 bg-emerald-500/10 p-4 text-sm text-emerald-300">
+            Senha atualizada com sucesso! Entre com seu email e sua nova senha.
+          </p>
+        )}
         {/* Alerta de Erro Visual */}
         {errorMessage && (
           <div
@@ -184,6 +193,7 @@ function LoginForm() {
               >
                 Senha
               </label>
+              
             </div>
             <div className="relative">
               <div className="pointer-events-none absolute inset-y-0 left-0 pl-3 flex items-center text-zinc-500">
@@ -212,6 +222,12 @@ function LoginForm() {
                 )}
               </button>
             </div>
+            <Link
+                href={email.trim() ? `/forgot-password?email=${encodeURIComponent(email.trim())}` : "/forgot-password"}
+                className="text-xs font-mono text-red-400 hover:text-red-300 underline underline-offset-4 transition-colors"
+              >
+                Esqueci minha senha              
+            </Link>
           </div>
 
           {/* Botão de Envio */}

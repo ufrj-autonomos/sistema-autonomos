@@ -17,6 +17,8 @@ export interface SafeUser {
   role: "TRAINEE" | "MANAGEMENT" | "MEMBER" | "ADMIN" | string;
   avatar?: string | null;
   status?: string;
+  institutionalMemberId?: number | null;
+  profileCompletedAt?: string | Date | null;
 }
 
 export interface AuthContextType {
@@ -26,7 +28,7 @@ export interface AuthContextType {
   login: (credentials: {
     email: string;
     password: string;
-  }) => Promise<{ success: boolean; error?: string; user?: SafeUser }>;
+  }) => Promise<{ success: boolean; error?: string; user?: SafeUser; firstLogin?: boolean }>;
   register: (data: {
     name: string;
     email: string;
@@ -93,7 +95,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   useEffect(() => { refreshSession(); }, [pathname, refreshSession]);
 
   useEffect(() => {
-    if (!isLoading && !user && !['/login', '/register'].includes(pathname)) {
+    if (!isLoading && !user && !['/login', '/register', '/forgot-password', '/reset-password'].includes(pathname)) {
       router.replace('/login');
       router.refresh();
     }
@@ -106,7 +108,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }: {
     email: string;
     password: string;
-  }): Promise<{ success: boolean; error?: string; user?: SafeUser }> => {
+  }): Promise<{ success: boolean; error?: string; user?: SafeUser; firstLogin?: boolean }> => {
     setIsLoading(true);
     try {
       const res = await fetch("/api/auth/login", {
@@ -133,7 +135,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         window.dispatchEvent(new Event(AUTH_CHANGE_EVENT));
       }
 
-      return { success: true, user: data.user };
+      return { success: true, user: data.user, firstLogin: Boolean(data.firstLogin) };
     } catch (err) {
       console.error("[AuthProvider] Exceção durante login:", err);
       setIsLoading(false);

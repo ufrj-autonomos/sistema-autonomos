@@ -24,18 +24,34 @@ export async function POST(req: NextRequest) {
     const normalizedEmail = String(email).toLowerCase().trim();
     const blockedAccount = await checkRateLimit(`login-account:${normalizedEmail}`, 10, 15 * 60);
     if (blockedAccount) return blockedAccount;
-    const user = await prisma.user.findUnique({
+    const member = await prisma.member.findUnique({
       where: { email: normalizedEmail },
+      include: { credential: true },
     });
 
-    if (!user) {
+    if (!member) {
       return NextResponse.json(
         { error: 'Credenciais inválidas.' },
         { status: 401 }
       );
     }
 
-    const isValid = await verifyPassword(password, user.passwordHash);
+    const storedPasswordHash =
+      member.credential?.passwordHash ??
+      (member as unknown as { passwordHash?: string | null }).passwordHash ??
+      null;
+
+    if (!storedPasswordHash) {
+      return NextResponse.json(
+        {
+          error: 'Você ainda não definiu sua senha. Utilize "Esqueci minha senha" para receber o código de primeiro acesso no seu email.',
+          needsPasswordSetup: true,
+        },
+        { status: 401 }
+      );
+    }
+
+    const isValid = await verifyPassword(password, storedPasswordHash);
     if (!isValid) {
       return NextResponse.json(
         { error: 'Credenciais inválidas.' },
@@ -43,28 +59,35 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    if (user.status !== 'APPROVED') {
+    if (member.status !== 'APPROVED') {
       const messages = {
         PENDING: 'Sua conta aguarda aprovação de um administrador.',
         REJECTED: 'Seu cadastro não foi aprovado. Entre em contato com a administração.',
         SUSPENDED: 'Sua conta está suspensa. Entre em contato com a administração.',
       };
-      return NextResponse.json({ error: messages[user.status], status: user.status }, { status: 403 });
+      return NextResponse.json({ error: messages[member.status], status: member.status }, { status: 403 });
     }
 
     const safeUser = {
-      id: user.id,
-      email: user.email,
-      name: user.name,
-      role: user.role,
-      status: user.status,
+      id: member.id,
+      email: member.email || normalizedEmail,
+      name: member.name,
+      role: member.role,
+      status: member.status,
+      avatar: member.avatar,
+      institutionalMemberId: member.institutionalMemberId,
+      profileCompletedAt: member.profileCompletedAt,
     };
 
     await resetRateLimit(`login-account:${normalizedEmail}`);
     const token = await createUserSession(safeUser);
 
     const response = NextResponse.json(
-      { success: true, user: safeUser },
+      {
+        success: true,
+        user: safeUser,
+        firstLogin: !member.profileCompletedAt,
+      },
       { status: 200 }
     );
 

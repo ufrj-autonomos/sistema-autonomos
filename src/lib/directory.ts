@@ -5,21 +5,46 @@ import { privateData } from './directory-validation';
 import { ensureAttendanceEnrollment } from './attendance/enrollment';
 import { memberSummary } from './attendance/summary';
 import { weekKey } from './attendance/time';
+import { syncMemberAgeToInstitutional } from './birthdays';
+import { publishInstitutionalSite } from './institutional/publish';
 
 export async function memberPrivateDetails(institutionalMemberId: number) {
-  const details = await prisma.memberDetails.findUnique({
+  const member = await prisma.member.findUnique({
     where: { institutionalMemberId },
-    include: { member: { include: { user: { select: { id: true, email: true } }, attendancePeriods: true, attendanceVisits: true } } },
+    include: {
+      attendancePeriods: true,
+      attendanceVisits: true,
+      profileChanges: {
+        where: { status: 'PENDING' },
+        orderBy: { createdAt: 'desc' },
+        take: 1,
+      },
+    },
   });
-  const member = details?.member;
   return {
-    name: details?.name || '', area: details?.area || '', email: details?.email || '',
-    phone: details?.phone || '', dre: details?.dre || '', birthDate: details?.birthDate?.toISOString().slice(0, 10) || '',
-    course: details?.course || '', academicPeriod: details?.academicPeriod || '',
-    emergencyContactName: details?.emergencyContactName || '', emergencyContactPhone: details?.emergencyContactPhone || '',
-    accountEmail: member?.user?.email || '',
-    cpf: details?.cpf || '', notes: details?.notes || '', userId: member?.userId || '',
-    attendance: member ? memberSummary({ id: member.id, name: member.name, area: member.area, email: member.user?.email || null }, member.attendancePeriods, member.attendanceVisits, weekKey()) : null,
+    name: member?.name || '',
+    area: member?.area || '',
+    email: member?.email || '',
+    phone: member?.phone || '',
+    dre: member?.dre || '',
+    birthDate: member?.birthDate?.toISOString().slice(0, 10) || '',
+    course: member?.course || '',
+    academicPeriod: member?.academicPeriod || '',
+    emergencyContactName: member?.emergencyContactName || '',
+    emergencyContactPhone: member?.emergencyContactPhone || '',
+    accountEmail: member?.email || '',
+    cpf: member?.cpf || '',
+    notes: member?.notes || '',
+    userId: member?.id || '',
+    pendingChange: member?.profileChanges?.[0] || null,
+    attendance: member
+      ? memberSummary(
+          { id: member.id, name: member.name, area: member.area || 'Não informada', email: member.email || null },
+          member.attendancePeriods,
+          member.attendanceVisits,
+          weekKey()
+        )
+      : null,
   };
 }
 
@@ -28,31 +53,88 @@ export async function savePrivateDetails(table: 'member' | 'project', id: number
   const data = privateData(input, table === 'member');
   if (table === 'project') {
     await db.project.findUniqueOrThrow({ where: { id }, select: { id: true } });
-    return prisma.projectDetails.upsert({ where: { institutionalProjectId: id }, create: { institutionalProjectId: id, notes: data.notes }, update: { notes: data.notes } });
+    return prisma.projectDetails.upsert({
+      where: { institutionalProjectId: id },
+      create: { institutionalProjectId: id, notes: data.notes },
+      update: { notes: data.notes },
+    });
   }
   if (!('cpf' in data)) throw new Error('Dados do integrante inválidos.');
-  const { userId, ...stored } = data;
-  await db.member.findUniqueOrThrow({ where: { id }, select: { id: true } });
+  const { userId, area: rawArea, name: rawName, ...stored } = data;
+  const instMember = await db.institutionalMember.findUniqueOrThrow({
+    where: { id },
+    select: { id: true, name: true, area: true, course: true },
+  });
+
   try {
-    return await prisma.$transaction(async tx => {
-      let memberId: number | null = null;
-      if (userId) {
-        const user = await tx.user.findUnique({ where: { id: userId } });
-        const current = await tx.memberDetails.findUnique({ where: { institutionalMemberId: id }, include: { member: true } });
-        if (!user || (user.status !== 'APPROVED' && current?.member?.userId !== user.id)) throw new Error('Selecione uma conta aprovada.');
-        const existing = await tx.member.findUnique({ where: { userId } });
-        memberId = existing?.id ?? (await ensureAttendanceEnrollment(tx, user)).id;
+    const saved = await prisma.$transaction(async tx => {
+      let current = await tx.member.findUnique({ where: { institutionalMemberId: id } });
+
+      if (userId && userId !== current?.id) {
+        const targetAccount = await tx.member.findUnique({ where: { id: userId } });
+        if (!targetAccount || (targetAccount.status !== 'APPROVED' && current?.id !== targetAccount.id)) {
+          throw new Error('Selecione uma conta aprovada.');
+        }
+        if (targetAccount.institutionalMemberId && targetAccount.institutionalMemberId !== id) {
+          throw new Error('Este CPF, DRE ou esta conta já está vinculado a outro integrante.');
+        }
+        if (current) {
+          await tx.member.update({ where: { id: current.id }, data: { institutionalMemberId: null } });
+        }
+        current = await tx.member.update({
+          where: { id: targetAccount.id },
+          data: {
+            institutionalMemberId: id,
+            ...stored,
+            name: rawName || targetAccount.name || instMember.name,
+            area: rawArea || targetAccount.area || instMember.area || 'Não informada',
+          },
+        });
+        await ensureAttendanceEnrollment(tx, current);
+        return current;
       }
-      // Link the existing attendance identity; never move, reset or merge its history.
-      return tx.memberDetails.upsert({
-        where: { institutionalMemberId: id },
-        create: { institutionalMemberId: id, memberId, ...stored },
-        update: { memberId, ...stored },
+
+      if (current) {
+        return tx.member.update({
+          where: { id: current.id },
+          data: {
+            ...stored,
+            name: rawName || current.name || instMember.name,
+            area: rawArea || current.area || instMember.area || 'Não informada',
+          },
+        });
+      }
+
+      const created = await tx.member.create({
+        data: {
+          institutionalMemberId: id,
+          ...stored,
+          name: rawName || instMember.name,
+          area: rawArea || instMember.area || 'Não informada',
+          course: stored.course !== undefined ? stored.course : instMember.course,
+          role: 'MEMBER',
+          status: 'APPROVED',
+        },
       });
+      await ensureAttendanceEnrollment(tx, created);
+      return created;
     }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
+
+    if ('birthDate' in stored) {
+      const ageChanged = await syncMemberAgeToInstitutional(id, saved.birthDate);
+      if (ageChanged) {
+        await publishInstitutionalSite();
+      }
+    }
+
+    return saved;
   } catch (error) {
-    if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') throw new Error('Este CPF, DRE ou esta conta já está vinculado a outro integrante.');
-    if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2034') throw new Error('Outra alteração ocorreu ao mesmo tempo. Atualize a página e tente novamente.');
+    if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') {
+      throw new Error('Este email, CPF, DRE ou esta conta já está vinculado a outro integrante.');
+    }
+    if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2034') {
+      throw new Error('Outra alteração ocorreu ao mesmo tempo. Atualize a página e tente novamente.');
+    }
     throw error;
   }
 }

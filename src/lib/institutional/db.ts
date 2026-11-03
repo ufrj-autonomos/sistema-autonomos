@@ -8,6 +8,11 @@ function client() {
   return shared.institutionalDb ??= new PrismaClient({ datasourceUrl: url, log: ['error'] });
 }
 // Do not silently fall back to the platform database when integration is not configured.
-export const db = new Proxy({} as PrismaClient, {
-  get(_target, key) { const instance = client(); const value = Reflect.get(instance, key); return typeof value === 'function' ? value.bind(instance) : value; },
+export const db = new Proxy({} as PrismaClient & { member: PrismaClient['institutionalMember'] }, {
+  get(_target, key) {
+    const instance = client();
+    const resolvedKey = key === 'member' && !('member' in instance) ? 'institutionalMember' : key;
+    const value = Reflect.get(instance, resolvedKey);
+    return typeof value === 'function' ? value.bind(instance) : value;
+  },
 });

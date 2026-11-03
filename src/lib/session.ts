@@ -8,7 +8,16 @@ import { prisma } from './prisma';
 
 import { SESSION_COOKIE_NAME, SESSION_MAX_AGE } from './session-cookie';
 export { SESSION_COOKIE_NAME, SESSION_MAX_AGE } from './session-cookie';
-export const safeUserSelect = { id: true, email: true, name: true, role: true, status: true, avatar: true } as const;
+export const safeUserSelect = {
+  id: true,
+  email: true,
+  name: true,
+  role: true,
+  status: true,
+  avatar: true,
+  institutionalMemberId: true,
+  profileCompletedAt: true,
+} as const;
 export const sessionCookieOptions = {
   httpOnly: true,
   secure: process.env.NODE_ENV === 'production',
@@ -24,6 +33,8 @@ export interface SafeUser {
   role: string;
   status: string;
   avatar?: string | null;
+  institutionalMemberId?: number | null;
+  profileCompletedAt?: Date | string | null;
 }
 
 export async function readSessionToken(req?: NextRequest) {
@@ -32,17 +43,29 @@ export async function readSessionToken(req?: NextRequest) {
 }
 
 // JWT identity alone never grants access: sessions, approval and roles are read live.
-export async function getCurrentUser(req?: NextRequest) {
+export async function getCurrentUser(req?: NextRequest): Promise<SafeUser | null> {
   const token = await readSessionToken(req);
   if (!token) return null;
   const payload = await verifySessionToken(token);
   if (!payload?.sub || typeof payload.sid !== 'string') return null;
   const session = await prisma.session.findUnique({
     where: { sessionToken: payload.sid },
-    include: { user: { select: safeUserSelect } },
+    include: { member: { select: safeUserSelect } },
   });
-  if (!session || session.userId !== payload.sub || session.expiresAt <= new Date()) return null;
-  return session.user.status === 'APPROVED' ? session.user : null;
+  const sessionAny = session as unknown as {
+    memberId?: string;
+    userId?: string;
+    expiresAt: Date;
+    member?: SafeUser | null;
+    user?: SafeUser | null;
+  } | null;
+  if (!sessionAny || sessionAny.expiresAt <= new Date()) return null;
+  const ownerId = sessionAny.memberId ?? sessionAny.userId;
+  const member = sessionAny.member ?? sessionAny.user;
+  if (!member || ownerId !== payload.sub) return null;
+  return member.status === 'APPROVED'
+    ? { ...member, email: member.email || '' }
+    : null;
 }
 
 export async function getSession(): Promise<SessionPayload | null> {
@@ -54,7 +77,7 @@ export async function createUserSession(user: SafeUser) {
   const sid = randomUUID();
   const token = await createSessionToken({ sub: user.id, email: user.email, name: user.name, role: user.role, sid });
   await prisma.session.create({
-    data: { sessionToken: sid, userId: user.id, expiresAt: new Date(Date.now() + SESSION_MAX_AGE * 1000) },
+    data: { sessionToken: sid, memberId: user.id, expiresAt: new Date(Date.now() + SESSION_MAX_AGE * 1000) },
   });
   return token;
 }

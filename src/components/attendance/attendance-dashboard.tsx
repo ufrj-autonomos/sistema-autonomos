@@ -54,7 +54,7 @@ export function AttendanceDashboard({ initialWeek, admin = false }: { initialWee
   }, [edit]);
   const visible = (report?.members || []).filter(member => `${member.name} ${member.email || ''}`.toLocaleLowerCase('pt-BR').includes(search.toLocaleLowerCase('pt-BR')) && (area === 'ALL' || member.area === area) && (filter === 'ALL' || member.status === filter || (filter === 'REVIEW' && member.pendingReviews > 0) || (filter === 'IN_LAB' && member.openVisit && !member.openVisit.needsReview)));
   const areas = [...new Set((report?.members || []).map(member => member.area))].sort((a, b) => a.localeCompare(b, 'pt-BR'));
-  function toggle(id: number) { setExpanded(previous => previous.includes(String(id)) ? previous.filter(item => item !== String(id)) : [...previous, String(id)]); }
+  function toggle(id: string | number) { setExpanded(previous => previous.includes(String(id)) ? previous.filter(item => item !== String(id)) : [...previous, String(id)]); }
   function visits(member: AttendanceMemberDto) {
     return <div className="space-y-3 py-4">
       <div className="flex flex-wrap items-center justify-between gap-3"><h3 className="font-medium">Registros de {member.name}</h3>{admin && <button type="button" onClick={() => setEdit({ member, action: 'CREATE' })} className={`${control} hover:bg-zinc-800`}>Adicionar presença</button>}</div>

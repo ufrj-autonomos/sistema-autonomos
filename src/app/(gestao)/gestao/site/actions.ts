@@ -7,6 +7,7 @@ import { requirePageUser } from '@/lib/session';
 import { getInstitutionalModel, recordData, institutionalFailure, InstitutionalError } from '@/lib/institutional/records';
 import { publishInstitutionalSite } from '@/lib/institutional/publish';
 import { directoryPath } from '@/lib/institutional/routes';
+import { prisma } from '@/lib/prisma';
 
 async function changed(table: string) {
   revalidatePath('/gestao/site', 'layout');
@@ -20,8 +21,27 @@ async function changed(table: string) {
 }
 export async function createRecord(table: string, data: unknown): Promise<{ success: boolean; error?: string; warning?: string }> {
   await requirePageUser(true);
-  try { const { model } = getInstitutionalModel(table); const parsed = recordData(table, data, true); if (['member', 'project'].includes(table) && !('showOnSite' in parsed)) parsed.showOnSite = false; await model.create({ data: parsed }); return await changed(table); }
-  catch (error) { return { success: false, error: institutionalFailure(error) }; }
+  try {
+    const { model } = getInstitutionalModel(table);
+    const parsed = recordData(table, data, true);
+    if (['member', 'project'].includes(table) && !('showOnSite' in parsed)) parsed.showOnSite = false;
+    const created = await model.create({ data: parsed });
+    if (table === 'member' && created?.id) {
+      await prisma.member.upsert({
+        where: { institutionalMemberId: created.id },
+        update: { name: created.name, area: created.area || null, course: created.course || null },
+        create: {
+          institutionalMemberId: created.id,
+          name: created.name,
+          area: created.area || null,
+          course: created.course || null,
+          role: 'MEMBER',
+          status: 'APPROVED',
+        },
+      });
+    }
+    return await changed(table);
+  } catch (error) { return { success: false, error: institutionalFailure(error) }; }
 }
 export async function updateRecord(table: string, id: number, data: unknown): Promise<{ success: boolean; error?: string; warning?: string }> {
   await requirePageUser(true);
@@ -30,8 +50,15 @@ export async function updateRecord(table: string, id: number, data: unknown): Pr
 }
 export async function deleteRecord(table: string, id: number): Promise<{ success: boolean; error?: string; warning?: string }> {
   await requirePageUser(true);
-  try { if (!Number.isSafeInteger(id) || id < 1) throw new InstitutionalError('Registro inválido.'); const { model } = getInstitutionalModel(table); await model.delete({ where: { id } }); return await changed(table); }
-  catch (error) { return { success: false, error: institutionalFailure(error) }; }
+  try {
+    if (!Number.isSafeInteger(id) || id < 1) throw new InstitutionalError('Registro inválido.');
+    const { model } = getInstitutionalModel(table);
+    await model.delete({ where: { id } });
+    if (table === 'member') {
+      await prisma.member.updateMany({ where: { institutionalMemberId: id }, data: { institutionalMemberId: null } });
+    }
+    return await changed(table);
+  } catch (error) { return { success: false, error: institutionalFailure(error) }; }
 }
 export async function uploadImageToSupabase(formData: FormData): Promise<{ success: boolean; url?: string; error?: string }> {
   await requirePageUser(true);

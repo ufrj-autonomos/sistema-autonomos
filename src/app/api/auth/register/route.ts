@@ -36,25 +36,29 @@ export async function POST(req: NextRequest) {
     }
 
     const normalizedEmail = email.toLowerCase().trim();
-    const existingUser = await prisma.user.findUnique({
+    const existingMember = await prisma.member.findUnique({
       where: { email: normalizedEmail },
     });
 
-    if (existingUser) {
+    if (existingMember) {
       return NextResponse.json(
-        { error: 'Usuário já cadastrado com este email.' },
+        { error: 'Já existe uma conta vinculada a este email. Caso já seja integrante, utilize "Esqueci minha senha" na tela de login.' },
         { status: 409 }
       );
     }
 
     const passwordHash = await hashPassword(password);
-    const user = await prisma.user.create({
+    const user = await prisma.member.create({
       data: {
         email: normalizedEmail,
         name: name.trim(),
-        passwordHash,
         role: 'TRAINEE',
         status: 'PENDING',
+        credential: {
+          create: {
+            passwordHash,
+          },
+        },
       },
       select: {
         id: true,
@@ -71,7 +75,10 @@ export async function POST(req: NextRequest) {
     );
   } catch (error) {
     if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') {
-      return NextResponse.json({ error: 'Usuário já cadastrado com este email.' }, { status: 409 });
+      return NextResponse.json(
+        { error: 'Já existe uma conta vinculada a este email. Caso já seja integrante, utilize "Esqueci minha senha" na tela de login.' },
+        { status: 409 }
+      );
     }
     console.error('Erro no cadastro (/api/auth/register):', error);
     return NextResponse.json(

@@ -1,11 +1,12 @@
 export type VisitStatus = 'OPEN' | 'CLOSED' | 'REVIEW' | 'VOID';
 export type GoalStatus = 'MET' | 'PENDING' | 'MISSED' | 'NOT_REQUIRED';
+export type MemberIdentifier = string | number;
 export interface AttendanceVisitDto {
-  id: string; memberId: number; checkedInAt: string; checkedOutAt: string | null;
+  id: string; memberId: MemberIdentifier; checkedInAt: string; checkedOutAt: string | null;
   status: VisitStatus; source: string; seconds: number; needsReview: boolean;
 }
 export interface AttendanceMemberDto {
-  id: number; name: string; email: string | null; area: string;
+  id: MemberIdentifier; name: string; email: string | null; area: string;
   requiredSeconds: number; completedSeconds: number; remainingSeconds: number;
   percentage: number; status: GoalStatus; missedWeeks: number;
   openVisit: AttendanceVisitDto | null; pendingReviews: number; visits: AttendanceVisitDto[];

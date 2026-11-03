@@ -36,9 +36,10 @@ stub(prisma.authRateLimit, 'deleteMany', async ({ where }: any) => {
   return { count };
 });
 stub(prisma.authRateLimit, 'count', async () => { if (!storageAvailable) throw new Error('Unavailable'); return buckets.size; });
-stub(prisma.user, 'findUnique', async () => knownUser);
+stub(prisma.member, 'findUnique', async () => knownUser ? { ...knownUser, credential: knownUser.passwordHash ? { passwordHash: knownUser.passwordHash } : null } : null);
 stub(prisma.session, 'create', async ({ data }: any) => data);
 stub(prisma.session, 'deleteMany', async () => ({ count: 0 }));
+stub(prisma.authChallenge, 'deleteMany', async () => ({ count: 0 }));
 stub(prisma, '$transaction', async (operations: any) => Promise.all(operations));
 
 beforeEach(() => {

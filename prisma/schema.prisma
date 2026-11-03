@@ -16,8 +16,8 @@ datasource db {
 // ---------------------------------------------------------------------------
 
 enum Role {
-  TRAINEE    @map("STUDENT")
-  MANAGEMENT @map("INSTRUCTOR")
+  TRAINEE
+  MANAGEMENT
   MEMBER
   ADMIN
 }
@@ -27,6 +27,12 @@ enum AccountStatus {
   APPROVED
   REJECTED
   SUSPENDED
+}
+
+enum ChangeRequestStatus {
+  PENDING
+  APPROVED
+  REJECTED
 }
 
 enum LessonType {
@@ -61,46 +67,110 @@ enum AttendancePunchType {
 }
 
 // ---------------------------------------------------------------------------
-// 1. AUTH & USER MANAGEMENT
+// 1. UNIFIED MEMBER & AUTHENTICATION (1 Member = 1 Platform User)
 // ---------------------------------------------------------------------------
 
-model User {
-  id           String   @id @default(cuid())
-  email        String   @unique
-  name         String
-  passwordHash String
-  role         Role     @default(TRAINEE)
-  status       AccountStatus @default(PENDING)
-  avatar       String?
+// Public site identities live in the institutional database (InstitutionalMember).
+// Every platform user is a Member associated by email and linked via institutionalMemberId.
+model Member {
+  id                         String        @id @default(cuid())
+  institutionalMemberId      Int?          @unique
+  email                      String?       @unique
+  name                       String
+  role                       Role          @default(TRAINEE)
+  status                     AccountStatus @default(PENDING)
+  avatar                     String?
+  area                       String        @default("Não informada")
+  cpf                        String?       @unique
+  phone                      String?
+  dre                        String?       @unique
+  birthDate                  DateTime?     @db.Date
+  course                     String?
+  academicPeriod             String?
+  emergencyContactName       String?
+  emergencyContactPhone      String?
+  notes                      String?       @db.Text
+  active                     Boolean       @default(true)
+  profileCompletedAt         DateTime?     @db.Timestamptz(3)
   memberDirectoryPreferences Json?
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  createdAt                  DateTime      @default(now()) @db.Timestamptz(3)
+  updatedAt                  DateTime      @updatedAt @db.Timestamptz(3)
 
-  // Sessions
-  sessions Session[]
-  attendanceAudits AttendanceAudit[]
+  // Credentials stored in a dedicated table linked by the member ID
+  credential         MemberCredential?
+  sessions           Session[]
+  authChallenges     AuthChallenge[]
+  profileChanges     MemberProfileChange[] @relation("MemberChanges")
+  reviewedChanges    MemberProfileChange[] @relation("ReviewedChanges")
+
+  // Attendance relations
+  attendancePeriods  AttendancePeriod[]
+  attendanceVisits   AttendanceVisit[]
+  attendancePunches  AttendancePunch[]
+  attendanceAudits   AttendanceAudit[]     @relation("AuditedMember")
+  performedAudits    AttendanceAudit[]     @relation("AuditActor")
 
   // Ensino relations
-  courseProgress   CourseProgress[]
-  lessonProgress   LessonProgress[]
-  exerciseProgress ExerciseProgress[]
-
-  // Optional Gestão member link
-  memberProfile Member?
+  courseProgress     CourseProgress[]
+  lessonProgress     LessonProgress[]
+  exerciseProgress   ExerciseProgress[]
 
   @@index([email])
+  @@index([institutionalMemberId])
+}
+
+model MemberCredential {
+  memberId          String    @id
+  member            Member    @relation(fields: [memberId], references: [id], onDelete: Cascade)
+  passwordHash      String
+  passwordChangedAt DateTime  @default(now()) @db.Timestamptz(3)
+  lastLoginAt       DateTime? @db.Timestamptz(3)
+}
+
+model AuthChallenge {
+  id         String    @id @default(cuid())
+  memberId   String
+  member     Member    @relation(fields: [memberId], references: [id], onDelete: Cascade)
+  email      String
+  purpose    String    @default("PASSWORD_RESET")
+  codeHash   String
+  attempts   Int       @default(0)
+  expiresAt  DateTime  @db.Timestamptz(3)
+  consumedAt DateTime? @db.Timestamptz(3)
+  createdAt  DateTime  @default(now()) @db.Timestamptz(3)
+
+  @@index([email, purpose])
+  @@index([memberId])
+}
+
+model MemberProfileChange {
+  id                    String              @id @default(cuid())
+  memberId              String
+  member                Member              @relation("MemberChanges", fields: [memberId], references: [id], onDelete: Cascade)
+  institutionalMemberId Int
+  changes               Json
+  status                ChangeRequestStatus @default(PENDING)
+  reviewedById          String?
+  reviewedBy            Member?             @relation("ReviewedChanges", fields: [reviewedById], references: [id], onDelete: SetNull)
+  reviewedAt            DateTime?           @db.Timestamptz(3)
+  reviewNote            String?             @db.Text
+  createdAt             DateTime            @default(now()) @db.Timestamptz(3)
+  updatedAt             DateTime            @updatedAt @db.Timestamptz(3)
+
+  @@index([memberId, status])
+  @@index([institutionalMemberId, status])
 }
 
 model Session {
   id           String   @id @default(cuid())
   sessionToken String   @unique
-  userId       String
-  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  memberId     String
+  member       Member   @relation(fields: [memberId], references: [id], onDelete: Cascade)
   expiresAt    DateTime
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
-  @@index([userId])
+  @@index([memberId])
   @@index([sessionToken])
 }
 
@@ -211,8 +281,8 @@ model Exercise {
 
 model CourseProgress {
   id                    String    @id @default(cuid())
-  userId                String
-  user                  User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  memberId              String
+  member                Member    @relation(fields: [memberId], references: [id], onDelete: Cascade)
   courseId              String
   course                Course    @relation(fields: [courseId], references: [id], onDelete: Cascade)
   percentage            Float     @default(0.0)
@@ -224,15 +294,15 @@ model CourseProgress {
   enrolledAt            DateTime  @default(now())
   updatedAt             DateTime  @updatedAt
 
-  @@unique([userId, courseId])
-  @@index([userId])
+  @@unique([memberId, courseId])
+  @@index([memberId])
   @@index([courseId])
 }
 
 model LessonProgress {
   id              String    @id @default(cuid())
-  userId          String
-  user            User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  memberId        String
+  member          Member    @relation(fields: [memberId], references: [id], onDelete: Cascade)
   lessonId        String
   lesson          Lesson    @relation(fields: [lessonId], references: [id], onDelete: Cascade)
   completed       Boolean   @default(false)
@@ -240,15 +310,15 @@ model LessonProgress {
   lastPositionSec Int       @default(0)
   updatedAt       DateTime  @updatedAt
 
-  @@unique([userId, lessonId])
-  @@index([userId])
+  @@unique([memberId, lessonId])
+  @@index([memberId])
   @@index([lessonId])
 }
 
 model ExerciseProgress {
   id              String   @id @default(cuid())
-  userId          String
-  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  memberId        String
+  member          Member   @relation(fields: [memberId], references: [id], onDelete: Cascade)
   exerciseId      String
   exercise        Exercise @relation(fields: [exerciseId], references: [id], onDelete: Cascade)
   completed       Boolean  @default(false)
@@ -259,76 +329,14 @@ model ExerciseProgress {
   submittedAt     DateTime @default(now())
   updatedAt       DateTime @updatedAt
 
-  @@unique([userId, exerciseId])
-  @@index([userId])
+  @@unique([memberId, exerciseId])
+  @@index([memberId])
   @@index([exerciseId])
 }
 
 // ---------------------------------------------------------------------------
-// 4. GESTÃO ECOSYSTEM FOUNDATIONS (UFRJ AUTÔNOMOS, HARPIA, NAUTILUS)
+// 4. GESTÃO & PRESENÇA ECOSYSTEM
 // ---------------------------------------------------------------------------
-
-model Team {
-  id          Int      @id @default(autoincrement())
-  slug        String   @unique
-  name        String
-  founded     Int
-  coverImage  String?
-  bannerImage String?
-  tags        String?
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-
-  members  Member[]
-  projects Project[]
-}
-
-model Member {
-  id        Int      @id @default(autoincrement())
-  userId    String?  @unique
-  user      User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
-  teamId    Int?
-  team      Team?    @relation(fields: [teamId], references: [id], onDelete: Cascade)
-  name      String
-  role      String
-  area      String
-  bio       String?
-  photo     String?
-  linkedin  String?
-  github    String?
-  course    String?
-  active    Boolean  @default(true)
-  createdAt DateTime @default(now())
-  attendancePeriods AttendancePeriod[]
-  attendanceVisits AttendanceVisit[]
-  attendancePunches AttendancePunch[]
-  attendanceAudits AttendanceAudit[]
-  internalDetails MemberDetails?
-
-  @@index([teamId])
-}
-
-// Public identities live in the institutional database. These IDs are external
-// references, never inferred from a name or from matching auto-increment IDs.
-model MemberDetails {
-  id                    String   @id @default(cuid())
-  institutionalMemberId Int      @unique
-  memberId              Int?     @unique
-  member                Member?  @relation(fields: [memberId], references: [id], onDelete: SetNull)
-  cpf                   String?  @unique
-  name                  String?
-  area                  String?
-  email                 String?
-  phone                 String?
-  dre                   String?  @unique
-  birthDate             DateTime? @db.Date
-  course                String?
-  academicPeriod        String?
-  emergencyContactName  String?
-  emergencyContactPhone String?
-  notes                 String?  @db.Text
-  updatedAt             DateTime @updatedAt
-}
 
 model ProjectDetails {
   id                     String   @id @default(cuid())
@@ -338,35 +346,35 @@ model ProjectDetails {
 }
 
 model AttendanceSettings {
-  id                String @id @default("lab")
-  qrCode            String @unique
-  weeklyTargetSeconds Int @default(7200)
-  maxSessionSeconds Int @default(43200)
-  startedAt         DateTime @default(now()) @db.Timestamptz(3)
+  id                  String   @id @default("lab")
+  qrCode              String   @unique
+  weeklyTargetSeconds Int      @default(7200)
+  maxSessionSeconds   Int      @default(43200)
+  startedAt           DateTime @default(now()) @db.Timestamptz(3)
 }
 
 model AttendancePeriod {
-  id          String @id @default(cuid())
-  memberId    Int
-  member      Member @relation(fields: [memberId], references: [id], onDelete: Cascade)
-  startsOn    DateTime @db.Date
-  endsOn      DateTime? @db.Date
-  targetSeconds Int @default(7200)
+  id            String    @id @default(cuid())
+  memberId      String
+  member        Member    @relation(fields: [memberId], references: [id], onDelete: Cascade)
+  startsOn      DateTime  @db.Date
+  endsOn        DateTime? @db.Date
+  targetSeconds Int       @default(7200)
 
   @@unique([memberId, startsOn])
   @@index([memberId, endsOn])
 }
 
 model AttendanceVisit {
-  id           String @id @default(cuid())
-  memberId     Int
-  member       Member @relation(fields: [memberId], references: [id], onDelete: Cascade)
-  checkedInAt  DateTime @db.Timestamptz(3)
-  checkedOutAt DateTime? @db.Timestamptz(3)
+  id           String           @id @default(cuid())
+  memberId     String
+  member       Member           @relation(fields: [memberId], references: [id], onDelete: Cascade)
+  checkedInAt  DateTime         @db.Timestamptz(3)
+  checkedOutAt DateTime?        @db.Timestamptz(3)
   status       AttendanceStatus @default(OPEN)
-  source       String @default("QR")
-  createdAt    DateTime @default(now()) @db.Timestamptz(3)
-  updatedAt    DateTime @updatedAt @db.Timestamptz(3)
+  source       String           @default("QR")
+  createdAt    DateTime         @default(now()) @db.Timestamptz(3)
+  updatedAt    DateTime         @updatedAt @db.Timestamptz(3)
   punches      AttendancePunch[]
   audits       AttendanceAudit[]
 
@@ -375,50 +383,31 @@ model AttendanceVisit {
 }
 
 model AttendancePunch {
-  id           String @id @default(cuid())
-  requestId    String @unique
-  memberId     Int
-  member       Member @relation(fields: [memberId], references: [id], onDelete: Cascade)
+  id           String              @id @default(cuid())
+  requestId    String              @unique
+  memberId     String
+  member       Member              @relation(fields: [memberId], references: [id], onDelete: Cascade)
   visitId      String
-  visit        AttendanceVisit @relation(fields: [visitId], references: [id], onDelete: Cascade)
+  visit        AttendanceVisit     @relation(fields: [visitId], references: [id], onDelete: Cascade)
   type         AttendancePunchType
-  registeredAt DateTime @default(now()) @db.Timestamptz(3)
+  registeredAt DateTime            @default(now()) @db.Timestamptz(3)
 
   @@index([memberId, registeredAt])
 }
 
 model AttendanceAudit {
-  id        String @id @default(cuid())
-  memberId  Int
-  member    Member @relation(fields: [memberId], references: [id], onDelete: Cascade)
+  id        String           @id @default(cuid())
+  memberId  String
+  member    Member           @relation("AuditedMember", fields: [memberId], references: [id], onDelete: Cascade)
   visitId   String?
   visit     AttendanceVisit? @relation(fields: [visitId], references: [id], onDelete: SetNull)
   actorId   String?
-  actor     User? @relation(fields: [actorId], references: [id], onDelete: SetNull)
+  actor     Member?          @relation("AuditActor", fields: [actorId], references: [id], onDelete: SetNull)
   action    String
   reason    String
   before    Json?
   after     Json?
-  createdAt DateTime @default(now()) @db.Timestamptz(3)
+  createdAt DateTime         @default(now()) @db.Timestamptz(3)
 
   @@index([memberId, createdAt])
-}
-
-model Project {
-  id          Int      @id @default(autoincrement())
-  teamId      Int
-  team        Team     @relation(fields: [teamId], references: [id], onDelete: Cascade)
-  slug        String
-  name        String
-  tagline     String
-  description String   @db.Text
-  status      String
-  year        Int
-  coverImage  String?
-  tags        String
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-
-  @@unique([teamId, slug])
-  @@index([teamId])
 }

@@ -8,7 +8,21 @@ export function isManagementPath(pathname: string) {
 }
 
 export function isPublicPath(pathname: string) {
-  return ['/login', '/register', '/api/auth/login', '/api/auth/register', '/api/auth/me', '/api/auth/logout', '/api/health', '/api/institutional/contact', '/api/cron/maintenance'].includes(pathname);
+  return [
+    '/login',
+    '/register',
+    '/forgot-password',
+    '/reset-password',
+    '/api/auth/login',
+    '/api/auth/register',
+    '/api/auth/forgot-password',
+    '/api/auth/reset-password',
+    '/api/auth/me',
+    '/api/auth/logout',
+    '/api/health',
+    '/api/institutional/contact',
+    '/api/cron/maintenance',
+  ].includes(pathname);
 }
 
 export function hasManagementAccess(role: unknown) { return role === 'ADMIN' || role === 'MANAGEMENT'; }

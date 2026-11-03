@@ -189,11 +189,11 @@ export default async function CoursePlayerPage(props: PageProps) {
   if (session?.sub) {
     const [completedLessons, completedExercises] = await Promise.all([
       prisma.lessonProgress.findMany({
-        where: { userId: session.sub, completed: true },
+        where: { memberId: session.sub, completed: true },
         select: { lessonId: true },
       }),
       prisma.exerciseProgress.findMany({
-        where: { userId: session.sub, completed: true },
+        where: { memberId: session.sub, completed: true },
         select: { exerciseId: true },
       }),
     ]);
@@ -204,8 +204,8 @@ export default async function CoursePlayerPage(props: PageProps) {
     // Atualizar automaticamente o ponteiro de última lição acessada no banco
     await prisma.courseProgress.upsert({
       where: {
-        userId_courseId: {
-          userId: session.sub,
+        memberId_courseId: {
+          memberId: session.sub,
           courseId: course.id,
         },
       },
@@ -213,7 +213,7 @@ export default async function CoursePlayerPage(props: PageProps) {
         lastLessonId: lesson.id,
       },
       create: {
-        userId: session.sub,
+        memberId: session.sub,
         courseId: course.id,
         lastLessonId: lesson.id,
         totalLessonsCount: course.modules.flatMap((m) => m.lessons).length,

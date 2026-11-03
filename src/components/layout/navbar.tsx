@@ -14,6 +14,7 @@ import {
   Clock3,
   LogOut,
   ArrowRight,
+  UserCircle,
 } from "lucide-react";
 import { Logo } from "@/components/brand/logo";
 import { cn } from "@/lib/utils";
@@ -92,6 +93,7 @@ export function Navbar({ className }: NavbarProps) {
     { label: "Início", href: "/", icon: Home },
     { label: "Ensino", href: "/ensino", icon: BookOpen },
     { label: "Presença", href: "/presenca", icon: Clock3 },
+    { label: "Meu Perfil", href: "/perfil", icon: UserCircle },
     { label: "Gestão", href: "/gestao", icon: ShieldCheck },
   ].filter(item => Boolean(user) && (item.href !== "/gestao" || canAccessManagement));
 
@@ -271,6 +273,16 @@ export function Navbar({ className }: NavbarProps) {
                       </span>
                     </div>
                   </div>
+
+                  <Link
+                    href="/perfil"
+                    onClick={() => setIsUserDropdownOpen(false)}
+                    className="flex items-center gap-2.5 px-3 py-2 text-zinc-300 hover:text-white hover:bg-white/5 rounded-lg transition-colors text-sm"
+                    role="menuitem"
+                  >
+                    <UserCircle className="w-4 h-4 text-zinc-400" />
+                    <span>Meu Perfil de Integrante</span>
+                  </Link>
 
                   <Link
                     href="/ensino"

@@ -1732,61 +1732,80 @@ async function main() {
   // Demo accounts are opt-in and must never be seeded into production.
   if (process.env.SEED_DEMO_USERS === 'true') {
     if (process.env.NODE_ENV === 'production') throw new Error('Contas demonstrativas não são permitidas em produção.');
-  // 1. USUÁRIOS PADRÃO
-  console.log('👤 Criando usuários padrão para testes e desenvolvimento...');
-  const adminPasswordHash = await bcrypt.hash('Admin@Autonomos2026!', 10);
-  const memberPasswordHash = await bcrypt.hash('Membro@2026!', 10);
-  const studentPasswordHash = await bcrypt.hash('Aluno@2026!', 10);
+    console.log('👤 Criando integrantes padrão para testes e desenvolvimento...');
+    const adminPasswordHash = await bcrypt.hash('Admin@Autonomos2026!', 10);
+    const memberPasswordHash = await bcrypt.hash('Membro@2026!', 10);
+    const studentPasswordHash = await bcrypt.hash('Aluno@2026!', 10);
 
-  const admin = await prisma.user.upsert({
-    where: { email: 'admin@autonomos.ufrj.br' },
-    update: {
-      name: 'Administrador UFRJ Autônomos',
-      role: Role.ADMIN,
-      status: 'APPROVED',
-      passwordHash: adminPasswordHash,
-    },
-    create: {
-      email: 'admin@autonomos.ufrj.br',
-      name: 'Administrador UFRJ Autônomos',
-      role: Role.ADMIN,
-      status: 'APPROVED',
-      passwordHash: adminPasswordHash,
-    },
-  });
+    const admin = await prisma.member.upsert({
+      where: { email: 'admin@autonomos.ufrj.br' },
+      update: {
+        name: 'Administrador UFRJ Autônomos',
+        role: Role.ADMIN,
+        status: 'APPROVED',
+        credential: {
+          upsert: {
+            create: { passwordHash: adminPasswordHash },
+            update: { passwordHash: adminPasswordHash },
+          },
+        },
+      },
+      create: {
+        email: 'admin@autonomos.ufrj.br',
+        name: 'Administrador UFRJ Autônomos',
+        role: Role.ADMIN,
+        status: 'APPROVED',
+        credential: {
+          create: { passwordHash: adminPasswordHash },
+        },
+      },
+    });
 
-  const member = await prisma.user.upsert({
-    where: { email: 'membro@autonomos.ufrj.br' },
-    update: {
-      name: 'Engenheiro Harpia',
-      role: Role.MEMBER,
-      passwordHash: memberPasswordHash,
-    },
-    create: {
-      email: 'membro@autonomos.ufrj.br',
-      name: 'Engenheiro Harpia',
-      role: Role.MEMBER,
-      passwordHash: memberPasswordHash,
-    },
-  });
+    const member = await prisma.member.upsert({
+      where: { email: 'membro@autonomos.ufrj.br' },
+      update: {
+        name: 'Engenheiro Harpia',
+        role: Role.MEMBER,
+        credential: {
+          upsert: {
+            create: { passwordHash: memberPasswordHash },
+            update: { passwordHash: memberPasswordHash },
+          },
+        },
+      },
+      create: {
+        email: 'membro@autonomos.ufrj.br',
+        name: 'Engenheiro Harpia',
+        role: Role.MEMBER,
+        credential: {
+          create: { passwordHash: memberPasswordHash },
+        },
+      },
+    });
 
-  const student = await prisma.user.upsert({
-    where: { email: 'aluno@autonomos.ufrj.br' },
-    update: {
-      name: 'Aluno Teste',
-      role: Role.TRAINEE,
-      passwordHash: studentPasswordHash,
-    },
-    create: {
-      email: 'aluno@autonomos.ufrj.br',
-      name: 'Aluno Teste',
-      role: Role.TRAINEE,
-      passwordHash: studentPasswordHash,
-    },
-  });
+    const student = await prisma.member.upsert({
+      where: { email: 'aluno@autonomos.ufrj.br' },
+      update: {
+        name: 'Aluno Teste',
+        role: Role.TRAINEE,
+        credential: {
+          upsert: {
+            create: { passwordHash: studentPasswordHash },
+            update: { passwordHash: studentPasswordHash },
+          },
+        },
+      },
+      create: {
+        email: 'aluno@autonomos.ufrj.br',
+        name: 'Aluno Teste',
+        role: Role.TRAINEE,
+        credential: {
+          create: { passwordHash: studentPasswordHash },
+        },
+      },
+    });
 
-  console.log(`✅ Usuários criados: Admin (${admin.email}), Membro (${member.email}), Aluno (${student.email})`);
-
+    console.log(`✅ Integrantes criados: Admin (${admin.email}), Membro (${member.email}), Aluno (${student.email})`);
   }
 
   // 2. CURSO PADRÃO
@@ -1964,7 +1983,7 @@ async function main() {
   const totalLessons = await prisma.lesson.count();
   const totalModules = await prisma.module.count();
   const totalExercises = await prisma.exercise.count();
-  const totalUsers = await prisma.user.count();
+  const totalUsers = await prisma.member.count();
 
   console.log('📊 RESUMO DA PERSISTÊNCIA NO BANCO:');
   console.log(`   - Usuários: ${totalUsers}`);

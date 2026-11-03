@@ -24,7 +24,7 @@ export async function saveMemberPreferences(input: unknown) {
   const user = await requirePageUser(true);
   try {
     const preferences = memberPreferences(input);
-    await prisma.user.update({ where: { id: user.id }, data: { memberDirectoryPreferences: preferences } });
+    await prisma.member.update({ where: { id: user.id }, data: { memberDirectoryPreferences: preferences } });
     return { success: true as const };
   } catch {
     return { success: false as const, error: 'Não foi possível salvar sua visualização. Tente novamente.' };

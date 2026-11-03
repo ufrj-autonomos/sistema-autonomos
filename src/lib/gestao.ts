@@ -8,10 +8,10 @@ export async function getGestaoStats(): Promise<GestaoStatsResponse> {
   const dbLatencyMs = Date.now() - started;
   const [teams, members, projects, totalUsers, totalStudents, course, totalLessons, totalExercises, availableVideos, pendingVideos, textOnlyLessons] = await Promise.all([
     db.team.findMany({ include: { members: true, projects: true } }),
-    db.member.findMany({ include: { team: true }, orderBy: [{ active: 'desc' }, { id: 'asc' }] }),
+    db.institutionalMember.findMany({ include: { team: true }, orderBy: [{ active: 'desc' }, { id: 'asc' }] }),
     db.project.findMany({ include: { team: true }, orderBy: { year: 'desc' } }),
-    prisma.user.count(),
-    prisma.user.count({ where: { status: 'APPROVED', courseProgress: { some: {} } } }),
+    prisma.member.count(),
+    prisma.member.count({ where: { status: 'APPROVED', courseProgress: { some: {} } } }),
     prisma.course.findUnique({ where: { slug: 'ros2-jazzy' }, include: { _count: { select: { modules: true } } } }),
     prisma.lesson.count(),
     prisma.exercise.count(),

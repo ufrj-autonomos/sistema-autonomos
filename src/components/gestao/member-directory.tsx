@@ -3,7 +3,7 @@
 import { useMemo, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { ArrowDown, ArrowUp, ArrowUpDown, Check, ChevronDown, Columns3, Edit3, Globe, Loader2, LockKeyhole, Search, SlidersHorizontal, Trash2, X } from 'lucide-react';
+import { ArrowDown, ArrowUp, ArrowUpDown, Check, ChevronDown, Clock, Columns3, Edit3, Globe, Loader2, LockKeyhole, Search, SlidersHorizontal, Trash2, X } from 'lucide-react';
 import { saveMemberPreferences } from '@/app/(gestao)/gestao/directory-actions';
 import { deleteRecord } from '@/app/(gestao)/gestao/site/actions';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/institutional/ui/dialog';
@@ -29,12 +29,14 @@ export function MemberDirectory({ rows, initialPreferences }: { rows: MemberDire
   const [message, setMessage] = useState('');
   const [deleting, setDeleting] = useState(false);
   const [target, setTarget] = useState<MemberDirectoryRow | null>(null);
+  const [reviewingId, setReviewingId] = useState<string | null>(null);
   const router = useRouter();
   const asset = useInstitutionalAsset();
   const keys = view === 'site' ? SITE_COLUMNS : view === 'internal' ? INTERNAL_COLUMNS : custom;
   const columns = keys.map(key => MEMBER_COLUMNS.find(column => column.key === key)!);
   const teams = useMemo(() => [...new Map(rows.map(row => [String(row.teamId ?? 'general'), row.teamName])).entries()].sort((a, b) => a[1].localeCompare(b[1], 'pt-BR')), [rows]);
   const areas = useMemo(() => [...new Set(rows.map(row => String(memberValue(row, view === 'site' ? 'area' : 'internalArea') || '')).filter(Boolean))].sort((a, b) => a.localeCompare(b, 'pt-BR')), [rows, view]);
+  const pendingRows = useMemo(() => rows.filter(row => Boolean(row.pendingChange)), [rows]);
   const filtered = useMemo(() => {
     const result = filterMembers(rows, keys, { search, team, area, status }, view);
     // Sorting uses displayed values too; changing views cannot sort by a hidden field.
@@ -76,22 +78,84 @@ export function MemberDirectory({ rows, initialPreferences }: { rows: MemberDire
     } catch { setError('Não foi possível excluir. Tente novamente.'); }
     finally { setDeleting(false); }
   }
+  async function reviewProfileChange(changeId: string, action: 'APPROVE' | 'REJECT') {
+    setReviewingId(changeId); setError(''); setMessage('');
+    try {
+      const res = await fetch('/api/admin/profile-changes', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ changeId, action }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Não foi possível processar a revisão.');
+      setMessage(data.message);
+      router.refresh();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Erro ao revisar alteração de perfil.');
+    } finally {
+      setReviewingId(null);
+    }
+  }
   function cell(row: MemberDirectoryRow, key: MemberColumnKey) {
     const value = memberValue(row, key);
-    if (value === null || value === '') return <span className="text-zinc-500" aria-label="Não informado">—</span>;
+    const isPendingField = Boolean(row.pendingChange && key in row.pendingChange.changes);
+    const badge = isPendingField ? <span className="ml-1.5 inline-flex items-center gap-1 rounded bg-amber-950/80 px-1.5 py-0.5 text-[10px] font-medium text-amber-300 border border-amber-700/60" title="Alteração proposta pelo integrante, aguardando aprovação da Gestão">Pendente</span> : null;
+    if (value === null || value === '') return <span className="text-zinc-500" aria-label="Não informado">—{badge}</span>;
     if (key === 'active' || key === 'showOnSite') return <span className={`inline-flex items-center gap-1.5 rounded-md px-2 py-1 text-xs ${value ? 'bg-emerald-950 text-emerald-200' : 'bg-zinc-800 text-zinc-300'}`}><span className={`h-1.5 w-1.5 rounded-full ${value ? 'bg-emerald-400' : 'bg-zinc-500'}`} />{key === 'active' ? value ? 'Ativo' : 'Inativo' : value ? 'Visível' : 'Oculto'}</span>;
-    if (key === 'isFemale') return value ? 'Sim' : 'Não';
+    if (key === 'isFemale') return <span>{value ? 'Sim' : 'Não'}{badge}</span>;
     if (key === 'birthDate') return new Intl.DateTimeFormat('pt-BR', { timeZone: 'UTC' }).format(new Date(`${value}T00:00:00Z`));
     if (key === 'cpf') return String(value).replace(/^(\d{3})(\d{3})(\d{3})(\d{2})$/, '$1.$2.$3-$4');
-    if (key === 'photo') return <img src={asset(String(value))} alt={`Foto de ${row.name}`} className="h-10 w-10 rounded-full object-cover" width={40} height={40} loading="lazy" />;
+    if (key === 'photo') return <div className="flex items-center gap-1.5"><img src={asset(String(value))} alt={`Foto de ${row.name}`} className="h-10 w-10 rounded-full object-cover" width={40} height={40} loading="lazy" />{badge}</div>;
     if (key === 'email') return <a href={`mailto:${value}`} className={`rounded-sm text-zinc-200 underline-offset-4 hover:underline ${focus}`}>{String(value)}</a>;
     if (key === 'phone') return <a href={`tel:${String(value).replace(/[^+\d]/g, '')}`} className={`rounded-sm underline-offset-4 hover:underline ${focus}`}>{String(value)}</a>;
-    if (['linkedin', 'github', 'instagram'].includes(key) && /^https?:\/\//i.test(String(value))) return <a href={String(value)} target="_blank" rel="noopener noreferrer" className={`block max-w-64 truncate underline underline-offset-4 ${focus}`} title={String(value)}>{String(value).replace(/^https?:\/\/(www\.)?/, '')}</a>;
-    if (key === 'name' || key === 'internalName') return <Link href={editUrl(row)} className={`block max-w-64 whitespace-normal rounded-sm font-medium leading-relaxed text-zinc-100 underline-offset-4 hover:underline ${focus}`}>{String(value)}</Link>;
-    return <span className={`block max-w-80 whitespace-pre-line break-words leading-relaxed ${['bio', 'bioEn', 'bioFr', 'notes', 'projectNames'].includes(key) ? 'line-clamp-3' : ''}`} title={String(value)}>{String(value)}</span>;
+    if (['linkedin', 'github', 'instagram'].includes(key) && /^https?:\/\//i.test(String(value))) return <div className="flex items-center gap-1.5"><a href={String(value)} target="_blank" rel="noopener noreferrer" className={`block max-w-64 truncate underline underline-offset-4 ${focus}`} title={String(value)}>{String(value).replace(/^https?:\/\/(www\.)?/, '')}</a>{badge}</div>;
+    if (key === 'name' || key === 'internalName') return <div className="flex flex-wrap items-center gap-1.5"><Link href={editUrl(row)} className={`block max-w-64 whitespace-normal rounded-sm font-medium leading-relaxed text-zinc-100 underline-offset-4 hover:underline ${focus}`}>{String(value)}</Link>{row.pendingChange && <span className="inline-flex items-center gap-1 rounded bg-amber-950/90 px-1.5 py-0.5 text-[10px] font-medium text-amber-300 border border-amber-700/60" title="Possui alterações de site aguardando aprovação"><Clock className="h-3 w-3" />Revisar site</span>}</div>;
+    return <span className={`block max-w-80 whitespace-pre-line break-words leading-relaxed ${['bio', 'bioEn', 'bioFr', 'notes', 'projectNames'].includes(key) ? 'line-clamp-3' : ''}`} title={String(value)}>{String(value)}{badge}</span>;
   }
   const currentSort = keys.includes(sort.key) ? sort.key : keys[0];
   return <section className="min-w-0 space-y-4" aria-label="Diretório de integrantes">
+    {pendingRows.length > 0 && (
+      <div className="rounded-xl border border-amber-500/30 bg-amber-950/20 p-4 space-y-3">
+        <div className="flex items-center gap-2 text-amber-200 font-medium text-sm">
+          <Clock className="h-4 w-4 text-amber-400 shrink-0" />
+          <span>{pendingRows.length} {pendingRows.length === 1 ? 'integrante enviou alterações' : 'integrantes enviaram alterações'} para o site institucional aguardando aprovação da Gestão:</span>
+        </div>
+        <div className="divide-y divide-amber-500/20">
+          {pendingRows.map(row => {
+            const pc = row.pendingChange!;
+            const changedFields = Object.keys(pc.changes);
+            const busy = reviewingId === pc.id;
+            return (
+              <div key={pc.id} className="py-3 flex flex-wrap items-center justify-between gap-3 text-sm">
+                <div className="min-w-0">
+                  <Link href={editUrl(row)} className="font-medium text-zinc-100 hover:underline">{row.name}</Link>
+                  <span className="ml-2 text-xs text-zinc-400">Campos alterados: <strong className="text-amber-200">{changedFields.join(', ')}</strong></span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    disabled={Boolean(reviewingId)}
+                    onClick={() => void reviewProfileChange(pc.id, 'REJECT')}
+                    className="min-h-9 rounded-lg border border-red-800/60 bg-red-950/50 px-3 py-1.5 text-xs font-medium text-red-200 hover:bg-red-900/60 disabled:opacity-50"
+                  >
+                    Recusar
+                  </button>
+                  <button
+                    type="button"
+                    disabled={Boolean(reviewingId)}
+                    onClick={() => void reviewProfileChange(pc.id, 'APPROVE')}
+                    className="min-h-9 rounded-lg bg-emerald-700 px-3 py-1.5 text-xs font-semibold text-white hover:bg-emerald-600 disabled:opacity-50"
+                  >
+                    {busy ? 'Publicando e traduzindo...' : 'Aprovar e publicar no site'}
+                  </button>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    )}
+
     <div className="flex flex-wrap items-center justify-between gap-3 border-b border-zinc-800 pb-4">
       <div className="inline-flex max-w-full flex-wrap gap-1 rounded-lg bg-zinc-900 p-1" role="group" aria-label="Visualização da tabela">
         {views.map(({ key, label, icon: Icon }) => <button key={key} type="button" aria-pressed={view === key} disabled={saving} onClick={() => void persist(key)} className={`inline-flex min-h-10 items-center gap-2 rounded-md px-3 text-sm font-medium transition-colors disabled:opacity-60 ${focus} ${view === key ? 'bg-zinc-100 text-zinc-950' : 'text-zinc-400 hover:text-zinc-100'}`}><Icon className="h-4 w-4" aria-hidden="true" />{label}</button>)}
@@ -108,7 +172,7 @@ export function MemberDirectory({ rows, initialPreferences }: { rows: MemberDire
       <div className="flex flex-wrap items-center gap-3 border-t border-zinc-800 pt-4"><button type="button" disabled={saving || !draft.length} onClick={() => void persist('custom', draft)} className={`inline-flex min-h-11 items-center gap-2 rounded-lg bg-zinc-100 px-4 text-sm font-medium text-zinc-950 hover:bg-white disabled:opacity-50 ${focus}`}>{saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}Salvar visualização</button><button type="button" disabled={saving} onClick={() => setDraft([...INTERNAL_COLUMNS])} className={secondary}>Usar campos internos</button><button type="button" disabled={saving} onClick={() => setDraft([...SITE_COLUMNS])} className={secondary}>Usar campos do site</button></div>
     </div>}
 
-    <p className="max-w-prose text-sm text-zinc-400">{view === 'site' ? 'Dados que alimentam o site institucional. Inclui cadastros ocultos do público.' : view === 'internal' ? 'Cadastro operacional. Contatos, documentos e informações acadêmicas ficam somente no sistema.' : 'Sua seleção de dados do site, informações internas e presença.'}</p>
+    <p className="max-w-prose text-sm text-zinc-400">{view === 'site' ? 'Dados que alimentam o site institucional. Inclui cadastros ocultos do público e edições pendentes de aprovação.' : view === 'internal' ? 'Cadastro operacional. Contatos, documentos e informações acadêmicas ficam somente no sistema.' : 'Sua seleção de dados do site, informações internas e presença.'}</p>
     <div className="grid items-end gap-3 sm:grid-cols-2 xl:grid-cols-[minmax(14rem,1fr)_10rem_11rem_8rem]">
       <div><label htmlFor="member-search" className="mb-1.5 block text-xs font-medium text-zinc-400">Buscar nas colunas visíveis</label><div className="relative"><Search className="pointer-events-none absolute left-3 top-3.5 h-4 w-4 text-zinc-400" /><input id="member-search" type="search" value={search} onChange={event => setSearch(event.target.value)} placeholder="Nome, área ou outra informação…" className={`min-h-11 w-full rounded-lg border border-zinc-700 bg-zinc-950 pl-10 pr-3 text-sm text-zinc-100 placeholder:text-zinc-400 ${focus}`} /></div></div>
       <label className="block text-xs font-medium text-zinc-400" htmlFor="member-area">Área<select id="member-area" value={area} onChange={event => setArea(event.target.value)} className={`mt-1.5 min-h-11 w-full rounded-lg border border-zinc-700 bg-zinc-950 px-3 text-sm text-zinc-200 ${focus}`}><option value="all">Todas as áreas</option>{areas.map(value => <option key={value} value={value}>{value}</option>)}</select></label>

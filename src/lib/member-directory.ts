@@ -12,6 +12,12 @@ export const OPERATIONAL_FIELDS = [
   { key: 'emergencyContactPhone', label: 'Telefone de emergência', type: 'tel', maxLength: 30 },
 ] as const;
 export type OperationalKey = typeof OPERATIONAL_FIELDS[number]['key'];
+export type PendingProfileChangeDto = {
+  id: string;
+  memberId: string;
+  createdAt: string;
+  changes: Record<string, string | boolean | null>;
+};
 export type MemberDirectoryRow = {
   id: number; name: string; role: string; area: string; age: number | null;
   teamId: number | null; teamName: string; active: boolean; showOnSite: boolean;
@@ -21,6 +27,7 @@ export type MemberDirectoryRow = {
   roleEn: string | null; roleFr: string | null; bioEn: string | null; bioFr: string | null;
   courseEn: string | null; courseFr: string | null;
   internal: Record<OperationalKey, string | null> & { notes: string | null; missedWeeks: number | null };
+  pendingChange?: PendingProfileChangeDto | null;
 };
 export const MEMBER_COLUMNS = [
   { key: 'name', label: 'Nome (site)', group: 'Site', width: 240 },

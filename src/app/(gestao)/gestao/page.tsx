@@ -13,11 +13,15 @@ const linkStyle = 'inline-flex min-h-11 items-center gap-2 rounded-lg px-3 py-2 
 
 export default async function GestaoPage() {
   await requirePageUser(true);
-  const [stats, pending, attendance] = await Promise.allSettled([
-    getGestaoStats(), prisma.user.count({ where: { status: 'PENDING' } }), attendanceReport(),
+  const [stats, pending, pendingSiteChanges, attendance] = await Promise.allSettled([
+    getGestaoStats(),
+    prisma.member.count({ where: { status: 'PENDING' } }),
+    prisma.memberProfileChange.count({ where: { status: 'PENDING' } }),
+    attendanceReport(),
   ]);
   const data = stats.status === 'fulfilled' ? stats.value : null;
   const waiting = pending.status === 'fulfilled' ? pending.value : null;
+  const waitingSiteChanges = pendingSiteChanges.status === 'fulfilled' ? pendingSiteChanges.value : 0;
   const presence = attendance.status === 'fulfilled' ? attendance.value : null;
   return <>
     <SectionHeader title="Visão geral" description="Acompanhe a equipe e encontre os sistemas de gestão. Use o menu lateral para trabalhar em cada área." />
@@ -25,6 +29,7 @@ export default async function GestaoPage() {
       <h2 id="attention-heading" className="font-display text-xl font-semibold">O que precisa de atenção</h2>
       <div className="mt-4 divide-y divide-zinc-800 border-y border-zinc-800">
         <div className="flex flex-wrap items-center justify-between gap-3 py-5"><div><h3 className="text-sm font-medium">Aprovação de cadastros</h3><p className={`mt-1 text-sm ${waiting ? 'text-amber-300' : 'text-zinc-400'}`}>{waiting === null ? 'Não foi possível consultar os cadastros. Abra a lista para tentar novamente.' : waiting === 0 ? 'Nenhum cadastro aguardando aprovação.' : `${waiting} ${waiting === 1 ? 'pessoa aguarda' : 'pessoas aguardam'} liberação de acesso.`}</p></div><Link href="/gestao/contas" className={linkStyle}>Ver contas<ArrowRight className="h-4 w-4" /></Link></div>
+        <div className="flex flex-wrap items-center justify-between gap-3 py-5"><div><h3 className="text-sm font-medium">Alterações de perfil para o site</h3><p className={`mt-1 text-sm ${waitingSiteChanges ? 'text-amber-300' : 'text-zinc-400'}`}>{waitingSiteChanges === 0 ? 'Nenhuma edição de perfil pendente para o site institucional.' : `${waitingSiteChanges} ${waitingSiteChanges === 1 ? 'integrante enviou alterações' : 'integrantes enviaram alterações'} aguardando aprovação da gestão.`}</p></div><Link href="/gestao/integrantes" className={linkStyle}>Revisar integrantes<ArrowRight className="h-4 w-4" /></Link></div>
         <div className="flex flex-wrap items-center justify-between gap-3 py-5"><div><h3 className="text-sm font-medium">Presença nesta semana</h3><p className="mt-1 text-sm text-zinc-400">{presence ? `${presence.summary.met} de ${presence.summary.requiredMembers} membros cumpriram a meta de 2 horas. ${presence.summary.pending} ainda em andamento.` : 'Não foi possível consultar as horas. Abra o painel para tentar novamente.'}</p>{!!presence?.summary.review && <p className="mt-1 text-sm text-amber-300">{presence.summary.review} {presence.summary.review === 1 ? 'registro precisa' : 'registros precisam'} de revisão.</p>}</div><Link href="/gestao/presenca" className={linkStyle}>Acompanhar horas<ArrowRight className="h-4 w-4" /></Link></div>
       </div>
     </section>

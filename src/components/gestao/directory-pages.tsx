@@ -34,7 +34,7 @@ export async function DirectoryFormPage({ table, id, initialView }: { table: Dir
   const isNew = id === 'new';
   if (!isNew && !/^[1-9]\d*$/.test(id)) notFound();
   const record = isNew ? null : table === 'member'
-    ? await db.member.findUnique({ where: { id: Number(id) } })
+    ? await db.institutionalMember.findUnique({ where: { id: Number(id) } })
     : await db.project.findUnique({ where: { id: Number(id) } });
   if (!isNew && !record) notFound();
   const teams = await db.team.findMany({ select: { id: true, name: true }, orderBy: { name: 'asc' } });
@@ -44,12 +44,22 @@ export async function DirectoryFormPage({ table, id, initialView }: { table: Dir
   const projectsList = table === 'member' ? await db.project.findMany({ select: { id: true, slug: true, name: true, teamId: true } }) : [];
   const models = table === 'project' ? await db.model3D.findMany({ orderBy: { name: 'asc' } }) : [];
   const details = isNew ? null : table === 'member' ? await memberPrivateDetails(Number(id)) : await prisma.projectDetails.findUnique({ where: { institutionalProjectId: Number(id) } });
-  const accounts = table === 'member' && !isNew ? await prisma.user.findMany({
-    where: { OR: [{ status: 'APPROVED' }, { memberProfile: { internalDetails: { institutionalMemberId: Number(id) } } }] },
-    select: { id: true, name: true, email: true, status: true, memberProfile: { select: { internalDetails: { select: { institutionalMemberId: true } } } } },
+  const accounts = table === 'member' && !isNew ? await prisma.member.findMany({
+    where: {
+      OR: [
+        { status: 'APPROVED', institutionalMemberId: null },
+        { institutionalMemberId: Number(id) },
+      ],
+    },
+    select: { id: true, name: true, email: true, status: true, institutionalMemberId: true },
     orderBy: { name: 'asc' },
   }) : [];
-  const accountOptions = accounts.filter(account => !account.memberProfile?.internalDetails || account.memberProfile.internalDetails.institutionalMemberId === Number(id)).map(account => ({ id: account.id, label: `${account.name} — ${account.email}${account.status !== 'APPROVED' ? ' (acesso suspenso)' : ''}` }));
+  const accountOptions = accounts
+    .filter(account => !account.institutionalMemberId || account.institutionalMemberId === Number(id))
+    .map(account => ({
+      id: account.id,
+      label: `${account.name}${account.email ? ` — ${account.email}` : ' (sem email)'}${account.status !== 'APPROVED' ? ' (acesso suspenso)' : ''}`,
+    }));
   const initialData = record || { showOnSite: false, ...(table === 'member' ? { active: true } : { importance: 5 }) };
   return <div className="max-w-5xl space-y-6">
     <Link href={directoryPath(table)} className="inline-flex min-h-11 items-center gap-2 text-sm text-zinc-400 hover:text-zinc-100"><ArrowLeft className="h-4 w-4" />Voltar para {config.name.toLowerCase()}</Link>
