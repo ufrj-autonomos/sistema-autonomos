@@ -120,31 +120,37 @@ function RegisterForm() {
       <div className="flex items-center justify-between">
         <Link
           href="/"
-          className="inline-flex items-center gap-2 text-xs text-muted-foreground hover:text-foreground transition-colors"
+          className="inline-flex items-center gap-2 text-xs font-mono text-zinc-400 hover:text-white transition-colors"
         >
           <ArrowLeft className="w-3.5 h-3.5" />
           <span>Voltar ao portal</span>
         </Link>
-        <span className="text-[11px] text-muted-foreground">
+        <span className="text-[11px] font-mono text-zinc-500">
           UFRJ • CT • COPPE
         </span>
       </div>
 
       {/* Card Principal — Engineering Studio com Blueprint Corners */}
-      <div className="relative rounded-xl bg-card border border-border p-6 sm:p-8 overflow-hidden">
+      <div className="relative rounded-2xl bg-[#111113] border border-white/10 p-6 sm:p-8 shadow-2xl blueprint-corners overflow-hidden">
         {/* Glow sutil */}
+        <div className="pointer-events-none absolute -top-24 left-1/2 -translate-x-1/2 w-72 h-32 bg-white/5 blur-2xl rounded-full" />
 
         {/* Cabeçalho do Card */}
-        <div className="relative space-y-4 text-center pb-6 border-b border-border">
+        <div className="relative space-y-4 text-center pb-6 border-b border-white/10">
           <div className="flex justify-center">
             <Logo division="autonomos" variant="horizontal" size="md" priority />
           </div>
 
+          <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-white/5 border border-white/10 text-[11px] font-mono text-zinc-300">
+            <Terminal className="w-3 h-3 text-zinc-400" />
+            <span className="tracking-widest uppercase">AUTÔNOMOS AUTH // REGISTRO</span>
+          </div>
+
           <div className="space-y-1">
-            <h1 className="text-xl sm:text-2xl font-bold font-display text-foreground">
+            <h1 className="text-xl sm:text-2xl font-bold font-display text-white">
               Criar Conta de Acesso
             </h1>
-            <p className="text-xs sm:text-sm text-muted-foreground">
+            <p className="text-xs sm:text-sm text-zinc-400">
               Crie sua conta para solicitar acesso à equipe e aos cursos. Um administrador precisa aprovar seu cadastro.
             </p>
           </div>
@@ -154,7 +160,7 @@ function RegisterForm() {
         {errorMessage && (
           <div
             role="alert"
-            className="mt-4 p-3 rounded-lg bg-red-500/10 border border-red-500/30 text-red-700 dark:text-red-400 text-xs font-mono flex items-start gap-2.5 animate-in fade-in duration-200"
+            className="mt-4 p-3 rounded-lg bg-red-500/10 border border-red-500/30 text-red-400 text-xs font-mono flex items-start gap-2.5 animate-in fade-in duration-200"
           >
             <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5" />
             <div className="flex-1 leading-relaxed">{errorMessage}</div>
@@ -167,12 +173,12 @@ function RegisterForm() {
           <div className="space-y-1.5">
             <label
               htmlFor="name"
-              className="block text-xs font-mono uppercase tracking-wider text-muted-foreground"
+              className="block text-xs font-mono uppercase tracking-wider text-zinc-400"
             >
               Nome Completo
             </label>
             <div className="relative">
-              <div className="pointer-events-none absolute inset-y-0 left-0 pl-3 flex items-center text-muted-foreground">
+              <div className="pointer-events-none absolute inset-y-0 left-0 pl-3 flex items-center text-zinc-500">
                 <User className="w-4 h-4" />
               </div>
               <input
@@ -183,7 +189,7 @@ function RegisterForm() {
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 placeholder="Ex: Carlos Eduardo"
-                className="w-full rounded-lg bg-muted/60 border border-border pl-9 pr-3.5 py-2.5 text-sm text-foreground placeholder-zinc-500 focus:outline-hidden focus:border-input focus:ring-1 focus:ring-input transition-all font-sans disabled:opacity-50"
+                className="w-full rounded-lg bg-black/40 border border-white/10 pl-9 pr-3.5 py-2.5 text-sm text-zinc-100 placeholder-zinc-500 focus:outline-hidden focus:border-zinc-300 focus:ring-1 focus:ring-zinc-300 transition-all font-sans disabled:opacity-50"
               />
             </div>
           </div>
@@ -192,12 +198,12 @@ function RegisterForm() {
           <div className="space-y-1.5">
             <label
               htmlFor="email"
-              className="block text-xs font-mono uppercase tracking-wider text-muted-foreground"
+              className="block text-xs font-mono uppercase tracking-wider text-zinc-400"
             >
               Email Institucional / Pessoal
             </label>
             <div className="relative">
-              <div className="pointer-events-none absolute inset-y-0 left-0 pl-3 flex items-center text-muted-foreground">
+              <div className="pointer-events-none absolute inset-y-0 left-0 pl-3 flex items-center text-zinc-500">
                 <Mail className="w-4 h-4" />
               </div>
               <input
@@ -208,7 +214,7 @@ function RegisterForm() {
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="seu.email@poli.ufrj.br"
-                className="w-full rounded-lg bg-muted/60 border border-border pl-9 pr-3.5 py-2.5 text-sm text-foreground placeholder-zinc-500 focus:outline-hidden focus:border-input focus:ring-1 focus:ring-input transition-all font-sans disabled:opacity-50"
+                className="w-full rounded-lg bg-black/40 border border-white/10 pl-9 pr-3.5 py-2.5 text-sm text-zinc-100 placeholder-zinc-500 focus:outline-hidden focus:border-zinc-300 focus:ring-1 focus:ring-zinc-300 transition-all font-sans disabled:opacity-50"
               />
             </div>
           </div>
@@ -217,12 +223,12 @@ function RegisterForm() {
           <div className="space-y-1.5">
             <label
               htmlFor="password"
-              className="block text-xs font-mono uppercase tracking-wider text-muted-foreground"
+              className="block text-xs font-mono uppercase tracking-wider text-zinc-400"
             >
               Senha (mínimo 6 caracteres)
             </label>
             <div className="relative">
-              <div className="pointer-events-none absolute inset-y-0 left-0 pl-3 flex items-center text-muted-foreground">
+              <div className="pointer-events-none absolute inset-y-0 left-0 pl-3 flex items-center text-zinc-500">
                 <Lock className="w-4 h-4" />
               </div>
               <input
@@ -233,12 +239,12 @@ function RegisterForm() {
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="••••••••"
-                className="w-full rounded-lg bg-muted/60 border border-border pl-9 pr-10 py-2.5 text-sm text-foreground placeholder-zinc-500 focus:outline-hidden focus:border-input focus:ring-1 focus:ring-input transition-all font-sans disabled:opacity-50"
+                className="w-full rounded-lg bg-black/40 border border-white/10 pl-9 pr-10 py-2.5 text-sm text-zinc-100 placeholder-zinc-500 focus:outline-hidden focus:border-zinc-300 focus:ring-1 focus:ring-zinc-300 transition-all font-sans disabled:opacity-50"
               />
               <button
                 type="button"
                 onClick={() => setShowPassword((prev) => !prev)}
-                className="absolute inset-y-0 right-0 pr-3 flex items-center text-muted-foreground hover:text-foreground focus:outline-hidden cursor-pointer"
+                className="absolute inset-y-0 right-0 pr-3 flex items-center text-zinc-400 hover:text-zinc-200 focus:outline-hidden cursor-pointer"
                 aria-label={showPassword ? "Ocultar senha" : "Exibir senha"}
               >
                 {showPassword ? (
@@ -254,12 +260,12 @@ function RegisterForm() {
           <div className="space-y-1.5">
             <label
               htmlFor="confirmPassword"
-              className="block text-xs font-mono uppercase tracking-wider text-muted-foreground"
+              className="block text-xs font-mono uppercase tracking-wider text-zinc-400"
             >
               Confirmar Senha
             </label>
             <div className="relative">
-              <div className="pointer-events-none absolute inset-y-0 left-0 pl-3 flex items-center text-muted-foreground">
+              <div className="pointer-events-none absolute inset-y-0 left-0 pl-3 flex items-center text-zinc-500">
                 <KeyRound className="w-4 h-4" />
               </div>
               <input
@@ -270,12 +276,12 @@ function RegisterForm() {
                 value={confirmPassword}
                 onChange={(e) => setConfirmPassword(e.target.value)}
                 placeholder="Repita a senha digitada"
-                className="w-full rounded-lg bg-muted/60 border border-border pl-9 pr-10 py-2.5 text-sm text-foreground placeholder-zinc-500 focus:outline-hidden focus:border-input focus:ring-1 focus:ring-input transition-all font-sans disabled:opacity-50"
+                className="w-full rounded-lg bg-black/40 border border-white/10 pl-9 pr-10 py-2.5 text-sm text-zinc-100 placeholder-zinc-500 focus:outline-hidden focus:border-zinc-300 focus:ring-1 focus:ring-zinc-300 transition-all font-sans disabled:opacity-50"
               />
               <button
                 type="button"
                 onClick={() => setShowConfirmPassword((prev) => !prev)}
-                className="absolute inset-y-0 right-0 pr-3 flex items-center text-muted-foreground hover:text-foreground focus:outline-hidden cursor-pointer"
+                className="absolute inset-y-0 right-0 pr-3 flex items-center text-zinc-400 hover:text-zinc-200 focus:outline-hidden cursor-pointer"
                 aria-label={
                   showConfirmPassword ? "Ocultar confirmação" : "Exibir confirmação"
                 }
@@ -294,8 +300,8 @@ function RegisterForm() {
                 <span
                   className={
                     password.length >= 6
-                      ? "text-emerald-700 dark:text-emerald-400 flex items-center gap-1"
-                      : "text-muted-foreground flex items-center gap-1"
+                      ? "text-emerald-400 flex items-center gap-1"
+                      : "text-zinc-500 flex items-center gap-1"
                   }
                 >
                   <Check className="w-3 h-3" />
@@ -305,8 +311,8 @@ function RegisterForm() {
                   <span
                     className={
                       password === confirmPassword
-                        ? "text-emerald-700 dark:text-emerald-400 flex items-center gap-1"
-                        : "text-amber-700 dark:text-amber-400 flex items-center gap-1"
+                        ? "text-emerald-400 flex items-center gap-1"
+                        : "text-amber-400 flex items-center gap-1"
                     }
                   >
                     <Check className="w-3 h-3" />
@@ -321,11 +327,11 @@ function RegisterForm() {
           <button
             type="submit"
             disabled={isSubmitting}
-            className="w-full mt-2 py-2.5 px-4 rounded-lg bg-primary hover:bg-primary/90 text-primary-foreground font-semibold font-display text-sm flex items-center justify-center gap-2 transition-all shadow-sm disabled:opacity-60 disabled:cursor-not-allowed cursor-pointer"
+            className="w-full mt-2 py-2.5 px-4 rounded-lg bg-zinc-100 hover:bg-white text-zinc-950 font-semibold font-display text-sm flex items-center justify-center gap-2 transition-all shadow-sm disabled:opacity-60 disabled:cursor-not-allowed cursor-pointer"
           >
             {isSubmitting ? (
               <>
-                <Loader2 className="w-4 h-4 animate-spin text-foreground" />
+                <Loader2 className="w-4 h-4 animate-spin text-zinc-900" />
                 <span>Enviando cadastro...</span>
               </>
             ) : (
@@ -338,7 +344,7 @@ function RegisterForm() {
         </form>
 
         {/* Rodapé Interno do Card */}
-        <div className="mt-6 pt-5 border-t border-border flex flex-col items-center justify-between gap-3 text-xs text-muted-foreground">
+        <div className="mt-6 pt-5 border-t border-white/10 flex flex-col items-center justify-between gap-3 text-xs text-zinc-400">
           <p>
             Já possui uma conta ativa?{" "}
             <Link
@@ -347,14 +353,14 @@ function RegisterForm() {
                   ? `?redirect=${encodeURIComponent(safeRedirect)}`
                   : ""
               }`}
-              className="text-foreground hover:text-foreground font-medium underline underline-offset-4 decoration-zinc-600 hover:decoration-white transition-colors"
+              className="text-zinc-200 hover:text-white font-medium underline underline-offset-4 decoration-zinc-600 hover:decoration-white transition-colors"
             >
               Fazer login
             </Link>
           </p>
 
-          <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground">
-            <ShieldCheck className="w-3.5 h-3.5 text-muted-foreground" />
+          <div className="flex items-center gap-1.5 text-[10px] font-mono text-zinc-500">
+            <ShieldCheck className="w-3.5 h-3.5 text-zinc-400" />
             <span>ACESSO INSTITUCIONAL • TERMOS DE USO UFRJ</span>
           </div>
         </div>
@@ -365,14 +371,14 @@ function RegisterForm() {
 
 function RegisterFormSkeleton() {
   return (
-    <div className="w-full max-w-md p-8 rounded-xl bg-card border border-border animate-pulse space-y-6">
-      <div className="h-8 w-40 mx-auto bg-foreground/5 rounded-lg" />
-      <div className="h-4 w-48 mx-auto bg-foreground/5 rounded-lg" />
+    <div className="w-full max-w-md p-8 rounded-2xl bg-[#111113] border border-white/10 animate-pulse space-y-6">
+      <div className="h-8 w-40 mx-auto bg-white/5 rounded-lg" />
+      <div className="h-4 w-48 mx-auto bg-white/5 rounded-lg" />
       <div className="space-y-4 pt-4">
-        <div className="h-10 bg-foreground/5 rounded-lg" />
-        <div className="h-10 bg-foreground/5 rounded-lg" />
-        <div className="h-10 bg-foreground/5 rounded-lg" />
-        <div className="h-10 bg-foreground/10 rounded-lg" />
+        <div className="h-10 bg-white/5 rounded-lg" />
+        <div className="h-10 bg-white/5 rounded-lg" />
+        <div className="h-10 bg-white/5 rounded-lg" />
+        <div className="h-10 bg-white/10 rounded-lg" />
       </div>
     </div>
   );
@@ -380,8 +386,10 @@ function RegisterFormSkeleton() {
 
 export default function RegisterPage() {
   return (
-    <div className="flex-1 flex items-center justify-center px-4 py-8 sm:py-12 relative bg-background">
+    <div className="flex-1 min-h-[calc(100vh-4rem)] flex items-center justify-center px-4 py-12 relative overflow-hidden bg-[#0A0A0B] bg-grid-sm">
       {/* Luz ambiente técnica */}
+      <div className="pointer-events-none absolute -top-40 right-1/4 w-96 h-96 rounded-full bg-cyan-500/5 blur-3xl" />
+      <div className="pointer-events-none absolute -bottom-40 left-1/4 w-96 h-96 rounded-full bg-purple-500/5 blur-3xl" />
 
       <Suspense fallback={<RegisterFormSkeleton />}>
         <RegisterForm />

@@ -23,10 +23,10 @@ export async function DirectoryListPage({ table }: { table: DirectoryTable }) {
   return <div className="space-y-6">
     <div className="flex flex-wrap items-start justify-between gap-4">
       <SectionHeader title={config.name} description="Projetos da equipe, informações internas e controle de exibição no site." />
-      <Link href={`${directoryPath(table)}/new`} className="inline-flex min-h-11 items-center gap-2 rounded-lg bg-primary px-4 text-sm font-medium text-primary-foreground hover:bg-primary/90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-border"><Plus className="h-4 w-4" />Novo projeto</Link>
+      <Link href={`${directoryPath(table)}/new`} className="inline-flex min-h-11 items-center gap-2 rounded-lg bg-zinc-100 px-4 text-sm font-medium text-zinc-950 hover:bg-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-zinc-300"><Plus className="h-4 w-4" />Novo projeto</Link>
     </div>
-    <p className="text-sm text-muted-foreground">{records.length} projetos cadastrados. Os dados públicos são compartilhados com o site institucional.</p>
-    <div className="overflow-hidden rounded-xl border border-input"><DataTable config={config} data={JSON.parse(JSON.stringify(records))} tableSlug={table} /></div>
+    <p className="text-sm text-zinc-400">{records.length} projetos cadastrados. Os dados públicos são compartilhados com o site institucional.</p>
+    <div className="overflow-hidden rounded-xl border border-zinc-800"><DataTable config={config} data={JSON.parse(JSON.stringify(records))} tableSlug={table} /></div>
   </div>;
 }
 
@@ -63,7 +63,7 @@ export async function DirectoryFormPage({ table, id, initialView }: { table: Dir
     }));
   const initialData = record && table === 'member' ? { ...record, role: normalizeMemberRole('role' in record ? record.role : ''), area: resolveMemberAreas('area' in record ? record.area : null, details && 'area' in details ? details.area : null).site || '', teamId: record.teamId ?? '' } : record || { showOnSite: false, ...(table === 'member' ? { active: true } : { importance: 5 }) };
   return <div className="max-w-5xl space-y-6">
-    <Link href={directoryPath(table)} className="inline-flex min-h-11 items-center gap-2 text-sm text-muted-foreground hover:text-foreground"><ArrowLeft className="h-4 w-4" />Voltar para {config.name.toLowerCase()}</Link>
+    <Link href={directoryPath(table)} className="inline-flex min-h-11 items-center gap-2 text-sm text-zinc-400 hover:text-zinc-100"><ArrowLeft className="h-4 w-4" />Voltar para {config.name.toLowerCase()}</Link>
     <SectionHeader title={isNew ? (table === 'member' ? 'Novo integrante' : 'Novo projeto') : record!.name} description="Edite os dados compartilhados com o site e as informações exclusivas da gestão." />
     <DirectoryEditor table={table} config={config} id={isNew ? null : Number(id)} initialData={JSON.parse(JSON.stringify(initialData))} projectsList={projectsList} relationsData={{ model3dId: JSON.parse(JSON.stringify(models)) }} details={JSON.parse(JSON.stringify(details))} accounts={accountOptions} initialTab={initialView === 'internal' ? 'private' : 'shared'} />
   </div>;

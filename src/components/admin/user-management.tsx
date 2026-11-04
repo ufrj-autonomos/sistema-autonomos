@@ -8,7 +8,7 @@ import { ACCOUNT_STATUSES, ROLES, ROLE_LABELS, STATUS_LABELS, hasManagementAcces
 type Role = typeof ROLES[number];
 type Status = typeof ACCOUNT_STATUSES[number];
 type Account = { id: string; name: string; email: string; role: Role; status: Status };
-const control = 'min-h-11 rounded-lg border border-input bg-background px-3 py-2 text-base text-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-border disabled:opacity-50 sm:text-sm';
+const control = 'min-h-11 rounded-lg border border-zinc-700 bg-zinc-950 px-3 py-2 text-base text-zinc-200 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-zinc-300 disabled:opacity-50 sm:text-sm';
 
 export function UserManagement({ standalone = false }: { standalone?: boolean }) {
   const { user, refreshSession } = useSession();
@@ -79,20 +79,20 @@ export function UserManagement({ standalone = false }: { standalone?: boolean })
   return <section id="contas" aria-labelledby="accounts-heading" className="space-y-5">
     <div>
       <Heading id="accounts-heading" className={`font-display font-semibold ${standalone ? 'text-3xl' : 'text-2xl'}`}>Contas e permissões</Heading>
-      <p className="mt-3 max-w-3xl text-sm leading-relaxed text-muted-foreground">Gestão e Admin podem aceitar ou recusar novos cadastros. Somente Admin pode alterar cargos e situações das contas. Rejeitar exclui definitivamente a conta e seu progresso.</p>
-      {!loading && <p className="mt-2 text-sm text-secondary-foreground">{pendingCount} {pendingCount === 1 ? 'cadastro aguardando aprovação' : 'cadastros aguardando aprovação'}</p>}
+      <p className="mt-3 max-w-3xl text-sm leading-relaxed text-zinc-400">Gestão e Admin podem aceitar ou recusar novos cadastros. Somente Admin pode alterar cargos e situações das contas. Rejeitar exclui definitivamente a conta e seu progresso.</p>
+      {!loading && <p className="mt-2 text-sm text-zinc-300">{pendingCount} {pendingCount === 1 ? 'cadastro aguardando aprovação' : 'cadastros aguardando aprovação'}</p>}
     </div>
     <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
-      <label className="flex flex-1 flex-col gap-2 text-sm text-secondary-foreground">Buscar conta<input value={search} onChange={event => setSearch(event.target.value)} placeholder="Nome ou email" className={control} /></label>
-      <label className="flex flex-col gap-2 text-sm text-secondary-foreground">Situação<select value={filter} onChange={event => setFilter(event.target.value)} className={control}><option value="ALL">Todas as contas</option>{ACCOUNT_STATUSES.filter(status => status !== 'REJECTED').map(status => <option key={status} value={status}>{STATUS_LABELS[status]}</option>)}</select></label>
-      <button type="button" disabled={loading || !!busy} onClick={() => void load()} className={`${control} hover:bg-accent`}>Atualizar lista</button>
+      <label className="flex flex-1 flex-col gap-2 text-sm text-zinc-300">Buscar conta<input value={search} onChange={event => setSearch(event.target.value)} placeholder="Nome ou email" className={control} /></label>
+      <label className="flex flex-col gap-2 text-sm text-zinc-300">Situação<select value={filter} onChange={event => setFilter(event.target.value)} className={control}><option value="ALL">Todas as contas</option>{ACCOUNT_STATUSES.filter(status => status !== 'REJECTED').map(status => <option key={status} value={status}>{STATUS_LABELS[status]}</option>)}</select></label>
+      <button type="button" disabled={loading || !!busy} onClick={() => void load()} className={`${control} hover:bg-zinc-800`}>Atualizar lista</button>
     </div>
-    {error && <p role="alert" className="rounded-lg border border-red-400/30 bg-red-400/10 p-4 text-sm text-red-700 dark:text-red-300">{error}</p>}
-    <p role="status" aria-live="polite" className="text-sm text-emerald-700 dark:text-emerald-300">{notice}</p>
-    {loading ? <p role="status" className="py-6 text-muted-foreground">Carregando contas...</p> : <div className="divide-y divide-border border-y border-border">
-      {visible.length === 0 && <p className="py-8 text-sm text-muted-foreground">{users.length === 0 ? 'Nenhuma conta disponível.' : 'Nenhuma conta encontrada com esses filtros.'}</p>}
+    {error && <p role="alert" className="rounded-lg border border-red-400/30 bg-red-400/10 p-4 text-sm text-red-300">{error}</p>}
+    <p role="status" aria-live="polite" className="text-sm text-emerald-300">{notice}</p>
+    {loading ? <p role="status" className="py-6 text-zinc-400">Carregando contas...</p> : <div className="divide-y divide-white/10 border-y border-white/10">
+      {visible.length === 0 && <p className="py-8 text-sm text-zinc-400">{users.length === 0 ? 'Nenhuma conta disponível.' : 'Nenhuma conta encontrada com esses filtros.'}</p>}
       {visible.map(account => <div key={account.id} className="flex flex-col gap-4 py-5 lg:flex-row lg:items-center lg:justify-between">
-        <div className="min-w-0 lg:max-w-xs"><h3 className="break-words font-medium text-foreground">{account.name}{account.id === user?.id && <span className="ml-2 text-sm text-muted-foreground">(você)</span>}</h3><p className="mt-1 break-all text-sm text-muted-foreground">{account.email}</p><p className={`mt-2 text-sm ${account.status === 'APPROVED' ? 'text-emerald-700 dark:text-emerald-300' : account.status === 'PENDING' ? 'text-amber-700 dark:text-amber-300' : 'text-secondary-foreground'}`}>{STATUS_LABELS[account.status]}</p></div>
+        <div className="min-w-0 lg:max-w-xs"><h3 className="break-words font-medium text-zinc-100">{account.name}{account.id === user?.id && <span className="ml-2 text-sm text-zinc-400">(você)</span>}</h3><p className="mt-1 break-all text-sm text-zinc-400">{account.email}</p><p className={`mt-2 text-sm ${account.status === 'APPROVED' ? 'text-emerald-300' : account.status === 'PENDING' ? 'text-amber-300' : 'text-zinc-300'}`}>{STATUS_LABELS[account.status]}</p></div>
         <div className="flex flex-wrap items-end gap-3">
           {account.status === 'PENDING' && canReviewPending(account) ? (
             <>
@@ -117,10 +117,10 @@ export function UserManagement({ standalone = false }: { standalone?: boolean })
             </>
           ) : canEditAccounts && account.status !== 'PENDING' ? (
             <>
-              <label className="flex flex-col gap-1.5 text-sm text-muted-foreground">Perfil<span className="sr-only"> de {account.name}</span><select aria-label={`Perfil de ${account.name}`} value={account.role} disabled={!!busy} onChange={event => void update(account, { role: event.target.value as Role })} className={control}>{ROLES.map(role => <option key={role} value={role}>{ROLE_LABELS[role]}</option>)}</select></label>
-              <label className="flex flex-col gap-1.5 text-sm text-muted-foreground">Situação<span className="sr-only"> de {account.name}</span><select aria-label={`Situação de ${account.name}`} value={account.status} disabled={!!busy} onChange={event => void update(account, { status: event.target.value as Status })} className={control}>{ACCOUNT_STATUSES.map(status => <option key={status} value={status}>{status === 'REJECTED' ? 'Rejeitar e excluir' : STATUS_LABELS[status]}</option>)}</select></label>
+              <label className="flex flex-col gap-1.5 text-sm text-zinc-400">Perfil<span className="sr-only"> de {account.name}</span><select aria-label={`Perfil de ${account.name}`} value={account.role} disabled={!!busy} onChange={event => void update(account, { role: event.target.value as Role })} className={control}>{ROLES.map(role => <option key={role} value={role}>{ROLE_LABELS[role]}</option>)}</select></label>
+              <label className="flex flex-col gap-1.5 text-sm text-zinc-400">Situação<span className="sr-only"> de {account.name}</span><select aria-label={`Situação de ${account.name}`} value={account.status} disabled={!!busy} onChange={event => void update(account, { status: event.target.value as Status })} className={control}>{ACCOUNT_STATUSES.map(status => <option key={status} value={status}>{status === 'REJECTED' ? 'Rejeitar e excluir' : STATUS_LABELS[status]}</option>)}</select></label>
             </>
-          ) : <div className="text-sm text-muted-foreground"><p>Cargo: {ROLE_LABELS[account.role]}</p>{account.status === 'PENDING' && <p className="mt-1">Liberação exclusiva de Admin.</p>}</div>}
+          ) : <div className="text-sm text-zinc-400"><p>Cargo: {ROLE_LABELS[account.role]}</p>{account.status === 'PENDING' && <p className="mt-1">Liberação exclusiva de Admin.</p>}</div>}
         </div>
       </div>)}
     </div>}

@@ -60,7 +60,7 @@ type PendingChangeData = {
 } | null;
 
 const inputClass =
-  "mt-1.5 min-h-11 w-full rounded-lg border border-input bg-background px-3.5 py-2 text-sm text-foreground placeholder-zinc-500 focus:outline-hidden focus:border-input focus:ring-1 focus:ring-input disabled:opacity-50";
+  "mt-1.5 min-h-11 w-full rounded-lg border border-zinc-700 bg-zinc-950 px-3.5 py-2 text-sm text-zinc-100 placeholder-zinc-500 focus:outline-hidden focus:border-zinc-300 focus:ring-1 focus:ring-zinc-300 disabled:opacity-50";
 
 function ProfileFormContent() {
   const searchParams = useSearchParams();
@@ -223,8 +223,8 @@ function ProfileFormContent() {
 
   if (loading) {
     return (
-      <div className="mx-auto max-w-4xl px-4 py-12 text-center text-muted-foreground">
-        <Loader2 className="mx-auto h-6 w-6 animate-spin text-secondary-foreground" />
+      <div className="mx-auto max-w-4xl px-4 py-12 text-center text-zinc-400">
+        <Loader2 className="mx-auto h-6 w-6 animate-spin text-zinc-300" />
         <p className="mt-3 text-sm">Carregando seu perfil de integrante...</p>
       </div>
     );
@@ -237,7 +237,7 @@ function ProfileFormContent() {
       <div className="mb-6 flex items-center justify-between">
         <Link
           href="/"
-          className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground"
+          className="inline-flex items-center gap-2 text-sm text-zinc-400 hover:text-zinc-100"
         >
           <ArrowLeft className="h-4 w-4" />
           <span>Voltar ao início</span>
@@ -246,14 +246,14 @@ function ProfileFormContent() {
           <span
             className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-mono ${
               siteProfile.showOnSite
-                ? "bg-emerald-100 dark:bg-emerald-950/80 text-emerald-700 dark:text-emerald-300 border border-emerald-800"
-                : "bg-muted text-muted-foreground border border-input"
+                ? "bg-emerald-950/80 text-emerald-300 border border-emerald-800"
+                : "bg-zinc-900 text-zinc-400 border border-zinc-800"
             }`}
             title="Apenas a gestão pode alterar a exibição no site institucional"
           >
             <span
               className={`h-1.5 w-1.5 rounded-full ${
-                siteProfile.showOnSite ? "bg-emerald-400" : "bg-muted-foreground"
+                siteProfile.showOnSite ? "bg-emerald-400" : "bg-zinc-500"
               }`}
             />
             {siteProfile.showOnSite ? "Visível no site institucional" : "Oculto no site (controlado pela gestão)"}
@@ -261,21 +261,21 @@ function ProfileFormContent() {
         )}
       </div>
 
-      <header className="border-b border-border pb-6">
-        <h1 className="text-2xl font-semibold text-foreground">
+      <header className="border-b border-white/10 pb-6">
+        <h1 className="font-display text-3xl font-semibold text-zinc-100">
           Meu Perfil de Integrante
         </h1>
-        <p className="mt-2 max-w-2xl text-sm leading-relaxed text-muted-foreground">
+        <p className="mt-2 max-w-2xl text-sm leading-relaxed text-zinc-400">
           Mantenha suas informações operacionais atualizadas e personalize sua apresentação para o site institucional da UFRJ Autônomos.
         </p>
       </header>
 
       {(isWelcome || !profile?.profileCompletedAt) && (
-        <div className="mt-6 rounded-xl border border-cyan-500/30 bg-cyan-100 dark:bg-cyan-950/20 p-4 text-sm text-cyan-700 dark:text-cyan-200 flex items-start gap-3">
-          <Sparkles className="h-5 w-5 shrink-0 text-cyan-700 dark:text-cyan-400 mt-0.5" />
+        <div className="mt-6 rounded-xl border border-cyan-500/30 bg-cyan-950/20 p-4 text-sm text-cyan-200 flex items-start gap-3">
+          <Sparkles className="h-5 w-5 shrink-0 text-cyan-400 mt-0.5" />
           <div>
-            <p className="font-semibold text-foreground">Bem-vindo(a) à plataforma da UFRJ Autônomos!</p>
-            <p className="mt-1 text-secondary-foreground leading-relaxed">
+            <p className="font-semibold text-white">Bem-vindo(a) à plataforma da UFRJ Autônomos!</p>
+            <p className="mt-1 text-zinc-300 leading-relaxed">
               Como este é o seu primeiro acesso, preencha seus dados obrigatórios (Telefone, Curso, DRE e Contato de Emergência) e suas informações para o site. A opção de aparecer ou não no site é gerenciada exclusivamente pela Gestão.
             </p>
           </div>
@@ -283,15 +283,15 @@ function ProfileFormContent() {
       )}
 
       {pendingKeys.length > 0 && (
-        <div className="mt-6 rounded-xl border border-amber-500/30 bg-amber-100 dark:bg-amber-950/20 p-4 text-sm text-amber-700 dark:text-amber-200 flex items-start gap-3">
-          <Clock className="h-5 w-5 shrink-0 text-amber-700 dark:text-amber-400 mt-0.5" />
+        <div className="mt-6 rounded-xl border border-amber-500/30 bg-amber-950/20 p-4 text-sm text-amber-200 flex items-start gap-3">
+          <Clock className="h-5 w-5 shrink-0 text-amber-400 mt-0.5" />
           <div>
-            <p className="font-semibold text-amber-700 dark:text-amber-100">
+            <p className="font-semibold text-amber-100">
               Alterações do site aguardando aprovação da Gestão
             </p>
-            <p className="mt-1 text-secondary-foreground leading-relaxed">
+            <p className="mt-1 text-zinc-300 leading-relaxed">
               Você possui alterações pendentes para publicação no site institucional nos campos:{" "}
-              <strong className="text-amber-700 dark:text-amber-200">{pendingKeys.join(", ")}</strong>. Seus dados internos já estão salvos na tabela da equipe.
+              <strong className="text-amber-200">{pendingKeys.join(", ")}</strong>. Seus dados internos já estão salvos na tabela da equipe.
             </p>
           </div>
         </div>
@@ -300,9 +300,9 @@ function ProfileFormContent() {
       {error && (
         <div
           role="alert"
-          className="mt-6 rounded-xl border border-red-500/30 bg-red-500/10 p-4 text-sm text-red-700 dark:text-red-300 flex items-start gap-3"
+          className="mt-6 rounded-xl border border-red-500/30 bg-red-500/10 p-4 text-sm text-red-300 flex items-start gap-3"
         >
-          <ShieldAlert className="h-5 w-5 shrink-0 text-red-700 dark:text-red-400 mt-0.5" />
+          <ShieldAlert className="h-5 w-5 shrink-0 text-red-400 mt-0.5" />
           <span>{error}</span>
         </div>
       )}
@@ -310,30 +310,30 @@ function ProfileFormContent() {
       {successMessage && (
         <div
           role="status"
-          className="mt-6 rounded-xl border border-emerald-500/30 bg-emerald-500/10 p-4 text-sm text-emerald-700 dark:text-emerald-300 flex items-start gap-3"
+          className="mt-6 rounded-xl border border-emerald-500/30 bg-emerald-500/10 p-4 text-sm text-emerald-300 flex items-start gap-3"
         >
-          <CheckCircle2 className="h-5 w-5 shrink-0 text-emerald-700 dark:text-emerald-400 mt-0.5" />
+          <CheckCircle2 className="h-5 w-5 shrink-0 text-emerald-400 mt-0.5" />
           <span>{successMessage}</span>
         </div>
       )}
 
       <form onSubmit={handleSubmit} className="mt-8 space-y-10">
         {/* Seção 1: Dados Internos & Operacionais */}
-        <section className="rounded-2xl border border-border bg-card p-6 sm:p-8 space-y-6">
-          <div className="flex items-start gap-3 border-b border-border pb-4">
-            <LockKeyhole className="h-5 w-5 text-cyan-700 dark:text-cyan-400 shrink-0 mt-0.5" />
+        <section className="rounded-2xl border border-white/10 bg-[#111113] p-6 sm:p-8 space-y-6">
+          <div className="flex items-start gap-3 border-b border-white/10 pb-4">
+            <LockKeyhole className="h-5 w-5 text-cyan-400 shrink-0 mt-0.5" />
             <div>
-              <h2 className="font-display text-lg font-semibold text-foreground">
+              <h2 className="font-display text-lg font-semibold text-zinc-100">
                 1. Cadastro Interno e Operacional
               </h2>
-              <p className="mt-1 text-xs text-muted-foreground">
+              <p className="mt-1 text-xs text-zinc-400">
                 Estes dados são privados da equipe e salvos imediatamente. A data de nascimento nunca é exibida no site (apenas sua idade é calculada e atualizada automaticamente no seu aniversário).
               </p>
             </div>
           </div>
 
           <div className="grid gap-5 sm:grid-cols-2">
-            <label className="block text-sm font-medium text-foreground">
+            <label className="block text-sm font-medium text-zinc-200">
               Email de Login (vinculado ao diretório)
               <input
                 type="email"
@@ -343,8 +343,8 @@ function ProfileFormContent() {
               />
             </label>
 
-            <label className="block text-sm font-medium text-foreground">
-              Telefone / WhatsApp <span className="text-amber-700 dark:text-amber-400">*</span>
+            <label className="block text-sm font-medium text-zinc-200">
+              Telefone / WhatsApp <span className="text-amber-400">*</span>
               <input
                 type="tel"
                 required
@@ -355,8 +355,8 @@ function ProfileFormContent() {
               />
             </label>
 
-            <label className="block text-sm font-medium text-foreground">
-              Curso na UFRJ <span className="text-amber-700 dark:text-amber-400">*</span>
+            <label className="block text-sm font-medium text-zinc-200">
+              Curso na UFRJ <span className="text-amber-400">*</span>
               <input
                 type="text"
                 required
@@ -367,8 +367,8 @@ function ProfileFormContent() {
               />
             </label>
 
-            <label className="block text-sm font-medium text-foreground">
-              DRE <span className="text-amber-700 dark:text-amber-400">*</span>
+            <label className="block text-sm font-medium text-zinc-200">
+              DRE <span className="text-amber-400">*</span>
               <input
                 type="text"
                 inputMode="numeric"
@@ -380,7 +380,7 @@ function ProfileFormContent() {
               />
             </label>
 
-            <label className="block text-sm font-medium text-foreground">
+            <label className="block text-sm font-medium text-zinc-200">
               Período Acadêmico
               <input
                 type="text"
@@ -391,7 +391,7 @@ function ProfileFormContent() {
               />
             </label>
 
-            <label className="block text-sm font-medium text-foreground">
+            <label className="block text-sm font-medium text-zinc-200">
               Área na Equipe
               <select
                 value={area}
@@ -405,7 +405,7 @@ function ProfileFormContent() {
               </select>
             </label>
 
-            <label className="block text-sm font-medium text-foreground">
+            <label className="block text-sm font-medium text-zinc-200">
               CPF
               <input
                 type="text"
@@ -417,7 +417,7 @@ function ProfileFormContent() {
               />
             </label>
 
-            <label className="block text-sm font-medium text-foreground">
+            <label className="block text-sm font-medium text-zinc-200">
               Data de Nascimento (opcional — calcula idade no site)
               <input
                 type="date"
@@ -428,13 +428,13 @@ function ProfileFormContent() {
             </label>
           </div>
 
-          <div className="border-t border-border pt-5">
-            <h3 className="text-sm font-semibold text-foreground mb-4">
-              Contato de Emergência <span className="text-amber-700 dark:text-amber-400">*</span>
+          <div className="border-t border-white/10 pt-5">
+            <h3 className="text-sm font-semibold text-zinc-100 mb-4">
+              Contato de Emergência <span className="text-amber-400">*</span>
             </h3>
             <div className="grid gap-5 sm:grid-cols-2">
-              <label className="block text-sm font-medium text-foreground">
-                Nome do Contato de Emergência <span className="text-amber-700 dark:text-amber-400">*</span>
+              <label className="block text-sm font-medium text-zinc-200">
+                Nome do Contato de Emergência <span className="text-amber-400">*</span>
                 <input
                   type="text"
                   required
@@ -445,8 +445,8 @@ function ProfileFormContent() {
                 />
               </label>
 
-              <label className="block text-sm font-medium text-foreground">
-                Telefone de Emergência <span className="text-amber-700 dark:text-amber-400">*</span>
+              <label className="block text-sm font-medium text-zinc-200">
+                Telefone de Emergência <span className="text-amber-400">*</span>
                 <input
                   type="tel"
                   required
@@ -461,14 +461,14 @@ function ProfileFormContent() {
         </section>
 
         {/* Seção 2: Dados Públicos do Site Institucional */}
-        <section className="rounded-2xl border border-border bg-card p-6 sm:p-8 space-y-6">
-          <div className="flex items-start gap-3 border-b border-border pb-4">
-            <Globe className="h-5 w-5 text-emerald-700 dark:text-emerald-400 shrink-0 mt-0.5" />
+        <section className="rounded-2xl border border-white/10 bg-[#111113] p-6 sm:p-8 space-y-6">
+          <div className="flex items-start gap-3 border-b border-white/10 pb-4">
+            <Globe className="h-5 w-5 text-emerald-400 shrink-0 mt-0.5" />
             <div>
-              <h2 className="font-display text-lg font-semibold text-foreground">
+              <h2 className="font-display text-lg font-semibold text-zinc-100">
                 2. Apresentação no Site Institucional
               </h2>
-              <p className="mt-1 text-xs text-muted-foreground">
+              <p className="mt-1 text-xs text-zinc-400">
                 Alterações nestes campos são registradas na tabela de integrantes e enviadas para aprovação de um membro da Gestão antes de irem ao ar no site público. A tradução para inglês e francês é feita automaticamente na aprovação.
               </p>
             </div>
@@ -476,7 +476,7 @@ function ProfileFormContent() {
 
           {/* Foto de Perfil */}
           <div className="flex flex-col sm:flex-row items-start sm:items-center gap-5">
-            <div className="h-20 w-20 rounded-full border border-border bg-muted overflow-hidden flex items-center justify-center shrink-0">
+            <div className="h-20 w-20 rounded-full border border-white/15 bg-zinc-900 overflow-hidden flex items-center justify-center shrink-0">
               {photo ? (
                 <img
                   src={photo}
@@ -484,11 +484,11 @@ function ProfileFormContent() {
                   className="h-full w-full object-cover"
                 />
               ) : (
-                <Camera className="h-7 w-7 text-muted-foreground" />
+                <Camera className="h-7 w-7 text-zinc-500" />
               )}
             </div>
             <div className="space-y-2 flex-1">
-              <label className="inline-flex min-h-10 cursor-pointer items-center gap-2 rounded-lg border border-input bg-muted px-4 py-2 text-xs font-medium text-foreground hover:bg-accent">
+              <label className="inline-flex min-h-10 cursor-pointer items-center gap-2 rounded-lg border border-zinc-700 bg-zinc-900 px-4 py-2 text-xs font-medium text-zinc-200 hover:bg-zinc-800">
                 {uploadingPhoto ? (
                   <>
                     <Loader2 className="h-4 w-4 animate-spin" />
@@ -508,15 +508,15 @@ function ProfileFormContent() {
                   className="sr-only"
                 />
               </label>
-              <p className="text-xs text-muted-foreground">
+              <p className="text-xs text-zinc-400">
                 Ou informe a URL pública da foto abaixo.
               </p>
             </div>
           </div>
 
           <div className="grid gap-5 sm:grid-cols-2">
-            <label className="block text-sm font-medium text-foreground">
-              Nome de Exibição <span className="text-amber-700 dark:text-amber-400">*</span>
+            <label className="block text-sm font-medium text-zinc-200">
+              Nome de Exibição <span className="text-amber-400">*</span>
               <input
                 type="text"
                 required
@@ -526,7 +526,7 @@ function ProfileFormContent() {
               />
             </label>
 
-            <label className="block text-sm font-medium text-foreground">
+            <label className="block text-sm font-medium text-zinc-200">
               URL da Foto
               <input
                 type="url"
@@ -537,7 +537,7 @@ function ProfileFormContent() {
               />
             </label>
 
-            <label className="block text-sm font-medium text-foreground sm:col-span-2">
+            <label className="block text-sm font-medium text-zinc-200 sm:col-span-2">
               Biografia (em Português — traduzida automaticamente para EN/FR após aprovação)
               <textarea
                 rows={4}
@@ -549,7 +549,7 @@ function ProfileFormContent() {
               />
             </label>
 
-            <label className="block text-sm font-medium text-foreground">
+            <label className="block text-sm font-medium text-zinc-200">
               LinkedIn
               <input
                 type="url"
@@ -560,7 +560,7 @@ function ProfileFormContent() {
               />
             </label>
 
-            <label className="block text-sm font-medium text-foreground">
+            <label className="block text-sm font-medium text-zinc-200">
               GitHub
               <input
                 type="url"
@@ -571,7 +571,7 @@ function ProfileFormContent() {
               />
             </label>
 
-            <label className="block text-sm font-medium text-foreground">
+            <label className="block text-sm font-medium text-zinc-200">
               Instagram
               <input
                 type="url"
@@ -583,12 +583,12 @@ function ProfileFormContent() {
             </label>
 
             <div className="flex items-center pt-4">
-              <label className="flex cursor-pointer items-center gap-3 text-sm text-foreground">
+              <label className="flex cursor-pointer items-center gap-3 text-sm text-zinc-200">
                 <input
                   type="checkbox"
                   checked={isFemale}
                   onChange={(e) => setIsFemale(e.target.checked)}
-                  className="h-4 w-4 rounded border-input accent-zinc-100"
+                  className="h-4 w-4 rounded border-zinc-700 accent-zinc-100"
                 />
                 <span>Adaptar cargo no site para o feminino (ex.: Diretora / Pesquisadora)</span>
               </label>
@@ -600,7 +600,7 @@ function ProfileFormContent() {
           <button
             type="submit"
             disabled={saving || uploadingPhoto}
-            className="inline-flex min-h-11 items-center gap-2 rounded-xl bg-primary px-6 py-2.5 text-sm font-semibold text-primary-foreground hover:bg-primary/90 disabled:opacity-50 cursor-pointer"
+            className="inline-flex min-h-11 items-center gap-2 rounded-xl bg-zinc-100 px-6 py-2.5 text-sm font-semibold text-zinc-950 hover:bg-white disabled:opacity-50 cursor-pointer"
           >
             {saving ? (
               <>
@@ -624,7 +624,7 @@ export default function ProfilePage() {
   return (
     <Suspense
       fallback={
-        <div className="mx-auto max-w-4xl px-4 py-12 text-center text-muted-foreground">
+        <div className="mx-auto max-w-4xl px-4 py-12 text-center text-zinc-400">
           Carregando...
         </div>
       }

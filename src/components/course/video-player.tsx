@@ -118,22 +118,22 @@ export function VideoPlayer({
       <div
         className={cn(
           "relative w-full aspect-video rounded-xl overflow-hidden",
-          "bg-background border border-border shadow-2xl",
+          "bg-[#0A0A0B] border border-white/[0.08] shadow-2xl",
           "blueprint-corners bg-grid-sm card-inner-fade",
           "flex flex-col items-center justify-center p-6 sm:p-10 text-center select-none",
           className
         )}
       >
-        <div className="flex items-center justify-center w-14 h-14 rounded-2xl bg-muted/90 border border-input text-cyan-700 dark:text-cyan-400 mb-4 shadow-inner">
+        <div className="flex items-center justify-center w-14 h-14 rounded-2xl bg-zinc-900/90 border border-zinc-800 text-cyan-400 mb-4 shadow-inner">
           <BookOpen className="w-7 h-7" />
         </div>
-        <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-mono font-medium bg-cyan-100 dark:bg-cyan-950/60 text-cyan-700 dark:text-cyan-300 border border-cyan-800/80 mb-3">
+        <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-mono font-medium bg-cyan-950/60 text-cyan-300 border border-cyan-800/80 mb-3">
           <span>AULA TEÓRICA & DOCUMENTAÇÃO TÉCNICA</span>
         </div>
-        <h3 className="text-xl sm:text-2xl font-bold tracking-tight text-foreground font-display mb-2">
+        <h3 className="text-xl sm:text-2xl font-bold tracking-tight text-zinc-100 font-display mb-2">
           {title || "Conteúdo Didático Estruturado"}
         </h3>
-        <p className="text-sm text-muted-foreground max-w-md leading-relaxed font-sans">
+        <p className="text-sm text-zinc-400 max-w-md leading-relaxed font-sans">
           Esta aula é fundamentada em documentação técnica aprofundada, sínteses conceituais e guias passo a passo. Siga o roteiro de estudos detalhado logo abaixo.
         </p>
       </div>
@@ -146,19 +146,19 @@ export function VideoPlayer({
       <div
         className={cn(
           "relative w-full aspect-video rounded-xl overflow-hidden",
-          "bg-background border border-red-900/40 shadow-2xl",
+          "bg-[#0A0A0B] border border-red-900/40 shadow-2xl",
           "blueprint-corners bg-grid-sm",
           "flex flex-col items-center justify-center p-6 sm:p-10 text-center select-none",
           className
         )}
       >
-        <div className="flex items-center justify-center w-14 h-14 rounded-2xl bg-red-100 dark:bg-red-950/40 border border-red-800/50 text-red-700 dark:text-red-400 mb-4 shadow-inner">
+        <div className="flex items-center justify-center w-14 h-14 rounded-2xl bg-red-950/40 border border-red-800/50 text-red-400 mb-4 shadow-inner">
           <AlertTriangle className="w-7 h-7" />
         </div>
-        <h3 className="text-lg sm:text-xl font-bold text-foreground font-display mb-2">
+        <h3 className="text-lg sm:text-xl font-bold text-zinc-100 font-display mb-2">
           Não foi possível inicializar o reprodutor de vídeo
         </h3>
-        <p className="text-xs sm:text-sm text-muted-foreground max-w-md mb-6 font-sans">
+        <p className="text-xs sm:text-sm text-zinc-400 max-w-md mb-6 font-sans">
           Ocorreu uma instabilidade ao conectar com o serviço do YouTube ou o identificador da aula está indisponível temporariamente.
         </p>
         <div className="flex flex-wrap items-center justify-center gap-3">
@@ -169,7 +169,7 @@ export function VideoPlayer({
               setIsLoading(true);
               setRetryKey((k) => k + 1);
             }}
-            className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-accent hover:bg-accent text-foreground text-xs font-mono transition cursor-pointer"
+            className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-zinc-200 text-xs font-mono transition cursor-pointer"
           >
             <RefreshCw className="w-3.5 h-3.5" />
             <span>Tentar Novamente</span>
@@ -179,7 +179,7 @@ export function VideoPlayer({
               href={`https://www.youtube.com/watch?v=${encodeURIComponent(youtubeVideoId)}`}
               target="_blank"
               rel="noopener noreferrer"
-              className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-red-100 dark:bg-red-950/70 hover:bg-red-100 dark:hover:bg-red-900/80 border border-red-800 text-red-700 dark:text-red-200 text-xs font-mono transition"
+              className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-red-950/70 hover:bg-red-900/80 border border-red-800 text-red-200 text-xs font-mono transition"
             >
               <ExternalLink className="w-3.5 h-3.5" />
               <span>Assistir no YouTube</span>
@@ -197,7 +197,7 @@ export function VideoPlayer({
     <div
       className={cn(
         "relative w-full aspect-video rounded-xl overflow-hidden",
-        "bg-background border border-border shadow-2xl",
+        "bg-[#0A0A0B] border border-white/[0.08] shadow-2xl",
         className
       )}
     >
@@ -206,32 +206,32 @@ export function VideoPlayer({
         <div
           className={cn(
             "absolute inset-0 z-10 flex flex-col items-center justify-center",
-            "bg-card bg-grid-sm blueprint-corners transition-opacity duration-500",
+            "bg-[#111113] bg-grid-sm blueprint-corners transition-opacity duration-500",
             "p-6 text-center select-none"
           )}
         >
           {/* Indicador de carregamento e rotor */}
-          <div className="relative flex items-center justify-center w-14 h-14 rounded-2xl bg-muted border border-border mb-4 shadow-lg">
-            <Loader2 className="w-7 h-7 text-muted-foreground animate-spin" />
+          <div className="relative flex items-center justify-center w-14 h-14 rounded-2xl bg-zinc-900 border border-white/[0.1] mb-4 shadow-lg">
+            <Loader2 className="w-7 h-7 text-zinc-400 animate-spin" />
           </div>
 
           <div className="space-y-1 mb-3">
-            <p className="label-mono text-muted-foreground text-xs">
+            <p className="label-mono text-zinc-400 text-xs">
               SISTEMA AUTÔNOMOS • STREAM DE VÍDEO
             </p>
-            <h4 className="text-base sm:text-lg font-semibold text-foreground font-display">
+            <h4 className="text-base sm:text-lg font-semibold text-zinc-200 font-display">
               {title || "Carregando aula..."}
             </h4>
           </div>
 
           {/* Badge de Legenda PT-BR ativa */}
-          <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-mono bg-emerald-100 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-400 border border-emerald-800/60">
+          <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-mono bg-emerald-950/60 text-emerald-400 border border-emerald-800/60">
             <Subtitles className="w-3.5 h-3.5" />
             <span>LEGENDAS EM PORTUGUÊS (PT-BR) ATIVADAS</span>
           </div>
 
           {/* Barra de shimmer técnica no rodapé do skeleton */}
-          <div className="absolute bottom-0 inset-x-0 h-1 bg-accent overflow-hidden">
+          <div className="absolute bottom-0 inset-x-0 h-1 bg-zinc-800 overflow-hidden">
             <div className="h-full w-1/3 bg-gradient-to-r from-transparent via-cyan-500/50 to-transparent animate-pulse" />
           </div>
         </div>

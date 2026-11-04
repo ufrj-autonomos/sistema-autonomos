@@ -37,37 +37,37 @@ export function Callout({
   const config = isTip
     ? {
         borderClass:
-          "border-l-4 border-l-emerald-500 border-emerald-500/30 bg-emerald-100 dark:bg-emerald-950/25",
-        titleColor: "text-emerald-700 dark:text-emerald-300",
-        textColor: "text-emerald-700 dark:text-emerald-100/90",
+          "border-l-4 border-l-emerald-500 border-emerald-500/30 bg-emerald-950/25",
+        titleColor: "text-emerald-300",
+        textColor: "text-emerald-100/90",
         defaultTitle: "Dica Prática / Boas Práticas",
-        icon: <Lightbulb className="w-5 h-5 text-emerald-700 dark:text-emerald-400 shrink-0 mt-0.5" />,
+        icon: <Lightbulb className="w-5 h-5 text-emerald-400 shrink-0 mt-0.5" />,
       }
     : isWarning
     ? {
         borderClass:
-          "border-l-4 border-l-amber-500 border-amber-500/30 bg-amber-100 dark:bg-amber-950/25",
-        titleColor: "text-amber-700 dark:text-amber-300",
-        textColor: "text-amber-700 dark:text-amber-100/90",
+          "border-l-4 border-l-amber-500 border-amber-500/30 bg-amber-950/25",
+        titleColor: "text-amber-300",
+        textColor: "text-amber-100/90",
         defaultTitle: "Atenção / Ponto Crítico",
-        icon: <AlertTriangle className="w-5 h-5 text-amber-700 dark:text-amber-400 shrink-0 mt-0.5" />,
+        icon: <AlertTriangle className="w-5 h-5 text-amber-400 shrink-0 mt-0.5" />,
       }
     : isTerminal
     ? {
         borderClass:
-          "border-l-4 border-l-purple-500 border-purple-500/30 bg-purple-100 dark:bg-purple-950/25",
-        titleColor: "text-purple-700 dark:text-purple-300",
-        textColor: "text-purple-700 dark:text-purple-100/90",
+          "border-l-4 border-l-purple-500 border-purple-500/30 bg-purple-950/25",
+        titleColor: "text-purple-300",
+        textColor: "text-purple-100/90",
         defaultTitle: "Execução no Terminal / Shell",
-        icon: <Terminal className="w-5 h-5 text-purple-700 dark:text-purple-400 shrink-0 mt-0.5" />,
+        icon: <Terminal className="w-5 h-5 text-purple-400 shrink-0 mt-0.5" />,
       }
     : {
         borderClass:
-          "border-l-4 border-l-blue-500 border-blue-500/30 bg-blue-100 dark:bg-blue-950/25",
-        titleColor: "text-blue-700 dark:text-blue-300",
-        textColor: "text-blue-700 dark:text-blue-100/90",
+          "border-l-4 border-l-blue-500 border-blue-500/30 bg-blue-950/25",
+        titleColor: "text-blue-300",
+        textColor: "text-blue-100/90",
         defaultTitle: "Conceito Chave / ROS 2 Jalisco",
-        icon: <Info className="w-5 h-5 text-blue-700 dark:text-blue-400 shrink-0 mt-0.5" />,
+        icon: <Info className="w-5 h-5 text-blue-400 shrink-0 mt-0.5" />,
       };
 
   return (

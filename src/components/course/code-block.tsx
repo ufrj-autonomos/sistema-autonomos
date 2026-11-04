@@ -77,14 +77,14 @@ export function CodeBlock({
       case "bash":
       case "sh":
       case "shell":
-        return <Terminal size={13} className="text-purple-700 dark:text-purple-400" />;
+        return <Terminal size={13} className="text-purple-400" />;
       case "python":
       case "py":
       case "cpp":
       case "c++":
-        return <Code2 size={13} className="text-emerald-700 dark:text-emerald-400" />;
+        return <Code2 size={13} className="text-emerald-400" />;
       default:
-        return <FileCode size={13} className="text-blue-700 dark:text-blue-400" />;
+        return <FileCode size={13} className="text-blue-400" />;
     }
   };
 
@@ -97,7 +97,7 @@ export function CodeBlock({
         return (
           <div key={lineIndex} className="table-row leading-6 min-h-[1.5rem]">
             {showLineNumbers && (
-              <span className="table-cell pr-4 text-right select-none text-muted-foreground font-mono text-xs w-8">
+              <span className="table-cell pr-4 text-right select-none text-zinc-600 font-mono text-xs w-8">
                 {lineIndex + 1}
               </span>
             )}
@@ -114,11 +114,11 @@ export function CodeBlock({
         return (
           <div key={lineIndex} className="table-row leading-6">
             {showLineNumbers && (
-              <span className="table-cell pr-4 text-right select-none text-muted-foreground font-mono text-xs w-8">
+              <span className="table-cell pr-4 text-right select-none text-zinc-600 font-mono text-xs w-8">
                 {lineIndex + 1}
               </span>
             )}
-            <span className="table-cell text-muted-foreground italic font-mono">{line}</span>
+            <span className="table-cell text-zinc-500 italic font-mono">{line}</span>
           </div>
         );
       }
@@ -127,11 +127,11 @@ export function CodeBlock({
         return (
           <div key={lineIndex} className="table-row leading-6">
             {showLineNumbers && (
-              <span className="table-cell pr-4 text-right select-none text-muted-foreground font-mono text-xs w-8">
+              <span className="table-cell pr-4 text-right select-none text-zinc-600 font-mono text-xs w-8">
                 {lineIndex + 1}
               </span>
             )}
-            <span className="table-cell text-muted-foreground italic font-mono">{line}</span>
+            <span className="table-cell text-zinc-500 italic font-mono">{line}</span>
           </div>
         );
       }
@@ -150,7 +150,7 @@ export function CodeBlock({
           (token.startsWith("'") && token.endsWith("'"))
         ) {
           return (
-            <span key={tokIdx} className="text-emerald-700 dark:text-emerald-400">
+            <span key={tokIdx} className="text-emerald-400">
               {token}
             </span>
           );
@@ -181,14 +181,14 @@ export function CodeBlock({
             ].includes(token)
           ) {
             return (
-              <span key={tokIdx} className="text-purple-700 dark:text-purple-400 font-medium">
+              <span key={tokIdx} className="text-purple-400 font-medium">
                 {token}
               </span>
             );
           }
           if (["self", "None", "True", "False"].includes(token)) {
             return (
-              <span key={tokIdx} className="text-amber-700 dark:text-amber-400">
+              <span key={tokIdx} className="text-amber-400">
                 {token}
               </span>
             );
@@ -212,7 +212,7 @@ export function CodeBlock({
             ].includes(token)
           ) {
             return (
-              <span key={tokIdx} className="text-cyan-700 dark:text-cyan-400 font-semibold">
+              <span key={tokIdx} className="text-cyan-400 font-semibold">
                 {token}
               </span>
             );
@@ -248,7 +248,7 @@ export function CodeBlock({
             ].includes(token)
           ) {
             return (
-              <span key={tokIdx} className="text-purple-700 dark:text-purple-400 font-medium">
+              <span key={tokIdx} className="text-purple-400 font-medium">
                 {token}
               </span>
             );
@@ -267,7 +267,7 @@ export function CodeBlock({
             ].includes(token)
           ) {
             return (
-              <span key={tokIdx} className="text-cyan-700 dark:text-cyan-400 font-semibold">
+              <span key={tokIdx} className="text-cyan-400 font-semibold">
                 {token}
               </span>
             );
@@ -294,7 +294,7 @@ export function CodeBlock({
             ].includes(token)
           ) {
             return (
-              <span key={tokIdx} className="text-purple-700 dark:text-purple-400 font-medium">
+              <span key={tokIdx} className="text-purple-400 font-medium">
                 {token}
               </span>
             );
@@ -316,14 +316,14 @@ export function CodeBlock({
             ].includes(token)
           ) {
             return (
-              <span key={tokIdx} className="text-pink-700 dark:text-pink-400 font-semibold">
+              <span key={tokIdx} className="text-pink-400 font-semibold">
                 {token}
               </span>
             );
           }
           if (token.startsWith("--") || token.startsWith("-r") || token.startsWith("__")) {
             return (
-              <span key={tokIdx} className="text-amber-700 dark:text-amber-400">
+              <span key={tokIdx} className="text-amber-400">
                 {token}
               </span>
             );
@@ -334,14 +334,14 @@ export function CodeBlock({
         if (lang.includes("xml") || lang.includes("launch")) {
           if (["launch", "node", "param", "arg", "group", "include"].includes(token)) {
             return (
-              <span key={tokIdx} className="text-rose-700 dark:text-rose-400 font-semibold">
+              <span key={tokIdx} className="text-rose-400 font-semibold">
                 {token}
               </span>
             );
           }
           if (["pkg", "exec", "name", "output", "from", "value"].includes(token)) {
             return (
-              <span key={tokIdx} className="text-amber-700 dark:text-amber-400">
+              <span key={tokIdx} className="text-amber-400">
                 {token}
               </span>
             );
@@ -351,7 +351,7 @@ export function CodeBlock({
         // Números
         if (/^\d+(\.\d+)?$/.test(token)) {
           return (
-            <span key={tokIdx} className="text-amber-700 dark:text-amber-300">
+            <span key={tokIdx} className="text-amber-300">
               {token}
             </span>
           );
@@ -363,11 +363,11 @@ export function CodeBlock({
       return (
         <div key={lineIndex} className="table-row leading-6">
           {showLineNumbers && (
-            <span className="table-cell pr-4 text-right select-none text-muted-foreground font-mono text-xs w-8">
+            <span className="table-cell pr-4 text-right select-none text-zinc-600 font-mono text-xs w-8">
               {lineIndex + 1}
             </span>
           )}
-          <span className="table-cell font-mono text-foreground">{highlightedTokens}</span>
+          <span className="table-cell font-mono text-zinc-200">{highlightedTokens}</span>
         </div>
       );
     });
@@ -375,10 +375,10 @@ export function CodeBlock({
 
   return (
     <div
-      className={`my-4 rounded-xl border border-border bg-background overflow-hidden shadow-lg blueprint-corners ${className}`}
+      className={`my-4 rounded-xl border border-white/10 bg-[#0B0B0D] overflow-hidden shadow-lg blueprint-corners ${className}`}
     >
       {/* Top Bar / Header */}
-      <div className="flex items-center justify-between px-3.5 py-2 bg-card border-b border-border select-none">
+      <div className="flex items-center justify-between px-3.5 py-2 bg-[#121215] border-b border-white/5 select-none">
         <div className="flex items-center gap-2">
           {/* Terminal Dots */}
           <div className="flex items-center gap-1.5 mr-1">
@@ -387,9 +387,9 @@ export function CodeBlock({
             <span className="w-2.5 h-2.5 rounded-full bg-emerald-500/40 border border-emerald-500/60 inline-block" />
           </div>
 
-          <div className="flex items-center gap-1.5 px-2 py-0.5 rounded bg-foreground/5 border border-border">
+          <div className="flex items-center gap-1.5 px-2 py-0.5 rounded bg-white/5 border border-white/10">
             {getLanguageIcon(normalizedLang)}
-            <span className="font-mono text-[11px] font-medium text-secondary-foreground uppercase tracking-wider">
+            <span className="font-mono text-[11px] font-medium text-zinc-300 uppercase tracking-wider">
               {getLanguageLabel(normalizedLang)}
               {fileName ? ` • ${fileName}` : ""}
             </span>
@@ -401,16 +401,16 @@ export function CodeBlock({
           onClick={handleCopy}
           type="button"
           aria-label="Copiar código"
-          className="flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-mono font-medium transition-all duration-200 border border-border bg-foreground/5 hover:bg-foreground/10 text-secondary-foreground hover:text-foreground cursor-pointer"
+          className="flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-mono font-medium transition-all duration-200 border border-white/10 bg-white/5 hover:bg-white/10 text-zinc-300 hover:text-white cursor-pointer"
         >
           {copied ? (
             <>
-              <Check size={13} className="text-emerald-700 dark:text-emerald-400" />
-              <span className="text-emerald-700 dark:text-emerald-400 font-semibold">Copiado!</span>
+              <Check size={13} className="text-emerald-400" />
+              <span className="text-emerald-400 font-semibold">Copiado!</span>
             </>
           ) : (
             <>
-              <Copy size={13} className="text-muted-foreground" />
+              <Copy size={13} className="text-zinc-400" />
               <span>Copiar</span>
             </>
           )}
@@ -418,7 +418,7 @@ export function CodeBlock({
       </div>
 
       {/* Code Container */}
-      <div className="p-3.5 overflow-x-auto text-xs sm:text-sm font-mono leading-relaxed bg-background">
+      <div className="p-3.5 overflow-x-auto text-xs sm:text-sm font-mono leading-relaxed bg-[#0A0A0B]">
         <div className="table min-w-full">
           {highlightCode(cleanCode, normalizedLang)}
         </div>

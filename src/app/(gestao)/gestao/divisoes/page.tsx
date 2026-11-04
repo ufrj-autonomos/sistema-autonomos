@@ -6,5 +6,5 @@ export const metadata = { title: 'Divisões — Gestão' };
 export default async function DivisionsPage() {
   await requirePageUser(true);
   const data = await getGestaoStats();
-  return <><SectionHeader title="Divisões" description="Conheça a estrutura de Harpia e Nautilus e consulte os projetos registrados na plataforma." />{data.divisions.length ? <DivisionsSection divisions={data.divisions} projects={data.projects} /> : <p className="py-10 text-sm text-muted-foreground">Nenhuma divisão cadastrada na plataforma.</p>}</>;
+  return <><SectionHeader title="Divisões" description="Conheça a estrutura de Harpia e Nautilus e consulte os projetos registrados na plataforma." />{data.divisions.length ? <DivisionsSection divisions={data.divisions} projects={data.projects} /> : <p className="py-10 text-sm text-zinc-400">Nenhuma divisão cadastrada na plataforma.</p>}</>;
 }

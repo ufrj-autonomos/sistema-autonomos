@@ -13,8 +13,8 @@ export function KpiCards({ kpis }: KpiCardsProps) {
       sublabel: kpis.totalMembersLabel,
       icon: Users,
       badge: "Ativos",
-      borderColor: "border-border",
-      iconColor: "text-secondary-foreground",
+      borderColor: "border-white/10",
+      iconColor: "text-zinc-300",
     },
     {
       title: "Projetos Ativos",
@@ -23,7 +23,7 @@ export function KpiCards({ kpis }: KpiCardsProps) {
       icon: Bot,
       badge: "Harpia & Nautilus",
       borderColor: "border-purple-500/20",
-      iconColor: "text-purple-700 dark:text-purple-400",
+      iconColor: "text-purple-400",
     },
     {
       title: "Alunos no Ensino",
@@ -32,7 +32,7 @@ export function KpiCards({ kpis }: KpiCardsProps) {
       icon: GraduationCap,
       badge: "ROS 2 Jazzy",
       borderColor: "border-emerald-500/20",
-      iconColor: "text-emerald-700 dark:text-emerald-400",
+      iconColor: "text-emerald-400",
     },
     {
       title: "Banco de Dados",
@@ -41,7 +41,7 @@ export function KpiCards({ kpis }: KpiCardsProps) {
       icon: Server,
       badge: kpis.platformStatus === "online" ? "Sistemas OK" : "Degradado",
       borderColor: "border-blue-500/20",
-      iconColor: "text-blue-700 dark:text-blue-400",
+      iconColor: "text-blue-400",
     },
   ];
 
@@ -52,37 +52,37 @@ export function KpiCards({ kpis }: KpiCardsProps) {
         return (
           <div
             key={idx}
-            className={`relative overflow-hidden rounded-xl border ${card.borderColor} bg-card p-5 transition-all duration-200 hover:border-border hover:-translate-y-0.5 blueprint-corners`}
+            className={`relative overflow-hidden rounded-xl border ${card.borderColor} bg-[#111113] p-5 transition-all duration-200 hover:border-white/20 hover:-translate-y-0.5 blueprint-corners`}
           >
             {/* Blueprint Grid Overlay */}
             <div className="absolute inset-0 bg-grid opacity-20 pointer-events-none" />
 
             {/* Header do Card */}
             <div className="relative flex items-center justify-between">
-              <span className="font-mono text-xs uppercase tracking-wider text-muted-foreground">
+              <span className="font-mono text-xs uppercase tracking-wider text-zinc-400">
                 {card.title}
               </span>
-              <div className="flex h-9 w-9 items-center justify-center rounded-lg border border-border bg-card">
+              <div className="flex h-9 w-9 items-center justify-center rounded-lg border border-white/10 bg-[#18181B]">
                 <Icon className={`h-4 w-4 ${card.iconColor}`} />
               </div>
             </div>
 
             {/* Valor Principal */}
             <div className="relative mt-3">
-              <div className="font-display text-3xl font-extrabold tracking-tight text-foreground tabular">
+              <div className="font-display text-3xl font-extrabold tracking-tight text-white tabular">
                 {card.value}
               </div>
-              <p className="mt-1 font-mono text-xs text-muted-foreground">
+              <p className="mt-1 font-mono text-xs text-zinc-400">
                 {card.sublabel}
               </p>
             </div>
 
             {/* Badge de Rodapé */}
-            <div className="relative mt-4 flex items-center justify-between border-t border-border pt-3">
-              <span className="inline-flex items-center rounded-md bg-foreground/5 px-2 py-0.5 font-mono text-[10px] text-secondary-foreground">
+            <div className="relative mt-4 flex items-center justify-between border-t border-white/5 pt-3">
+              <span className="inline-flex items-center rounded-md bg-white/5 px-2 py-0.5 font-mono text-[10px] text-zinc-300">
                 {card.badge}
               </span>
-              <span className="font-mono text-[10px] text-muted-foreground flex items-center gap-0.5">
+              <span className="font-mono text-[10px] text-zinc-500 flex items-center gap-0.5">
                 Nesta consulta
                 <ArrowUpRight className="h-3 w-3" />
               </span>

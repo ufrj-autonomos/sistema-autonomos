@@ -21,13 +21,12 @@
     "check:production": "node scripts/check-production-env.mjs",
     "test:production": "node --import tsx tests/production-security.test.ts",
     "test:gestao": "node --import tsx tests/gestao-production.test.ts",
-    "test": "npm run test:access && npm run test:production && npm run test:gestao && npm run test:attendance && npm run test:institutional && npm run test:workspace",
+    "test": "npm run test:access && npm run test:production && npm run test:gestao && npm run test:attendance && npm run test:institutional",
     "test:database": "node --import tsx tests/database-production.test.ts && node --import tsx tests/attendance-database.test.ts && node --import tsx tests/institutional-database.test.ts",
     "test:attendance": "node --import tsx tests/attendance.test.ts",
     "test:institutional": "node --import tsx tests/institutional.test.ts",
     "check:proxy": "node scripts/check-proxy-bundle.mjs",
-    "db:institutional-directory": "node --import tsx scripts/institutional/migrate-directory.ts",
-    "test:workspace": "node --import tsx tests/workspace-navigation.test.ts"
+    "db:institutional-directory": "node --import tsx scripts/institutional/migrate-directory.ts"
   },
   "prisma": {
     "seed": "tsx prisma/seed.ts"

@@ -9,11 +9,11 @@ import { useInstitutionalAsset } from '@/components/institutional/site-context';
 import { SITE_PROFILE_FIELDS, siteAssetUrl } from '@/lib/site-profile-changes';
 
 type Change = { id: string; createdAt: string; updatedAt?: string; changes: Record<string, unknown> };
-const focus = 'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-border';
+const focus = 'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-zinc-300';
 
 function Photo({ url, label }: { url: string | null; label: string }) {
   const [failed, setFailed] = useState(false);
-  return <div className="space-y-2">{url && !failed ? <img src={url} alt={label} onError={() => setFailed(true)} className="h-56 w-full rounded-lg bg-muted object-contain" /> : <div className="flex h-40 flex-col items-center justify-center gap-2 rounded-lg bg-muted text-sm text-muted-foreground"><ImageOff className="h-6 w-6" />{url ? 'Não foi possível carregar a foto.' : 'Sem foto'}</div>}{url && <a href={url} target="_blank" rel="noopener noreferrer" className={`inline-flex min-h-10 items-center rounded text-sm text-secondary-foreground underline underline-offset-4 ${focus}`}>Abrir foto em outra aba</a>}</div>;
+  return <div className="space-y-2">{url && !failed ? <img src={url} alt={label} onError={() => setFailed(true)} className="h-56 w-full rounded-lg bg-zinc-900 object-contain" /> : <div className="flex h-40 flex-col items-center justify-center gap-2 rounded-lg bg-zinc-900 text-sm text-zinc-400"><ImageOff className="h-6 w-6" />{url ? 'Não foi possível carregar a foto.' : 'Sem foto'}</div>}{url && <a href={url} target="_blank" rel="noopener noreferrer" className={`inline-flex min-h-10 items-center rounded text-sm text-zinc-300 underline underline-offset-4 ${focus}`}>Abrir foto em outra aba</a>}</div>;
 }
 
 export function ProfileChangeReview({ name, current, change }: { name: string; current: Record<string, unknown>; change: Change }) {
@@ -37,25 +37,25 @@ export function ProfileChangeReview({ name, current, change }: { name: string; c
   }
   function value(field: string, content: unknown, proposed: boolean) {
     if (field === 'photo') return <Photo key={String(content)} url={siteAssetUrl(content, asset('/'))} label={`${proposed ? 'Foto proposta' : 'Foto atual'} de ${name}`} />;
-    if (content === null || content === undefined || content === '') return <span className="text-muted-foreground">{proposed ? 'Remover informação' : 'Não informado'}</span>;
+    if (content === null || content === undefined || content === '') return <span className="text-zinc-400">{proposed ? 'Remover informação' : 'Não informado'}</span>;
     if (typeof content === 'boolean') return content ? 'Sim' : 'Não';
     const url = ['linkedin', 'github', 'instagram'].includes(field) ? siteAssetUrl(content, asset('/')) : null;
     return url ? <a href={url} target="_blank" rel="noopener noreferrer" className={`break-all underline underline-offset-4 ${focus}`}>{String(content)}</a> : <span className="whitespace-pre-wrap break-words leading-relaxed">{String(content)}</span>;
   }
   const buttons = <>
-    <button type="button" disabled={Boolean(busy)} onClick={() => void review('REJECT')} className={`min-h-11 rounded-lg border border-red-800 px-3 text-sm font-medium text-red-700 dark:text-red-200 hover:bg-red-100 dark:hover:bg-red-950 disabled:opacity-50 ${focus}`}>{busy === 'REJECT' ? 'Recusando…' : 'Recusar'}</button>
-    <button type="button" disabled={Boolean(busy) || !fields.length} onClick={() => void review('APPROVE')} className={`inline-flex min-h-11 items-center justify-center gap-2 rounded-lg bg-emerald-700 px-4 text-sm font-medium text-white hover:bg-emerald-800 disabled:opacity-50 ${focus}`}>{busy === 'APPROVE' && <Loader2 className="h-4 w-4 animate-spin" />}{busy === 'APPROVE' ? 'Publicando e traduzindo…' : 'Aprovar e publicar no site'}</button>
+    <button type="button" disabled={Boolean(busy)} onClick={() => void review('REJECT')} className={`min-h-11 rounded-lg border border-red-800 px-3 text-sm font-medium text-red-200 hover:bg-red-950 disabled:opacity-50 ${focus}`}>{busy === 'REJECT' ? 'Recusando…' : 'Recusar'}</button>
+    <button type="button" disabled={Boolean(busy) || !fields.length} onClick={() => void review('APPROVE')} className={`inline-flex min-h-11 items-center justify-center gap-2 rounded-lg bg-emerald-700 px-4 text-sm font-medium text-white hover:bg-emerald-600 disabled:opacity-50 ${focus}`}>{busy === 'APPROVE' && <Loader2 className="h-4 w-4 animate-spin" />}{busy === 'APPROVE' ? 'Publicando e traduzindo…' : 'Aprovar e publicar no site'}</button>
   </>;
   return <div className="space-y-2">
-    <div className="flex flex-wrap items-center gap-2"><button type="button" onClick={() => { setError(''); setOpen(true); }} className={`inline-flex min-h-11 items-center gap-2 rounded-lg border border-input px-3 text-sm font-medium text-foreground hover:bg-accent ${focus}`}><Eye className="h-4 w-4" />Ver alterações</button>{buttons}</div>
-    {error && !open && <p role="alert" className="max-w-prose text-sm text-red-700 dark:text-red-300">{error}</p>}
+    <div className="flex flex-wrap items-center gap-2"><button type="button" onClick={() => { setError(''); setOpen(true); }} className={`inline-flex min-h-11 items-center gap-2 rounded-lg border border-zinc-600 px-3 text-sm font-medium text-zinc-100 hover:bg-zinc-800 ${focus}`}><Eye className="h-4 w-4" />Ver alterações</button>{buttons}</div>
+    {error && !open && <p role="alert" className="max-w-prose text-sm text-red-300">{error}</p>}
     <Dialog open={open} onOpenChange={next => { if (!busy) setOpen(next); }}>
-      <DialogContent className="max-h-[90dvh] overflow-y-auto border-input bg-background text-foreground sm:max-w-3xl">
-        <DialogHeader><DialogTitle>Alterações de {name}</DialogTitle><DialogDescription className="max-w-prose text-sm leading-relaxed text-muted-foreground">Confira cada valor atual e o que será publicado após a aprovação. Enviado em {new Intl.DateTimeFormat('pt-BR', { dateStyle: 'short', timeStyle: 'short', timeZone: 'America/Sao_Paulo' }).format(new Date(change.createdAt))}.</DialogDescription></DialogHeader>
-        <dl className="divide-y divide-border">{fields.map(field => <div key={field.key} className="py-5 first:pt-1"><dt className="mb-3 text-base font-semibold text-foreground">{field.label}</dt><dd className="grid min-w-0 gap-4 sm:grid-cols-2"><div className="min-w-0"><p className="mb-2 text-xs font-medium text-muted-foreground">Atual no site</p><div className="text-sm text-secondary-foreground">{value(field.key, current[field.key], false)}</div></div><div className="min-w-0"><p className="mb-2 text-xs font-medium text-emerald-700 dark:text-emerald-300">Proposto pelo integrante</p><div className="text-sm text-foreground">{value(field.key, change.changes[field.key], true)}</div></div></dd></div>)}</dl>
-        {!fields.length && <p className="text-sm text-muted-foreground">Não há campos válidos para publicar nesta solicitação.</p>}
-        {error && <p role="alert" className="text-sm text-red-700 dark:text-red-300">{error}</p>}
-        <DialogFooter className="flex-wrap gap-2 border-t border-input pt-4"><button type="button" disabled={Boolean(busy)} onClick={() => setOpen(false)} className={`min-h-11 rounded-lg px-3 text-sm text-secondary-foreground hover:bg-accent ${focus}`}>Fechar prévia</button>{buttons}</DialogFooter>
+      <DialogContent className="max-h-[90dvh] overflow-y-auto border-zinc-700 bg-zinc-950 text-zinc-100 sm:max-w-3xl">
+        <DialogHeader><DialogTitle>Alterações de {name}</DialogTitle><DialogDescription className="max-w-prose text-sm leading-relaxed text-zinc-400">Confira cada valor atual e o que será publicado após a aprovação. Enviado em {new Intl.DateTimeFormat('pt-BR', { dateStyle: 'short', timeStyle: 'short', timeZone: 'America/Sao_Paulo' }).format(new Date(change.createdAt))}.</DialogDescription></DialogHeader>
+        <dl className="divide-y divide-zinc-800">{fields.map(field => <div key={field.key} className="py-5 first:pt-1"><dt className="mb-3 text-base font-semibold text-zinc-100">{field.label}</dt><dd className="grid min-w-0 gap-4 sm:grid-cols-2"><div className="min-w-0"><p className="mb-2 text-xs font-medium text-zinc-400">Atual no site</p><div className="text-sm text-zinc-300">{value(field.key, current[field.key], false)}</div></div><div className="min-w-0"><p className="mb-2 text-xs font-medium text-emerald-300">Proposto pelo integrante</p><div className="text-sm text-zinc-100">{value(field.key, change.changes[field.key], true)}</div></div></dd></div>)}</dl>
+        {!fields.length && <p className="text-sm text-zinc-400">Não há campos válidos para publicar nesta solicitação.</p>}
+        {error && <p role="alert" className="text-sm text-red-300">{error}</p>}
+        <DialogFooter className="flex-wrap gap-2 border-t border-zinc-800 pt-4"><button type="button" disabled={Boolean(busy)} onClick={() => setOpen(false)} className={`min-h-11 rounded-lg px-3 text-sm text-zinc-300 hover:bg-zinc-800 ${focus}`}>Fechar prévia</button>{buttons}</DialogFooter>
       </DialogContent>
     </Dialog>
   </div>;

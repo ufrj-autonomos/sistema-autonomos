@@ -3,7 +3,7 @@ import { BookOpen, FolderGit2, FileText, ArrowRight, Sparkles } from "lucide-rea
 
 export function QuickActions() {
   const actions = [
-    { title: "Presença no Laboratório", description: "Acompanhe as duas horas semanais, os registros e as pendências dos membros.", href: "/gestao/presenca", icon: BookOpen, actionText: "Acompanhar Presença", accent: "border-input hover:border-input" },
+    { title: "Presença no Laboratório", description: "Acompanhe as duas horas semanais, os registros e as pendências dos membros.", href: "/gestao/presenca", icon: BookOpen, actionText: "Acompanhar Presença", accent: "border-zinc-700 hover:border-zinc-500" },
     {
       title: "Acessar Plataforma de Ensino",
       description: "Navegue pelo currículo de 11 módulos e 108 lições com simulador Turtlesim e tópicos ROS 2 Jazzy.",
@@ -34,8 +34,8 @@ export function QuickActions() {
   return (
     <section className="space-y-4">
       <div className="flex items-center justify-between">
-        <div className="inline-flex items-center gap-1.5 font-mono text-xs uppercase tracking-wider text-muted-foreground">
-          <Sparkles className="h-3.5 w-3.5 text-muted-foreground" />
+        <div className="inline-flex items-center gap-1.5 font-mono text-xs uppercase tracking-wider text-zinc-400">
+          <Sparkles className="h-3.5 w-3.5 text-zinc-400" />
           <span>ATALHOS OPERACIONAIS</span>
         </div>
       </div>
@@ -49,27 +49,27 @@ export function QuickActions() {
               href={act.href}
               target={act.isExternal ? "_blank" : undefined}
               rel={act.isExternal ? "noreferrer" : undefined}
-              className={`group relative flex flex-col justify-between rounded-xl border ${act.accent} bg-card p-5 transition-all duration-200 hover:-translate-y-0.5 blueprint-corners`}
+              className={`group relative flex flex-col justify-between rounded-xl border ${act.accent} bg-[#111113] p-5 transition-all duration-200 hover:-translate-y-0.5 blueprint-corners`}
             >
               <div>
                 <div className="flex items-center justify-between">
-                  <div className="flex h-10 w-10 items-center justify-center rounded-lg border border-border bg-card">
-                    <Icon className="h-5 w-5 text-foreground" />
+                  <div className="flex h-10 w-10 items-center justify-center rounded-lg border border-white/10 bg-[#18181B]">
+                    <Icon className="h-5 w-5 text-white" />
                   </div>
-                  <ArrowRight className="h-4 w-4 text-muted-foreground transition-transform group-hover:translate-x-1 group-hover:text-foreground" />
+                  <ArrowRight className="h-4 w-4 text-zinc-500 transition-transform group-hover:translate-x-1 group-hover:text-white" />
                 </div>
 
-                <h3 className="mt-3 font-display font-bold text-base text-foreground">
+                <h3 className="mt-3 font-display font-bold text-base text-white">
                   {act.title}
                 </h3>
-                <p className="mt-1 text-xs text-muted-foreground leading-relaxed">
+                <p className="mt-1 text-xs text-zinc-400 leading-relaxed">
                   {act.description}
                 </p>
               </div>
 
-              <div className="mt-4 pt-3 border-t border-border font-mono text-xs text-secondary-foreground font-semibold flex items-center justify-between">
+              <div className="mt-4 pt-3 border-t border-white/5 font-mono text-xs text-zinc-300 font-semibold flex items-center justify-between">
                 <span>{act.actionText}</span>
-                {act.isExternal && <span className="text-[10px] text-muted-foreground">docs.ros.org</span>}
+                {act.isExternal && <span className="text-[10px] text-zinc-500">docs.ros.org</span>}
               </div>
             </Link>
           );

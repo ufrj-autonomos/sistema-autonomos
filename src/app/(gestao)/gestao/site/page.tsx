@@ -54,7 +54,7 @@ export default async function AdminDashboard() {
       sub: "Marcos históricos com suporte a .md",
       path: "timelineevent",
       icon: Clock,
-      color: "from-purple-500/20 to-purple-500/5 text-purple-700 dark:text-purple-400 border-purple-500/30",
+      color: "from-purple-500/20 to-purple-500/5 text-purple-400 border-purple-500/30",
     },
     {
       title: "Competições",
@@ -62,7 +62,7 @@ export default async function AdminDashboard() {
       sub: "Nacionais e Internacionais",
       path: "competition",
       icon: Trophy,
-      color: "from-amber-500/20 to-amber-500/5 text-amber-700 dark:text-amber-400 border-amber-500/30",
+      color: "from-amber-500/20 to-amber-500/5 text-amber-400 border-amber-500/30",
     },
     {
       title: "Patrocinadores",
@@ -70,7 +70,7 @@ export default async function AdminDashboard() {
       sub: "Empresas e parceiros de fomento",
       path: "sponsor",
       icon: Briefcase,
-      color: "from-rose-500/20 to-rose-500/5 text-rose-700 dark:text-rose-400 border-rose-500/30",
+      color: "from-rose-500/20 to-rose-500/5 text-rose-400 border-rose-500/30",
     },
     {
       title: "Galeria de Fotos",
@@ -78,7 +78,7 @@ export default async function AdminDashboard() {
       sub: "Imagens públicas de alta resolução",
       path: "galleryimage",
       icon: ImageIcon,
-      color: "from-cyan-500/20 to-cyan-500/5 text-cyan-700 dark:text-cyan-400 border-cyan-500/30",
+      color: "from-cyan-500/20 to-cyan-500/5 text-cyan-400 border-cyan-500/30",
     },
   ];
 
@@ -226,7 +226,7 @@ export default async function AdminDashboard() {
         {/* Markdown & Content Guide */}
         <div className="rounded-lg border border-border bg-card p-6">
           <div className="flex items-center gap-2 pb-4 border-b border-border">
-            <FileText className="h-4 w-4 text-amber-700 dark:text-amber-400" />
+            <FileText className="h-4 w-4 text-amber-400" />
             <h3 className="font-display text-base font-semibold text-foreground">
               Guia de Edição em Markdown (.md)
             </h3>
@@ -264,7 +264,7 @@ export default async function AdminDashboard() {
               </div>
             </div>
 
-            <div className="flex items-center gap-2 pt-2 text-emerald-700 dark:text-emerald-400">
+            <div className="flex items-center gap-2 pt-2 text-emerald-400">
               <CheckCircle2 className="h-4 w-4 shrink-0" />
               <span>No formulário de edição, você pode alternar entre "Escrever" e "Pré-visualizar ao vivo".</span>
             </div>

@@ -20,5 +20,3 @@ next-env.d.ts
 .backups/
 
 /src/generated/institutional/
-
-/.impeccable/review/
