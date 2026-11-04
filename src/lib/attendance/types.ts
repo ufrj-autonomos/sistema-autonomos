@@ -8,6 +8,7 @@ export interface AttendanceVisitDto {
 export interface AttendanceMemberDto {
   id: MemberIdentifier; name: string; email: string | null; area: string;
   requiredSeconds: number; completedSeconds: number; remainingSeconds: number;
+  justifiedSeconds?: number;
   percentage: number; status: GoalStatus; missedWeeks: number;
   openVisit: AttendanceVisitDto | null; pendingReviews: number; visits: AttendanceVisitDto[];
 }

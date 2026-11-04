@@ -15,6 +15,7 @@ export async function memberPrivateDetails(institutionalMemberId: number) {
     include: {
       attendancePeriods: true,
       attendanceVisits: true,
+        attendanceJustifications: { where: { status: 'APPROVED' }, select: { weekStartsOn: true } },
       profileChanges: {
         where: { status: 'PENDING' },
         orderBy: { createdAt: 'desc' },
@@ -43,7 +44,7 @@ export async function memberPrivateDetails(institutionalMemberId: number) {
           { id: member.id, name: member.name, area: member.area || 'Não informada', email: member.email || null },
           member.attendancePeriods,
           member.attendanceVisits,
-          weekKey()
+          weekKey(), undefined, undefined, member.attendanceJustifications || []
         )
       : null,
   };

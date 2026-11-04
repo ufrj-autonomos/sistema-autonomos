@@ -1,4 +1,4 @@
-import { dateKey, nextWeek, overlapSeconds, weekKey, weekRange, MAX_SESSION_SECONDS } from './time';
+import { dateKey, nextWeek, overlapSeconds, weekKey, weekRange, MAX_SESSION_SECONDS, DEFAULT_WEEKLY_SECONDS } from './time';
 import type { AttendanceMemberDto, AttendanceReport, AttendanceVisitDto, MemberIdentifier, VisitStatus } from './types';
 
 export interface PeriodRecord { startsOn: Date; endsOn: Date | null; targetSeconds: number }
@@ -11,7 +11,7 @@ export function visitDto(visit: VisitRecord, now = new Date(), maxSeconds = MAX_
     needsReview: visit.status === 'REVIEW' || (visit.status === 'OPEN' && now.getTime() - visit.checkedInAt.getTime() > maxSeconds * 1000),
   };
 }
-export function memberSummary(member: { id: MemberIdentifier; name: string; area: string; email: string | null }, periods: PeriodRecord[], visits: VisitRecord[], selected: string, now = new Date(), maxSeconds = MAX_SESSION_SECONDS): AttendanceMemberDto {
+export function memberSummary(member: { id: MemberIdentifier; name: string; area: string; email: string | null }, periods: PeriodRecord[], visits: VisitRecord[], selected: string, now = new Date(), maxSeconds = MAX_SESSION_SECONDS, justifications: { weekStartsOn: Date }[] = []): AttendanceMemberDto {
   const range = weekRange(selected);
   const current = weekRange(weekKey(now));
   const completedCutoff = range.end <= current.start ? nextWeek(selected) : current.key;
@@ -31,13 +31,18 @@ export function memberSummary(member: { id: MemberIdentifier; name: string; area
       validatedWeeks.set(key, (validatedWeeks.get(key) || 0) + overlapSeconds(visit.checkedInAt, visit.checkedOutAt, window.start, window.end));
     }
   }
+  const physicalSeconds = validatedWeeks.get(selected) || 0;
+  for (const justification of justifications) {
+    const key = dateKey(justification.weekStartsOn);
+    if (key <= selected && requiredWeeks.has(key)) validatedWeeks.set(key, Math.max(validatedWeeks.get(key) || 0, DEFAULT_WEEKLY_SECONDS));
+  }
   const requiredSeconds = requiredWeeks.get(selected) || 0;
   const completedSeconds = validatedWeeks.get(selected) || 0;
   const selectedVisits = visits.filter(visit => visit.checkedInAt < range.end && (!visit.checkedOutAt || visit.checkedOutAt > range.start));
   const details = selectedVisits.map(visit => visitDto(visit, now, maxSeconds)).sort((a, b) => b.checkedInAt.localeCompare(a.checkedInAt));
   const open = range.key === current.key ? visits.find(visit => visit.status === 'OPEN') : undefined;
   return {
-    ...member, requiredSeconds, completedSeconds, remainingSeconds: Math.max(0, requiredSeconds - completedSeconds),
+    ...member, requiredSeconds, completedSeconds, justifiedSeconds: Math.max(0, completedSeconds - physicalSeconds), remainingSeconds: Math.max(0, requiredSeconds - completedSeconds),
     percentage: requiredSeconds ? Math.min(100, Math.floor(completedSeconds / requiredSeconds * 100)) : 0,
     status: !requiredSeconds ? 'NOT_REQUIRED' : completedSeconds >= requiredSeconds ? 'MET' : range.end <= now ? 'MISSED' : 'PENDING',
     missedWeeks: [...requiredWeeks].filter(([key, target]) => key < completedCutoff && (validatedWeeks.get(key) || 0) < target).length,

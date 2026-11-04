@@ -107,6 +107,8 @@ model Member {
   // Attendance relations
   attendancePeriods  AttendancePeriod[]
   attendanceVisits   AttendanceVisit[]
+  attendanceJustifications AttendanceJustification[] @relation("JustificationMember")
+  reviewedAttendanceJustifications AttendanceJustification[] @relation("JustificationReviewer")
   attendancePunches  AttendancePunch[]
   attendanceAudits   AttendanceAudit[]     @relation("AuditedMember")
   performedAudits    AttendanceAudit[]     @relation("AuditActor")
@@ -441,4 +443,24 @@ model ActivityLog {
   @@index([actorId, createdAt])
   @@index([kind, createdAt])
   @@index([outcome, createdAt])
+}
+
+
+model AttendanceJustification {
+  id             String   @id @default(cuid())
+  memberId       String
+  member         Member   @relation("JustificationMember", fields: [memberId], references: [id], onDelete: Cascade)
+  weekStartsOn   DateTime @db.Date
+  reason         String   @db.VarChar(40)
+  details        String   @db.Text
+  status         String   @default("PENDING") @db.VarChar(16)
+  reviewedById   String?
+  reviewedBy     Member?  @relation("JustificationReviewer", fields: [reviewedById], references: [id], onDelete: SetNull)
+  reviewerName   String?  @db.VarChar(200)
+  reviewNote     String?  @db.Text
+  reviewedAt     DateTime? @db.Timestamptz(3)
+  createdAt      DateTime @default(now()) @db.Timestamptz(3)
+
+  @@index([memberId, weekStartsOn])
+  @@index([status, createdAt, id])
 }

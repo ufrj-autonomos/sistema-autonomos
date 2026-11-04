@@ -39,6 +39,7 @@ export async function traceApi<T extends Response>(req: NextRequest, action: str
       if (meaningfulAction) {
         let summaryAction = meaningfulAction;
         if (meaningfulAction === 'ATTENDANCE_REGISTERED' && response.ok) { const result = await response.clone().json().catch(() => null); if (result?.action === 'IN' || result?.action === 'OUT') summaryAction = `ATTENDANCE_${result.action}`; }
+        if (meaningfulAction === 'ATTENDANCE_JUSTIFICATION_REVIEWED' && response.ok) { const result = await response.clone().json().catch(() => null); if (result?.status === 'APPROVED' || result?.status === 'REJECTED') summaryAction = `ATTENDANCE_JUSTIFICATION_${result.status}`; }
         await writeActivity({ actor: context.actor, targetPath: context.targetPath, control: context.control, kind: path.startsWith('/api/auth/') ? 'AUTH' : 'API_REQUEST', action: summaryAction, path, method: req.method, statusCode: response.status, outcome: response.status < 400 ? 'SUCCESS' : 'FAILURE', durationMs: Date.now() - start });
       }
       return response;

@@ -2,7 +2,7 @@ import { resolveMemberAreas } from './member-fields';
 import { memberSummary, type PeriodRecord, type VisitRecord } from './attendance/summary';
 import { dateKey, nextWeek, weekKey, weekRange, MAX_SESSION_SECONDS } from './attendance/time';
 export type DirectoryIdentity = { id: number; name: string; area: string; active: boolean; course: string | null; team: { name: string; slug: string } | null };
-export type AnalyticsMember = { id: string; institutionalMemberId: number | null; name: string; area: string; email: string | null; status: string; role: string; active: boolean; course: string | null; phone: string | null; dre: string | null; emergencyContactPhone: string | null; profileCompletedAt: Date | null; credential: { memberId: string } | null; attendancePeriods: PeriodRecord[]; attendanceVisits: VisitRecord[] };
+export type AnalyticsMember = { id: string; institutionalMemberId: number | null; name: string; area: string; email: string | null; status: string; role: string; active: boolean; course: string | null; phone: string | null; dre: string | null; emergencyContactPhone: string | null; profileCompletedAt: Date | null; credential: { memberId: string } | null; attendanceJustifications?: { weekStartsOn: Date }[]; attendancePeriods: PeriodRecord[]; attendanceVisits: VisitRecord[] };
 export function distribution(values: string[]) {
   const counts = new Map<string, number>();
   for (const value of values) counts.set(value, (counts.get(value) || 0) + 1);
@@ -39,7 +39,7 @@ export function presenceAnalytics(operational: AnalyticsMember[], directory: Dir
     const identity = member.institutionalMemberId ? byId.get(member.institutionalMemberId) : null;
     const periods = member.attendancePeriods.filter(period => !period.endsOn || dateKey(period.endsOn) > start).map(period => ({ ...period, startsOn: new Date(`${dateKey(period.startsOn) < start ? start : dateKey(period.startsOn)}T00:00:00Z`) }));
     const profile = { id: member.id, name: identity?.name || member.name, area: resolveMemberAreas(identity?.area, member.area).internal || 'Não informada', email: null };
-    const summaries = keys.map(key => memberSummary(profile, periods, member.attendanceVisits, key, now, maxSeconds));
+    const summaries = keys.map(key => memberSummary(profile, periods, member.attendanceVisits, key, now, maxSeconds, member.attendanceJustifications || []));
     const closed = summaries.slice(0, weeks).filter(summary => summary.requiredSeconds > 0);
     return { id: member.id, name: profile.name, area: profile.area, team: identity?.team?.name || 'Autônomos', requiredWeeks: closed.length, metWeeks: closed.filter(summary => summary.status === 'MET').length, missedWeeks: closed.filter(summary => summary.status === 'MISSED').length, seconds: summaries.slice(0, weeks).reduce((sum, row) => sum + row.completedSeconds, 0), summaries };
   });

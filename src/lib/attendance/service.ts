@@ -29,6 +29,7 @@ export async function attendanceReport(key = weekKey(), memberId?: string, now =
   const members = await prisma.member.findMany({
     where: memberId ? { id: memberId } : { attendancePeriods: { some: {} } },
     include: {
+      attendanceJustifications: { where: { status: 'APPROVED', weekStartsOn: { lte: new Date(`${range.key}T00:00:00Z`) } }, select: { weekStartsOn: true } },
       attendancePeriods: { orderBy: { startsOn: 'asc' } },
       attendanceVisits: { where: { checkedInAt: { lt: range.end } }, orderBy: { checkedInAt: 'desc' } },
     },
@@ -47,7 +48,8 @@ export async function attendanceReport(key = weekKey(), memberId?: string, now =
       member.attendanceVisits,
       range.key,
       now,
-      settings.maxSessionSeconds
+      settings.maxSessionSeconds,
+      member.attendanceJustifications || []
     );
   }).filter(member => memberId || member.requiredSeconds > 0 || member.visits.length > 0);
   return {
@@ -141,7 +143,7 @@ export function attendanceCsv(report: AttendanceReport) {
     if (/^\s*[=+\-@]|^[\t\r\n]/.test(text)) text = `'${text}`;
     return `"${text.replaceAll('"', '""')}"`;
   };
-  const rows = [['Nome', 'Email', 'Área', 'Meta (h)', 'Horas validadas', 'Horas restantes', 'Situação', 'Semanas abaixo da meta', 'Registros para revisão'],
-    ...report.members.map(member => [member.name, member.email || '', member.area, (member.requiredSeconds / 3600).toFixed(4).replace('.', ','), (member.completedSeconds / 3600).toFixed(4).replace('.', ','), (member.remainingSeconds / 3600).toFixed(4).replace('.', ','), GOAL_LABELS[member.status], String(member.missedWeeks), String(member.pendingReviews)])];
+  const rows = [['Nome', 'Email', 'Área', 'Meta (h)', 'Horas validadas', 'Horas por justificativa', 'Horas restantes', 'Situação', 'Semanas abaixo da meta', 'Registros para revisão'],
+    ...report.members.map(member => [member.name, member.email || '', member.area, (member.requiredSeconds / 3600).toFixed(4).replace('.', ','), (member.completedSeconds / 3600).toFixed(4).replace('.', ','), ((member.justifiedSeconds || 0) / 3600).toFixed(4).replace('.', ','), (member.remainingSeconds / 3600).toFixed(4).replace('.', ','), GOAL_LABELS[member.status], String(member.missedWeeks), String(member.pendingReviews)])];
   return '\uFEFF' + rows.map(row => row.map(escape).join(';')).join('\r\n');
 }

@@ -8,7 +8,7 @@ export async function getManagementAnalytics(weeks = 8, now = new Date()) {
   const start = weekRange(nextWeek(weekKey(now), -weeks)).start;
   const [directory, operational, settings, requests] = await Promise.allSettled([
     db.institutionalMember.findMany({ select: { id: true, name: true, area: true, active: true, course: true, team: { select: { name: true, slug: true } } } }),
-    prisma.member.findMany({ select: { id: true, institutionalMemberId: true, name: true, area: true, email: true, status: true, role: true, active: true, course: true, phone: true, dre: true, emergencyContactPhone: true, profileCompletedAt: true, credential: { select: { memberId: true } }, attendancePeriods: true, attendanceVisits: { where: { checkedInAt: { lte: now }, OR: [{ checkedOutAt: { gt: start } }, { checkedOutAt: null }] } } } }),
+    prisma.member.findMany({ select: { id: true, institutionalMemberId: true, name: true, area: true, email: true, status: true, role: true, active: true, course: true, phone: true, dre: true, emergencyContactPhone: true, profileCompletedAt: true, credential: { select: { memberId: true } }, attendancePeriods: true, attendanceJustifications: { where: { status: 'APPROVED', weekStartsOn: { gte: new Date(`${nextWeek(weekKey(now), -weeks)}T00:00:00Z`) } }, select: { weekStartsOn: true } }, attendanceVisits: { where: { checkedInAt: { lte: now }, OR: [{ checkedOutAt: { gt: start } }, { checkedOutAt: null }] } } } }),
     prisma.attendanceSettings.findUnique({ where: { id: 'lab' } }),
     prisma.memberProfileChange.count({ where: { status: 'PENDING' } }),
   ]);

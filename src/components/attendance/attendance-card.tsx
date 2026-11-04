@@ -39,6 +39,7 @@ export function AttendanceCard({ initial }: { initial: AttendanceReport | null }
         <progress aria-label="Meta semanal de presença" value={member.completedSeconds} max={member.requiredSeconds} className="mt-4 h-2 w-full overflow-hidden rounded-full accent-emerald-500" />
         <p className="mt-2 text-sm text-muted-foreground">{member.remainingSeconds ? `Faltam ${formatDuration(member.remainingSeconds)} para cumprir a meta.` : 'Você cumpriu a meta desta semana.'} Semana de segunda a domingo, no horário de Brasília.</p>
       </>}
+      {!!member.justifiedSeconds && <p className="mt-3 text-sm text-muted-foreground">Inclui {formatDuration(member.justifiedSeconds)} por justificativa aprovada.</p>}
       {member.openVisit && <p className={`mt-4 text-sm ${member.openVisit.needsReview ? 'text-amber-700 dark:text-amber-300' : 'text-emerald-700 dark:text-emerald-300'}`}>{member.openVisit.needsReview ? 'Sua entrada está sem saída há mais de 12 horas. Registre a saída e procure a gestão para revisar.' : `Entrada registrada às ${formatLabTime(member.openVisit.checkedInAt)}. Leia o QR code novamente ao sair.`}</p>}
       {member.pendingReviews > 0 && <p className="mt-2 text-sm text-amber-700 dark:text-amber-300">{member.pendingReviews} registro(s) aguardando revisão da gestão.</p>}
     </> : <p className="mt-4 text-sm text-muted-foreground">{report ? 'Seu acompanhamento de presença ainda não foi habilitado. Procure a gestão.' : 'Carregando suas horas de laboratório...'}</p>}
