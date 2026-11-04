@@ -5,6 +5,9 @@ import { recordData } from '../src/lib/institutional/records';
 import { contactData } from '../src/lib/institutional/contact';
 import { adminModels } from '../src/lib/institutional/admin-config';
 import { privateData } from '../src/lib/directory-validation';
+import { normalizeMemberArea, normalizeMemberRole, resolveMemberAreas, MEMBER_ROLES, memberRoleTranslations, planMemberAreaRepairs } from '../src/lib/member-fields';
+import { selectOptions } from '../src/lib/form-select';
+import { profileChangeDiff, siteAssetUrl, validateSiteProfileChanges } from '../src/lib/site-profile-changes';
 import { filterMembers, initialMemberPreferences, INTERNAL_COLUMNS, MEMBER_COLUMNS, memberPreferences, memberValue, SITE_COLUMNS, type MemberDirectoryRow } from '../src/lib/member-directory';
 
 const secret = 'isolated-institutional-signature-secret-at-least-32';
@@ -86,4 +89,53 @@ test('table search respects visible columns and supports accents, filters and fo
   assert.equal(filterMembers([row], INTERNAL_COLUMNS, { ...base, status: 'inactive' }, 'internal').length, 0);
   assert.equal(memberValue(row, 'internalCourse'), 'Engenharia');
   assert.equal(memberValue(row, 'emergencyContact'), 'Maria\n(21) 99999-9999');
+});
+
+test('Autônomos is an explicit selection and existing cargos are never lost by the dropdown', () => {
+  const general = selectOptions([{ label: 'UFRJ Autônomos', value: '' }, { label: 'Harpia', value: 2 }], null);
+  assert.equal(general.showPlaceholder, false);
+  assert.equal(general.options.filter(option => option.value === '').length, 1);
+  assert.equal(general.options[0].label, 'UFRJ Autônomos');
+  assert.equal(selectOptions([{ label: 'Harpia', value: 2 }], null).showPlaceholder, true);
+  const legacy = selectOptions(MEMBER_ROLES, 'Conta Institucional');
+  assert.equal(legacy.options[0].value, 'Conta Institucional');
+  assert.equal(normalizeMemberRole('Integrante'), 'Membro');
+  assert.equal(normalizeMemberRole('Coordenadora'), 'Coordenador');
+  assert.equal(normalizeMemberRole('Conta Institucional'), 'Conta Institucional');
+  assert.deepEqual(memberRoleTranslations('Integrante'), { roleEn: 'Member', roleFr: 'Membre' });
+  assert.deepEqual(recordData('member', { role: 'Integrante', teamId: '' }, false), { role: 'Membro', teamId: null });
+  assert.equal(MEMBER_ROLES.length, new Set(MEMBER_ROLES.map(option => option.value)).size);
+});
+
+test('Gestão and other selected areas survive placeholders, spelling variants and two database sources', () => {
+  assert.equal(normalizeMemberArea(' gestao '), 'Gestão');
+  assert.equal(normalizeMemberArea('Não informada'), null);
+  assert.equal(normalizeMemberArea('Pesquisa'), 'Pesquisa');
+  assert.deepEqual(resolveMemberAreas('Não informada', 'Gestão'), { site: 'Gestão', internal: 'Gestão' });
+  assert.deepEqual(resolveMemberAreas('Gestão', 'Não informada'), { site: 'Gestão', internal: 'Gestão' });
+  assert.deepEqual(resolveMemberAreas('Software', 'Gestão'), { site: 'Software', internal: 'Gestão' });
+  assert.deepEqual(resolveMemberAreas('Não informada', null), { site: null, internal: null });
+  assert.throws(() => recordData('member', { area: 'Não informada' }, false));
+});
+
+test('site requests preserve false and removals, reject unsafe photos and omit restored changes', () => {
+  assert.deepEqual(validateSiteProfileChanges({ area: 'gestao', photo: 'https://example.invalid/member.webp', bio: null, isFemale: false }), { area: 'Gestão', bio: null, photo: 'https://example.invalid/member.webp', isFemale: false });
+  for (const url of ['javascript:alert(1)', '//example.invalid/a.png', '/\\example.invalid/a.png', 'data:image/svg+xml,test']) {
+    assert.equal(siteAssetUrl(url, 'https://example.invalid'), null);
+    assert.throws(() => validateSiteProfileChanges({ photo: url }));
+  }
+  assert.equal(siteAssetUrl('/images/member.webp', 'https://example.invalid'), 'https://example.invalid/images/member.webp');
+  assert.throws(() => validateSiteProfileChanges({ cpf: '52998224725' }));
+  assert.throws(() => validateSiteProfileChanges({ isFemale: 'false' }));
+  assert.throws(() => validateSiteProfileChanges({ name: null }));
+  assert.deepEqual(profileChangeDiff({ bio: null, isFemale: false, name: 'Current' }, { bio: '', isFemale: true, name: 'Current' }), { isFemale: false });
+  assert.deepEqual(profileChangeDiff({ photo: null }, { photo: 'https://example.invalid/old.webp' }), { photo: null });
+});
+
+test('area repairs only fill missing areas through explicit links, preserving distinct choices', () => {
+  const site = [{ id: 10, area: 'Não informada' }, { id: 20, area: 'Gestão' }, { id: 30, area: 'Software' }, { id: 40, area: 'Não informada' }];
+  const internal = [{ id: 'a', institutionalMemberId: 10, area: 'Gestão' }, { id: 'b', institutionalMemberId: 20, area: 'Não informada' }, { id: 'c', institutionalMemberId: 30, area: 'Gestão' }, { id: 'd', institutionalMemberId: 40, area: 'Não informada' }, { id: 'e', institutionalMemberId: null, area: 'Gestão' }];
+  assert.deepEqual(planMemberAreaRepairs(site, internal), { siteUpdates: [{ id: 10, from: 'Não informada', to: 'Gestão' }], internalUpdates: [{ id: 'b', from: 'Não informada', to: 'Gestão' }] });
+  site[0].area = 'Gestão'; internal[1].area = 'Gestão';
+  assert.deepEqual(planMemberAreaRepairs(site, internal), { siteUpdates: [], internalUpdates: [] });
 });

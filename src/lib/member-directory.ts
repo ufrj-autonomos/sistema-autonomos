@@ -16,6 +16,7 @@ export type PendingProfileChangeDto = {
   id: string;
   memberId: string;
   createdAt: string;
+  updatedAt?: string;
   changes: Record<string, string | boolean | null>;
 };
 export type MemberDirectoryRow = {

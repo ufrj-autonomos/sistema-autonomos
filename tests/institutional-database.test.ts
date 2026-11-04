@@ -16,6 +16,7 @@ async function main() {
   let institutionalClient: PrismaClient | undefined;
   let platformClient: import('@prisma/client').PrismaClient | undefined;
     let accountId: string | undefined;
+    let reviewerId: string | undefined;
     let publicMemberId: number | undefined;
     let publicProjectId: number | undefined;
     function run(args: string[], extra: Record<string,string>) {
@@ -83,7 +84,9 @@ async function main() {
       const operational = await memberPrivateDetails(publicMember.id);
       assert.equal(operational.name,'Nome operacional'); assert.equal(operational.dre,'001234567'); assert.equal(operational.birthDate,'2000-02-29');
       assert.equal(operational.email,'operacao@example.invalid'); assert.equal(operational.emergencyContactPhone,'(21) 98888-8888');
-      assert.deepEqual(await editor.institutionalMember.findUniqueOrThrow({where:{id:publicMember.id}}),publicBeforeInternalEdit,'internal edits must never modify any institutional column');
+      const publicAfterInternalEdit = await editor.institutionalMember.findUniqueOrThrow({where:{id:publicMember.id}});
+      const { calculateAgeFromBirthDate } = await import('../src/lib/birthdays');
+      assert.deepEqual(publicAfterInternalEdit,{...publicBeforeInternalEdit,age:calculateAgeFromBirthDate('2000-02-29')},'internal edits preserve public fields except the existing derived-age synchronization');
       await prisma.member.update({where:{id:account.id},data:{memberDirectoryPreferences:{view:'custom',columns:['cpf','name']}}});
       assert.deepEqual((await prisma.member.findUniqueOrThrow({where:{id:account.id}})).memberDirectoryPreferences,{view:'custom',columns:['cpf','name']});
       assert.equal((await prisma.attendanceVisit.findUniqueOrThrow({where:{id:visit.id}})).memberId,account.id);
@@ -96,6 +99,47 @@ async function main() {
       await assert.rejects(savePrivateDetails('member',other.id,{cpf:'',notes:'',userId:account.id}),/vinculado/);
       assert.equal(await prisma.member.count({where:{institutionalMemberId:other.id}}),0);
       await editor.institutionalMember.delete({where:{id:other.id}});
+
+      // Exercise the real profile/review handlers and both databases with isolated sessions.
+      process.env.JWT_SECRET = 'isolated-profile-review-test-signing-key-at-least-32';
+      process.env.INSTITUTIONAL_SITE_URL = 'http://127.0.0.1:9';
+      process.env.INSTITUTIONAL_BRIDGE_SECRET = 'isolated-profile-review-bridge-key-at-least-32';
+      const { NextRequest } = await import('next/server');
+      const { createUserSession } = await import('../src/lib/session');
+      const { GET: readProfile, PUT: submitProfile } = await import('../src/app/api/profile/route');
+      const { POST: reviewProfile } = await import('../src/app/api/admin/profile-changes/route');
+      const reviewer = await prisma.member.create({data:{name:'Management fixture',email:`reviewer-${name}@example.invalid`,role:'MANAGEMENT',status:'APPROVED'}}); reviewerId=reviewer.id;
+      const reviewerToken = await createUserSession({...reviewer,email:reviewer.email!});
+      const memberToken = await createUserSession({...account,email:account.email!});
+      const request = (token: string | null, body?: unknown) => new NextRequest('https://test.example.invalid/api/profile',{method:body?'POST':'GET',headers:{...(token?{cookie:`autonomos_session=${token}`} : {}),'content-type':'application/json'},...(body?{body:JSON.stringify(body)}:{})});
+      assert.equal((await reviewProfile(request(null,{changeId:'missing',action:'APPROVE'}))).status,401);
+      assert.equal((await reviewProfile(request(memberToken,{changeId:'missing',action:'APPROVE'}))).status,403);
+      const submit = await submitProfile(request(memberToken,{area:'Gestão'}));
+      assert.equal(submit.status,200,await submit.text());
+      const ownProfile = await (await readProfile(request(memberToken))).json();
+      assert.equal(ownProfile.profile.area,'Gestão');
+      assert.equal(ownProfile.profile.dre,'001234567','partial saves preserve private fields');
+      assert.equal((await editor.institutionalMember.findUniqueOrThrow({where:{id:publicMember.id}})).area,'Software','site area waits for approval');
+      const pending = await prisma.memberProfileChange.findFirstOrThrow({where:{memberId:account.id,status:'PENDING'}});
+      assert.deepEqual(pending.changes,{area:'Gestão'});
+      assert.equal((await reviewProfile(request(reviewerToken,{changeId:pending.id,action:'APPROVE',expectedUpdatedAt:'1970-01-01T00:00:00.000Z'}))).status,409);
+      const institutionalUrl = process.env.INSTITUTIONAL_DATABASE_URL;
+      delete process.env.INSTITUTIONAL_DATABASE_URL;
+      assert.equal((await reviewProfile(request(reviewerToken,{changeId:pending.id,action:'APPROVE'}))).status,503);
+      process.env.INSTITUTIONAL_DATABASE_URL = institutionalUrl;
+      assert.equal((await prisma.memberProfileChange.findUniqueOrThrow({where:{id:pending.id}})).status,'PENDING');
+      assert.equal((await reviewProfile(request(reviewerToken,{changeId:pending.id,action:'APPROVE',expectedUpdatedAt:pending.updatedAt.toISOString()}))).status,200);
+      assert.equal((await editor.institutionalMember.findUniqueOrThrow({where:{id:publicMember.id}})).area,'Gestão');
+      assert.equal((await reviewProfile(request(reviewerToken,{changeId:pending.id,action:'REJECT'}))).status,404,'reviewed requests cannot be processed again');
+      const photoRequest = await prisma.memberProfileChange.create({data:{memberId:account.id,institutionalMemberId:publicMember.id,changes:{photo:'https://example.invalid/proposed.webp',bio:null,isFemale:false}}});
+      const competing = await Promise.all(['APPROVE','REJECT'].map(action=>reviewProfile(request(reviewerToken,{changeId:photoRequest.id,action,expectedUpdatedAt:photoRequest.updatedAt.toISOString()}))));
+      assert.deepEqual(competing.map(response=>response.status).sort(),[200,404],'concurrent reviewers make exactly one decision');
+      const invalid = await prisma.memberProfileChange.create({data:{memberId:account.id,institutionalMemberId:publicMember.id,changes:{photo:'javascript:alert(1)'}}});
+      assert.equal((await reviewProfile(request(reviewerToken,{changeId:invalid.id,action:'APPROVE'}))).status,400);
+      await prisma.memberProfileChange.update({where:{id:invalid.id},data:{changes:{photo:'https://example.invalid/remove.webp'}}});
+      const restored = await submitProfile(request(memberToken,{photo:(await editor.institutionalMember.findUniqueOrThrow({where:{id:publicMember.id}})).photo || ''}));
+      assert.equal(restored.status,200);
+      assert.equal(await prisma.memberProfileChange.count({where:{memberId:account.id,status:'PENDING'}}),0,'restoring published values withdraws the pending change');
       const acl = await target.$queryRaw<Array<{ name: string; protected: boolean; anonwrite: boolean; readerwrite: boolean }>>`SELECT c.relname AS name,c.relrowsecurity AS protected,has_table_privilege('anon',c.oid,'INSERT, UPDATE, DELETE') AS anonwrite,has_table_privilege('institutional_reader',c.oid,'INSERT, UPDATE, DELETE') AS readerwrite FROM pg_class c JOIN pg_namespace n ON n.oid=c.relnamespace WHERE n.nspname='public' AND c.relkind='r'`;
       assert.equal(acl.length,10);assert.ok(acl.every(table=>table.protected && !table.anonwrite && !table.readerwrite));
       await db.team.delete({where:{id:team.id}});assert.equal(await reader.project.count(),0);assert.equal(await reader.galleryImage.count(),0);
@@ -105,6 +149,7 @@ async function main() {
       if (platformClient) {
         if(publicProjectId) await platformClient.projectDetails.deleteMany({where:{institutionalProjectId:publicProjectId}});
         if(accountId) await platformClient.member.deleteMany({where:{id:accountId}});
+        if(reviewerId) await platformClient.member.deleteMany({where:{id:reviewerId}});
         await platformClient.$disconnect();
       }
     if (institutionalClient) await institutionalClient.$disconnect();

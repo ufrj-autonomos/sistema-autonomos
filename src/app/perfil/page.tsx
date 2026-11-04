@@ -15,6 +15,7 @@ import {
   ShieldAlert,
   Sparkles,
 } from "lucide-react";
+import { MEMBER_AREAS, normalizeMemberArea } from "@/lib/member-fields";
 import { useSession } from "@/contexts/auth-context";
 
 type ProfileData = {
@@ -78,7 +79,7 @@ function ProfileFormContent() {
 
   // Form states
   const [name, setName] = useState("");
-  const [area, setArea] = useState("Software");
+  const [area, setArea] = useState("");
   const [phone, setPhone] = useState("");
   const [dre, setDre] = useState("");
   const [cpf, setCpf] = useState("");
@@ -114,7 +115,7 @@ function ProfileFormContent() {
       setPendingChange(pc);
 
       setName(typeof pendingFields.name === "string" ? pendingFields.name : p.name || sp?.name || "");
-      setArea(p.area || sp?.area || "Software");
+      setArea(normalizeMemberArea(p.area) || normalizeMemberArea(sp?.area) || "");
       setPhone(p.phone || "");
       setDre(p.dre || "");
       setCpf(p.cpf || "");
@@ -394,14 +395,13 @@ function ProfileFormContent() {
               Área na Equipe
               <select
                 value={area}
+                required
                 onChange={(e) => setArea(e.target.value)}
                 className={inputClass}
               >
-                <option value="Software">Software</option>
-                <option value="Eletrônica">Eletrônica</option>
-                <option value="Mecânica">Mecânica</option>
-                <option value="Gestão">Gestão</option>
-                <option value="Marketing">Marketing</option>
+                <option value="" disabled>Selecione sua área</option>
+                {area && !MEMBER_AREAS.some(value => value === area) && <option value={area}>{area} (área atual)</option>}
+                {MEMBER_AREAS.map(value => <option key={value} value={value}>{value}</option>)}
               </select>
             </label>
 

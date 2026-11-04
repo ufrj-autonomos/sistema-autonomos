@@ -1,3 +1,4 @@
+import { MEMBER_ROLES, MEMBER_AREAS } from '../member-fields';
 export type FieldType = 'string' | 'text' | 'number' | 'boolean' | 'image' | 'json' | 'relation' | 'select' | 'multiselect' | 'json-array';
 
 export interface AdminField {
@@ -7,7 +8,7 @@ export interface AdminField {
   required?: boolean;
   description?: string;
   relationModel?: string;
-  options?: { label: string; value: string | number }[];
+  options?: { label: string; value: string | number; group?: string }[];
   schema?: { name: string; label: string; type: 'string' | 'text' }[];
 }
 
@@ -51,29 +52,10 @@ export const adminModels: Record<string, AdminModel> = {
       { name: "showOnSite", label: "Exibir no site", type: "boolean", description: "Desmarque para manter este cadastro visível apenas na gestão." },
       { name: "name", label: "Nome", type: "string", required: true, description: "Nome completo do membro. Ex: João da Silva" },
       { name: "teamId", label: "Equipe / Divisão", type: "select", options: [{ label: 'UFRJ Autônomos (Geral: Gestão, Marketing, Diretoria)', value: '' }, ...teamOptions], required: false, description: "Selecione a equipe. Deixe como Autônomos para membros de Gestão, Marketing, Diretoria e Capitania." },
-      { name: "role", label: "Cargo", type: "select", required: true, description: "Cargo atual do membro.", options: [
-        { label: "Capitão(ã)", value: "Capitão" },
-        { label: "Diretor(a) de Gente e Gestão", value: "Diretor de Gente e Gestão" },
-        { label: "Diretor(a) de Operações", value: "Diretor de Operações" },
-        { label: "Coordenador(a) de Marketing", value: "Coordenador de Marketing" },
-        { label: "Vice-Capitão(ã)", value: "Vice-Capitão" },
-        { label: "Coordenador(a)", value: "Coordenador" },
-        { label: "Vice-Coordenador(a)", value: "Vice-Coordenador" },
-        { label: "Membro", value: "Membro" },
-        { label: "Trainee", value: "Trainee" },
-        { label: "Alumni", value: "Alumni" },
-        { label: "Professor(a) Orientador(a)", value: "Professor Orientador" },
-      ]},
+      { name: "role", label: "Cargo na equipe", type: "select", required: true, description: "Cargo organizacional. O acesso à plataforma é definido em Contas e permissões.", options: MEMBER_ROLES },
       { name: "isFemale", label: "Gênero Feminino (adapta Coordenadora, Diretora, etc.)", type: "boolean", description: "Adapta automaticamente cargos gramaticais para o feminino (ex: Coordenadora, Diretora, Capitã, Professora)." },
       { name: "age", label: "Idade", type: "number", description: "Idade do membro em anos. Ex: 21" },
-      { name: "area", label: "Área", type: "select", required: true, description: "Área de atuação principal (Gestão, Marketing, Mecânica, Eletrônica, Software, Orientação).", options: [
-        { label: "Gestão", value: "Gestão" },
-        { label: "Marketing", value: "Marketing" },
-        { label: "Mecânica", value: "Mecânica" },
-        { label: "Eletrônica", value: "Eletrônica" },
-        { label: "Software", value: "Software" },
-        { label: "Orientação", value: "Orientação" },
-      ]},
+      { name: "area", label: "Área", type: "select", required: true, options: MEMBER_AREAS.map(value => ({ label: value, value })) },
       { name: "bio", label: "Biografia", type: "text", description: "Breve biografia ou descrição sobre o membro." },
       { name: "bioEn", label: "Biografia (EN)", type: "text", description: "Tradução da biografia para Inglês." },
       { name: "bioFr", label: "Biografia (FR)", type: "text", description: "Tradução da biografia para Francês." },

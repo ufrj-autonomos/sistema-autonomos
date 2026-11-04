@@ -1,5 +1,37 @@
 # Administração do site institucional
 
+## Formulário de integrantes e revisão de alterações
+
+Os cargos são agrupados em Liderança, Coordenação, Integrantes e Orientação.
+Valores antigos como `Integrante` são reconhecidos como `Membro`; cargos especiais
+já cadastrados permanecem selecionáveis. O cargo organizacional é independente
+do perfil de acesso à plataforma. Ao mudar um cargo padrão, as traduções de cargo
+são atualizadas, preservando traduções editadas explicitamente no mesmo formulário.
+
+`UFRJ Autônomos` é uma opção explícita de equipe, representada por `teamId = null`.
+O formulário não mostra um segundo placeholder com o mesmo valor vazio.
+
+Áreas são normalizadas de forma compartilhada pelo formulário, perfil, diretório
+e presença. `Não informada` é tratada como ausência de informação; uma área real
+da outra fonte pode ser usada como referência. Escolhas internas e públicas já
+preenchidas podem ser diferentes e não são substituídas por inferência do cargo.
+O script `node --import tsx scripts/repair-member-areas.ts` informa quantos vínculos
+têm área preenchida em apenas um banco. `--apply` preenche somente os valores
+ausentes, conferindo o valor anterior para não sobrescrever edições simultâneas.
+
+Nos avisos de pedidos de alteração, **Ver alterações** abre uma comparação por
+campo entre o conteúdo atual do site e o proposto. A comparação inclui a foto,
+links, biografia, área, curso, adaptação de cargo e remoções de informação.
+Os dados públicos da tabela mostram o cadastro atual; propostas aguardando
+aprovação ficam na prévia. Aprovar ou recusar usa a versão da solicitação vista
+pela gestão; se o integrante atualizar o pedido, a gestão deve conferir a nova
+prévia. Revisões simultâneas resultam em uma única decisão.
+
+Salvar uma área no perfil a aplica imediatamente ao cadastro interno e solicita
+aprovação para alterá-la no site. Restaurar os valores publicados retira os campos
+correspondentes do pedido. A aprovação valida os campos e só conclui após gravar
+no banco institucional; indisponibilidade mantém a solicitação pendente.
+
 A administração original do `site-autonomos` foi transportada para a gestão.
 **Integrantes** (`/gestao/integrantes`) e **Projetos** (`/gestao/projetos`) são
 seções próprias. Os demais conteúdos ficam em **Site institucional**

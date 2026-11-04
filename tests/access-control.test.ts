@@ -21,6 +21,8 @@ import { getAuthenticatedUserId } from '../src/lib/progress';
 
 process.env.JWT_SECRET = 'test-only-signing-key-32-characters-minimum';
 process.env.NEXT_PUBLIC_APP_URL = 'https://app.example.invalid';
+Object.assign(process.env, { NODE_ENV: 'test' });
+process.env.SMTP_HOST = ''; // Local .env credentials must never send email from fixture tests.
 delete process.env.INSTITUTIONAL_DATABASE_URL;
 type Row = Record<string, any>;
 function stub(object: any, key: string, implementation: (...args: any[]) => any) { object[key] = implementation; }

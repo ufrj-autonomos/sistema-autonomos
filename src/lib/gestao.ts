@@ -1,3 +1,4 @@
+import { normalizeMemberArea } from '@/lib/member-fields';
 import { prisma } from '@/lib/prisma';
 import { db } from '@/lib/institutional/db';
 import type { DivisionData, GestaoStatsResponse, MemberRecord, ProjectRecord } from '@/components/gestao/types';
@@ -38,7 +39,7 @@ export async function getGestaoStats(): Promise<GestaoStatsResponse> {
     const division = member.team?.slug === 'harpia' ? 'harpia' : member.team?.slug === 'nautilus' ? 'nautilus' : 'geral';
     return {
       id: member.id, name: member.name, role: member.role,
-      area: ['Software', 'Mecânica', 'Eletrônica', 'Gestão'].includes(member.area) ? member.area as MemberRecord['area'] : 'Gestão',
+      area: normalizeMemberArea(member.area) || 'Não informada',
       division, divisionLabel: division === 'harpia' ? 'Divisão Harpia' : division === 'nautilus' ? 'Divisão Nautilus' : 'Geral / Gestão',
       bio: member.bio, course: member.course, active: member.active, linkedin: member.linkedin, github: member.github,
     };

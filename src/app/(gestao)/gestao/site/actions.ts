@@ -7,6 +7,7 @@ import { requirePageUser } from '@/lib/session';
 import { getInstitutionalModel, recordData, institutionalFailure, InstitutionalError } from '@/lib/institutional/records';
 import { publishInstitutionalSite } from '@/lib/institutional/publish';
 import { directoryPath } from '@/lib/institutional/routes';
+import { memberRoleTranslations } from '@/lib/member-fields';
 import { prisma } from '@/lib/prisma';
 
 async function changed(table: string) {
@@ -25,6 +26,7 @@ export async function createRecord(table: string, data: unknown): Promise<{ succ
     const { model } = getInstitutionalModel(table);
     const parsed = recordData(table, data, true);
     if (['member', 'project'].includes(table) && !('showOnSite' in parsed)) parsed.showOnSite = false;
+    if (table === 'member' && typeof parsed.role === 'string') Object.assign(parsed, memberRoleTranslations(parsed.role));
     const created = await model.create({ data: parsed });
     if (table === 'member' && created?.id) {
       await prisma.member.upsert({
@@ -49,6 +51,15 @@ export async function updateRecord(table: string, id: number, data: unknown): Pr
     if (!Number.isSafeInteger(id) || id < 1) throw new InstitutionalError('Registro inválido.');
     const { model } = getInstitutionalModel(table);
     const parsed = recordData(table, data, false);
+    if (table === 'member' && typeof parsed.role === 'string') {
+      const previous = await model.findUnique({ where: { id } });
+      const translations = memberRoleTranslations(parsed.role);
+      if (previous && translations && parsed.role !== previous.role) {
+        for (const key of ['roleEn', 'roleFr'] as const) {
+          if (!(key in parsed) || parsed[key] === previous[key]) parsed[key] = translations[key];
+        }
+      }
+    }
     const updated = await model.update({ where: { id }, data: parsed });
     if (table === 'member' && updated) {
       const syncData: Record<string, unknown> = {};

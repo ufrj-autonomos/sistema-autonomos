@@ -14,6 +14,9 @@ import { hashPassword } from '../src/lib/auth';
 import { checkProductionEnvironment } from '../scripts/check-production-env.mjs';
 import nextConfig from '../next.config';
 
+// Do not inherit the live site's integration from a local .env during fixture tests.
+delete process.env.INSTITUTIONAL_DATABASE_URL;
+
 type Bucket = { attempts: number; expiresAt: Date };
 const buckets = new Map<string, Bucket>();
 let storageAvailable = true;

@@ -1,5 +1,7 @@
 "use client";
 
+import { selectOptions } from "@/lib/form-select";
+import { normalizeMemberRole } from "@/lib/member-fields";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import type { AdminModel, AdminField } from "@/lib/institutional/admin-config";
@@ -135,7 +137,10 @@ export function DynamicForm({
 }) {
   const router = useRouter();
   const assetUrl = useInstitutionalAsset();
-  const [formData, setFormData] = useState<Record<string, any>>(initialData || Object.fromEntries(config.fields.filter(field => field.type === 'boolean').map(field => [field.name, false])));
+  const [formData, setFormData] = useState<Record<string, any>>(() => {
+    const values = initialData || Object.fromEntries(config.fields.filter(field => field.type === 'boolean').map(field => [field.name, false]));
+    return config.table === 'member' ? { ...values, role: normalizeMemberRole(values.role || ''), teamId: values.teamId ?? '' } : values;
+  });
   const [filesToUpload, setFilesToUpload] = useState<Record<string, File>>({});
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -254,7 +259,7 @@ export function DynamicForm({
         if (
           field.type === "number" ||
           field.type === "relation" ||
-          (field.type === "select" && typeof val === "string" && !isNaN(Number(val)))
+          (field.type === "select" && field.options?.some(option => typeof option.value === "number"))
         ) {
           if (val === "" || val === null) {
             parsedData[field.name] = null;
@@ -273,28 +278,6 @@ export function DynamicForm({
           } catch (e) {
             throw new Error(`O campo ${field.label} contém JSON inválido.`);
           }
-        }
-      }
-
-      // 2.5 Auto-translate roles for Members
-      if (config.table === "member" && parsedData.role) {
-        const roleTranslations: Record<string, { en: string; fr: string }> = {
-          "Capitão": { en: "Captain", fr: "Capitaine" },
-          "Diretor de Gente e Gestão": { en: "Director of People & Management", fr: "Directeur des Ressources Humaines" },
-          "Diretor de Operações": { en: "Operations Director", fr: "Directeur des Opérations" },
-          "Coordenador de Marketing": { en: "Marketing Coordinator", fr: "Coordinateur Marketing" },
-          "Vice-Capitão": { en: "Vice-Captain", fr: "Vice-Capitaine" },
-          "Coordenador": { en: "Coordinator", fr: "Coordinateur" },
-          "Vice-Coordenador": { en: "Vice-Coordinator", fr: "Vice-Coordinateur" },
-          "Membro": { en: "Member", fr: "Membre" },
-          "Trainee": { en: "Trainee", fr: "Stagiaire" },
-          "Alumni": { en: "Alumni", fr: "Ancien élève" },
-          "Professor Orientador": { en: "Faculty Advisor", fr: "Professeur Conseiller" },
-        };
-        const tr = roleTranslations[parsedData.role];
-        if (tr) {
-          if (!parsedData.roleEn) parsedData.roleEn = tr.en;
-          if (!parsedData.roleFr) parsedData.roleFr = tr.fr;
         }
       }
 
@@ -410,9 +393,11 @@ export function DynamicForm({
 
     // Select dropdowns
     if (field.type === "select" && field.options) {
+      const menu = selectOptions(field.options, val);
+      const groups = [...new Set(menu.options.map(option => option.group).filter(Boolean))];
       return (
         <div key={field.name} className="space-y-1.5">
-          <label className="flex items-center text-xs font-semibold text-foreground">
+          <label htmlFor={`field-${tableSlug}-${field.name}`} className="flex items-center text-sm font-semibold text-foreground">
             {field.label}
             {field.required && <span className="text-red-400 ml-1">*</span>}
             {field.description && (
@@ -429,20 +414,17 @@ export function DynamicForm({
             )}
           </label>
           <select
-            className="w-full rounded-md border border-border bg-background px-3 py-2 text-xs text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary cursor-pointer"
+            id={`field-${tableSlug}-${field.name}`}
+            className="min-h-11 w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary cursor-pointer"
             value={val}
             onChange={(e) => handleChange(field, e.target.value)}
             required={field.required}
           >
-            <option value="" disabled={field.required}>
-              Selecione uma opção...
-            </option>
-            {field.options.map((opt) => (
-              <option key={opt.value} value={opt.value}>
-                {opt.label}
-              </option>
-            ))}
+            {menu.showPlaceholder && <option value="" disabled={field.required}>Selecione {field.label.toLowerCase()}…</option>}
+            {menu.options.filter(option => !option.group).map(option => <option key={String(option.value)} value={option.value}>{option.label}</option>)}
+            {groups.map(group => <optgroup key={group} label={group}>{menu.options.filter(option => option.group === group).map(option => <option key={String(option.value)} value={option.value}>{option.label}</option>)}</optgroup>)}
           </select>
+          {field.name === 'teamId' && config.table === 'member' && <p className="text-xs leading-relaxed text-muted-foreground">Autônomos reúne integrantes sem vínculo com uma divisão específica.</p>}
         </div>
       );
     }

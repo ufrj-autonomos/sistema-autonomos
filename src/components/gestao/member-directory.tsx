@@ -1,5 +1,8 @@
 'use client';
 
+import { MEMBER_AREAS, MEMBER_ROLES, normalizeMemberRole } from '@/lib/member-fields';
+import { SITE_PROFILE_FIELDS } from '@/lib/site-profile-changes';
+import { ProfileChangeReview } from './profile-change-review';
 import { useMemo, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
@@ -29,7 +32,6 @@ export function MemberDirectory({ rows, initialPreferences }: { rows: MemberDire
   const [message, setMessage] = useState('');
   const [deleting, setDeleting] = useState(false);
   const [target, setTarget] = useState<MemberDirectoryRow | null>(null);
-  const [reviewingId, setReviewingId] = useState<string | null>(null);
   const [confirmModal, setConfirmModal] = useState<{
     member: MemberDirectoryRow;
     field: string;
@@ -162,24 +164,6 @@ export function MemberDirectory({ rows, initialPreferences }: { rows: MemberDire
     } catch { setError('Não foi possível excluir. Tente novamente.'); }
     finally { setDeleting(false); }
   }
-  async function reviewProfileChange(changeId: string, action: 'APPROVE' | 'REJECT') {
-    setReviewingId(changeId); setError(''); setMessage('');
-    try {
-      const res = await fetch('/api/admin/profile-changes', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ changeId, action }),
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Não foi possível processar a revisão.');
-      setMessage(data.message);
-      router.refresh();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Erro ao revisar alteração de perfil.');
-    } finally {
-      setReviewingId(null);
-    }
-  }
   function cell(row: MemberDirectoryRow, key: MemberColumnKey) {
     const value = memberValue(row, key);
     const isPendingField = Boolean(row.pendingChange && key in row.pendingChange.changes);
@@ -263,7 +247,7 @@ export function MemberDirectory({ rows, initialPreferences }: { rows: MemberDire
             className={`inline-flex items-center gap-1.5 rounded-md px-2.5 py-1 text-xs font-medium border cursor-pointer hover:ring-1 hover:ring-zinc-400 transition-all ${color} ${focus}`}
             title={`Clique para alterar ${isRole ? 'cargo' : 'área'}`}
           >
-            <span>{value ? String(value) : '—'}</span>
+            <span>{value ? String(value) : 'Área não informada'}</span>
             <ChevronDown className="h-3 w-3 opacity-60" />
           </button>
           {badge}
@@ -293,31 +277,13 @@ export function MemberDirectory({ rows, initialPreferences }: { rows: MemberDire
           {pendingRows.map(row => {
             const pc = row.pendingChange!;
             const changedFields = Object.keys(pc.changes);
-            const busy = reviewingId === pc.id;
             return (
               <div key={pc.id} className="py-3 flex flex-wrap items-center justify-between gap-3 text-sm">
                 <div className="min-w-0">
                   <Link href={editUrl(row)} className="font-medium text-zinc-100 hover:underline">{row.name}</Link>
-                  <span className="ml-2 text-xs text-zinc-400">Campos alterados: <strong className="text-amber-200">{changedFields.join(', ')}</strong></span>
+                  <span className="ml-2 text-xs text-zinc-400">Campos alterados: <strong className="text-amber-200">{changedFields.map(key => SITE_PROFILE_FIELDS.find(field => field.key === key)?.label || key).join(', ')}</strong></span>
                 </div>
-                <div className="flex items-center gap-2">
-                  <button
-                    type="button"
-                    disabled={Boolean(reviewingId)}
-                    onClick={() => void reviewProfileChange(pc.id, 'REJECT')}
-                    className="min-h-9 rounded-lg border border-red-800/60 bg-red-950/50 px-3 py-1.5 text-xs font-medium text-red-200 hover:bg-red-900/60 disabled:opacity-50"
-                  >
-                    Recusar
-                  </button>
-                  <button
-                    type="button"
-                    disabled={Boolean(reviewingId)}
-                    onClick={() => void reviewProfileChange(pc.id, 'APPROVE')}
-                    className="min-h-9 rounded-lg bg-emerald-700 px-3 py-1.5 text-xs font-semibold text-white hover:bg-emerald-600 disabled:opacity-50"
-                  >
-                    {busy ? 'Publicando e traduzindo...' : 'Aprovar e publicar no site'}
-                  </button>
-                </div>
+                <ProfileChangeReview name={row.name} current={Object.fromEntries(SITE_PROFILE_FIELDS.map(field => [field.key, row[field.key]]))} change={pc} />
               </div>
             );
           })}
@@ -341,7 +307,7 @@ export function MemberDirectory({ rows, initialPreferences }: { rows: MemberDire
       <div className="flex flex-wrap items-center gap-3 border-t border-zinc-800 pt-4"><button type="button" disabled={saving || !draft.length} onClick={() => void persist('custom', draft)} className={`inline-flex min-h-11 items-center gap-2 rounded-lg bg-zinc-100 px-4 text-sm font-medium text-zinc-950 hover:bg-white disabled:opacity-50 ${focus}`}>{saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}Salvar visualização</button><button type="button" disabled={saving} onClick={() => setDraft([...INTERNAL_COLUMNS])} className={secondary}>Usar campos internos</button><button type="button" disabled={saving} onClick={() => setDraft([...SITE_COLUMNS])} className={secondary}>Usar campos do site</button></div>
     </div>}
 
-    <p className="max-w-prose text-sm text-zinc-400">{view === 'site' ? 'Dados que alimentam o site institucional. Inclui cadastros ocultos do público e edições pendentes de aprovação.' : view === 'internal' ? 'Cadastro operacional. Contatos, documentos e informações acadêmicas ficam somente no sistema.' : 'Sua seleção de dados do site, informações internas e presença.'}</p>
+    <p className="max-w-prose text-sm text-zinc-400">{view === 'site' ? 'Dados do site institucional, incluindo cadastros ocultos do público. Use “Ver alterações” para conferir as propostas pendentes.' : view === 'internal' ? 'Cadastro operacional. Contatos, documentos e informações acadêmicas ficam somente no sistema.' : 'Sua seleção de dados do site, informações internas e presença.'}</p>
     <div className="grid items-end gap-3 sm:grid-cols-2 xl:grid-cols-[minmax(14rem,1fr)_10rem_11rem_8rem]">
       <div><label htmlFor="member-search" className="mb-1.5 block text-xs font-medium text-zinc-400">Buscar nas colunas visíveis</label><div className="relative"><Search className="pointer-events-none absolute left-3 top-3.5 h-4 w-4 text-zinc-400" /><input id="member-search" type="search" value={search} onChange={event => setSearch(event.target.value)} placeholder="Nome, área ou outra informação…" className={`min-h-11 w-full rounded-lg border border-zinc-700 bg-zinc-950 pl-10 pr-3 text-sm text-zinc-100 placeholder:text-zinc-400 ${focus}`} /></div></div>
       <label className="block text-xs font-medium text-zinc-400" htmlFor="member-area">Área<select id="member-area" value={area} onChange={event => setArea(event.target.value)} className={`mt-1.5 min-h-11 w-full rounded-lg border border-zinc-700 bg-zinc-950 px-3 text-sm text-zinc-200 ${focus}`}><option value="all">Todas as áreas</option>{areas.map(value => <option key={value} value={value}>{value}</option>)}</select></label>
@@ -370,51 +336,7 @@ export function MemberDirectory({ rows, initialPreferences }: { rows: MemberDire
           Selecione o novo valor para {selectedEnumMember?.field === 'role' ? 'o cargo' : 'a área'}. Você precisará confirmar antes de salvar.
         </DialogDescription>
         <div className="py-2 space-y-1.5 max-h-64 overflow-y-auto">
-          {selectedEnumMember?.field === 'role' ? (
-            [
-              'Capitão',
-              'Vice-Capitão',
-              'Coordenador',
-              'Vice-Coordenador',
-              'Diretor de Gente e Gestão',
-              'Diretor de Operações',
-              'Coordenador de Marketing',
-              'Membro',
-              'Trainee',
-              'Alumni',
-              'Professor Orientador',
-            ].map(opt => (
-              <button
-                key={opt}
-                type="button"
-                onClick={() => requestEnumChange(selectedEnumMember.member, 'role', opt)}
-                className={`w-full text-left px-3 py-2 text-xs rounded-md transition-colors flex items-center justify-between ${
-                  selectedEnumMember.member.role === opt
-                    ? 'bg-zinc-800 text-white font-medium border border-zinc-600'
-                    : 'text-zinc-300 hover:bg-zinc-900'
-                }`}
-              >
-                <span>{opt}</span>
-                {selectedEnumMember.member.role === opt && <span className="text-[10px] text-zinc-400">Atual</span>}
-              </button>
-            ))
-          ) : (
-            ['Software', 'Eletrônica', 'Mecânica', 'Gestão', 'Marketing', 'Orientação'].map(opt => (
-              <button
-                key={opt}
-                type="button"
-                onClick={() => selectedEnumMember && requestEnumChange(selectedEnumMember.member, 'area', opt)}
-                className={`w-full text-left px-3 py-2 text-xs rounded-md transition-colors flex items-center justify-between ${
-                  selectedEnumMember?.member.area === opt
-                    ? 'bg-zinc-800 text-white font-medium border border-zinc-600'
-                    : 'text-zinc-300 hover:bg-zinc-900'
-                }`}
-              >
-                <span>{opt}</span>
-                {selectedEnumMember?.member.area === opt && <span className="text-[10px] text-zinc-400">Atual</span>}
-              </button>
-            ))
-          )}
+          {selectedEnumMember?.field === 'role' ? [...new Set(MEMBER_ROLES.map(option => option.group))].map(group => <div key={group} className="space-y-1 py-2"><h3 className="px-3 text-xs font-medium text-zinc-400">{group}</h3>{MEMBER_ROLES.filter(option => option.group === group).map(option => <button key={option.value} type="button" onClick={() => requestEnumChange(selectedEnumMember.member, 'role', option.value)} className={`flex min-h-11 w-full items-center justify-between rounded-md px-3 py-2 text-left text-sm ${normalizeMemberRole(selectedEnumMember.member.role) === option.value ? 'bg-zinc-800 text-white' : 'text-zinc-300 hover:bg-zinc-900'} ${focus}`}><span>{option.label}</span>{normalizeMemberRole(selectedEnumMember.member.role) === option.value && <span className="ml-2 text-xs text-zinc-400">Atual</span>}</button>)}</div>) : MEMBER_AREAS.map(option => <button key={option} type="button" onClick={() => selectedEnumMember && requestEnumChange(selectedEnumMember.member, 'area', option)} className={`flex min-h-11 w-full items-center justify-between rounded-md px-3 py-2 text-left text-sm ${selectedEnumMember?.member.area === option ? 'bg-zinc-800 text-white' : 'text-zinc-300 hover:bg-zinc-900'} ${focus}`}><span>{option}</span>{selectedEnumMember?.member.area === option && <span className="text-xs text-zinc-400">Atual</span>}</button>)}
         </div>
         <DialogFooter>
           <button type="button" onClick={() => setSelectedEnumMember(null)} className={secondary}>

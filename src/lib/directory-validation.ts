@@ -1,3 +1,4 @@
+import { normalizeMemberArea } from './member-fields';
 export function privateData(input: unknown, member: boolean) {
   if (!input || typeof input !== 'object' || Array.isArray(input)) throw new Error('Dados internos inválidos.');
   const data = input as Record<string, unknown>;
@@ -30,6 +31,7 @@ export function privateData(input: unknown, member: boolean) {
     if (typeof value !== 'string' || value.length > limit || value.includes('\0')) throw new Error(`Confira o campo ${label}.`);
     operational[key] = value.trim() || null;
   }
+  if ('area' in operational) operational.area = normalizeMemberArea(operational.area);
   if (operational.email) {
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(operational.email)) throw new Error('Informe um email válido.');
     operational.email = operational.email.toLowerCase();

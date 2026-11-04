@@ -1,3 +1,4 @@
+import { resolveMemberAreas } from '@/lib/member-fields';
 import { timingSafeEqual } from 'node:crypto';
 import { Prisma } from '@prisma/client';
 import { hasManagementAccess } from '@/lib/access-policy';
@@ -41,7 +42,7 @@ export async function attendanceReport(key = weekKey(), memberId?: string, now =
   const summaries = members.map(member => {
     const identity = member.institutionalMemberId ? byId.get(member.institutionalMemberId) : undefined;
     return memberSummary(
-      { id: member.id, name: identity?.name || member.name, area: identity?.area || member.area || 'Não informada', email: member.email || null },
+      { id: member.id, name: identity?.name || member.name, area: resolveMemberAreas(identity?.area, member.area).internal || 'Não informada', email: member.email || null },
       member.attendancePeriods,
       member.attendanceVisits,
       range.key,

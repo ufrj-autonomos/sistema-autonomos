@@ -1,21 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { authorizeApi } from '@/lib/session';
+import { normalizeMemberArea, resolveMemberAreas } from '@/lib/member-fields';
+import { SITE_PROFILE_FIELDS, validateSiteProfileChanges, profileChangeDiff } from '@/lib/site-profile-changes';
 import { prisma } from '@/lib/prisma';
 import { db as institutionalDb } from '@/lib/institutional/db';
 import { privateData } from '@/lib/directory-validation';
 import { syncMemberAgeToInstitutional } from '@/lib/birthdays';
 import { publishInstitutionalSite } from '@/lib/institutional/publish';
-
-const SITE_PROPOSED_KEYS = [
-  'name',
-  'bio',
-  'photo',
-  'course',
-  'linkedin',
-  'github',
-  'instagram',
-  'isFemale',
-] as const;
 
 export async function GET(req: NextRequest) {
   try {
@@ -54,7 +45,7 @@ export async function GET(req: NextRequest) {
           name: member.name,
           email: member.email || '',
           role: member.role,
-          area: member.area || siteProfile?.area || '',
+          area: resolveMemberAreas(siteProfile?.area, member.area).internal || '',
           phone: member.phone || '',
           dre: member.dre || '',
           cpf: member.cpf || '',
@@ -143,18 +134,18 @@ export async function PUT(req: NextRequest) {
 
     const validatedInternal = privateData(
       {
-        cpf: typeof input.cpf === 'string' ? input.cpf : '',
+        cpf: 'cpf' in input ? input.cpf : member.cpf || '',
         notes: member.notes || '',
         userId: member.id,
         name: typeof input.name === 'string' ? input.name : member.name,
-        area: typeof input.area === 'string' ? input.area : member.area || '',
-        phone: typeof input.phone === 'string' ? input.phone : '',
-        dre: typeof input.dre === 'string' ? input.dre : '',
-        birthDate: typeof input.birthDate === 'string' ? input.birthDate : '',
-        course: typeof input.course === 'string' ? input.course : '',
-        academicPeriod: typeof input.academicPeriod === 'string' ? input.academicPeriod : '',
-        emergencyContactName: typeof input.emergencyContactName === 'string' ? input.emergencyContactName : '',
-        emergencyContactPhone: typeof input.emergencyContactPhone === 'string' ? input.emergencyContactPhone : '',
+        area: 'area' in input ? input.area : member.area || '',
+        phone: 'phone' in input ? input.phone : member.phone || '',
+        dre: 'dre' in input ? input.dre : member.dre || '',
+        birthDate: 'birthDate' in input ? input.birthDate : member.birthDate?.toISOString().slice(0, 10) || '',
+        course: 'course' in input ? input.course : member.course || '',
+        academicPeriod: 'academicPeriod' in input ? input.academicPeriod : member.academicPeriod || '',
+        emergencyContactName: 'emergencyContactName' in input ? input.emergencyContactName : member.emergencyContactName || '',
+        emergencyContactPhone: 'emergencyContactPhone' in input ? input.emergencyContactPhone : member.emergencyContactPhone || '',
       },
       true
     );
@@ -177,108 +168,54 @@ export async function PUT(req: NextRequest) {
       return NextResponse.json({ error: 'O nome e o telefone do contato de emergência são obrigatórios.' }, { status: 400 });
     }
 
-    // Validate site-facing fields
-    const siteChanges: Record<string, string | boolean | null> = {};
-    const siteTextLimits: Record<string, [string, number]> = {
-      name: ['nome de exibição', 200],
-      bio: ['biografia', 2000],
-      photo: ['foto', 500],
-      course: ['curso', 200],
-      linkedin: ['LinkedIn', 300],
-      github: ['GitHub', 300],
-      instagram: ['Instagram', 300],
-    };
-
-    for (const [key, [label, limit]] of Object.entries(siteTextLimits)) {
-      if (!(key in input)) continue;
-      const val = input[key];
-      if (val !== null && val !== undefined) {
-        if (typeof val !== 'string' || val.length > limit || val.includes('\0')) {
-          return NextResponse.json({ error: `Confira o campo ${label}.` }, { status: 400 });
-        }
-        const trimmed = val.trim();
-        if (['photo', 'linkedin', 'github', 'instagram'].includes(key) && trimmed && !/^(https?:\/\/|\/)/i.test(trimmed)) {
-          return NextResponse.json({ error: `Informe um link válido (https://...) no campo ${label}.` }, { status: 400 });
-        }
-        siteChanges[key] = trimmed || null;
-      }
-    }
-
-    if ('isFemale' in input) {
-      if (typeof input.isFemale !== 'boolean') {
-        return NextResponse.json({ error: 'Valor inválido para adaptação de cargo no feminino.' }, { status: 400 });
-      }
-      siteChanges.isFemale = input.isFemale;
-    }
-
-    // Compare against current InstitutionalMember so we only queue real differences for management approval
-    let currentSite: Record<string, unknown> | null = null;
-    if (member.institutionalMemberId && process.env.INSTITUTIONAL_DATABASE_URL) {
-      currentSite = await institutionalDb.institutionalMember.findUnique({
-        where: { id: member.institutionalMemberId },
-      });
-    }
-
-    const diffForApproval: Record<string, string | boolean | null> = {};
-    if (currentSite) {
-      for (const key of SITE_PROPOSED_KEYS) {
-        if (!(key in siteChanges)) continue;
-        const proposed = siteChanges[key];
-        const existing = (currentSite[key] ?? null) as string | boolean | null;
-        if (proposed !== existing && !(proposed === null && existing === '')) {
-          diffForApproval[key] = proposed;
-        }
-      }
-    } else {
-      for (const key of SITE_PROPOSED_KEYS) {
-        if (key in siteChanges && siteChanges[key] !== null && siteChanges[key] !== '') {
-          diffForApproval[key] = siteChanges[key];
-        }
-      }
-    }
+    const siteChanges = validateSiteProfileChanges(Object.fromEntries(SITE_PROFILE_FIELDS.filter(field => field.key in input).map(field => [field.key, input[field.key]])));
 
     const now = new Date();
     const { userId: _unusedUserId, notes: _unusedNotes, ...internalFields } = validatedInternal;
 
-    const updatedMember = await prisma.$transaction(async (tx) => {
+    const { updatedMember, diffForApproval } = await prisma.$transaction(async (tx) => {
+      await tx.$queryRaw`SELECT id FROM "Member" WHERE id = ${member.id} FOR UPDATE`;
+      const latest = await tx.member.findUniqueOrThrow({ where: { id: member.id } });
+      const existingPending = await tx.memberProfileChange.findFirst({ where: { memberId: member.id, status: 'PENDING' }, orderBy: { createdAt: 'desc' } });
+      const currentSite = latest.institutionalMemberId && process.env.INSTITUTIONAL_DATABASE_URL
+        ? await institutionalDb.institutionalMember.findUnique({ where: { id: latest.institutionalMemberId } })
+        : null;
+      const priorChanges = existingPending ? validateSiteProfileChanges(existingPending.changes) : {};
+      const diffForApproval = profileChangeDiff({ ...priorChanges, ...siteChanges }, currentSite);
+
       const saved = await tx.member.update({
         where: { id: member.id },
         data: {
           ...internalFields,
           name: internalFields.name || member.name,
-          area: internalFields.area || member.area || 'Não informada',
+          area: normalizeMemberArea(internalFields.area) || normalizeMemberArea(member.area) || 'Não informada',
           avatar: typeof siteChanges.photo === 'string' ? siteChanges.photo : member.avatar,
           profileCompletedAt: member.profileCompletedAt ?? now,
         },
       });
 
-      const existingPending = member.profileChanges[0];
       if (Object.keys(diffForApproval).length > 0) {
-        const mergedChanges = {
-          ...(existingPending && typeof existingPending.changes === 'object' && existingPending.changes !== null
-            ? (existingPending.changes as Record<string, unknown>)
-            : {}),
-          ...diffForApproval,
-        };
         if (existingPending) {
           await tx.memberProfileChange.update({
             where: { id: existingPending.id },
-            data: { changes: mergedChanges as any },
+            data: { changes: diffForApproval as any },
           });
         } else {
           await tx.memberProfileChange.create({
             data: {
               memberId: member.id,
-              institutionalMemberId: member.institutionalMemberId ?? 0,
+              institutionalMemberId: latest.institutionalMemberId ?? 0,
               status: 'PENDING',
-              changes: mergedChanges as any,
+              changes: diffForApproval as any,
             },
           });
         }
+      } else if (existingPending) {
+        await tx.memberProfileChange.update({ where: { id: existingPending.id }, data: { status: 'REJECTED', reviewedAt: now, reviewedById: member.id, reviewNote: 'Solicitação retirada pelo integrante ao restaurar os valores atuais.' } });
       }
 
-      return saved;
-    });
+      return { updatedMember: saved, diffForApproval };
+    }, { maxWait: 10000, timeout: 15000 });
 
     // Derive and update age from birthDate if birthDate is set
     if (updatedMember.institutionalMemberId && updatedMember.birthDate) {

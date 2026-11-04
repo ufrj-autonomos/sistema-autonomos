@@ -51,7 +51,7 @@ export interface MemberRecord {
   id: number;
   name: string;
   role: string;
-  area: "Software" | "Mecânica" | "Eletrônica" | "Gestão";
+  area: string;
   division: "harpia" | "nautilus" | "geral";
   divisionLabel: string;
   bio: string | null;

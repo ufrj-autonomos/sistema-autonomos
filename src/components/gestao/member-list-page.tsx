@@ -2,6 +2,7 @@ import Link from 'next/link';
 import { Plus } from 'lucide-react';
 import { requirePageUser } from '@/lib/session';
 import { prisma } from '@/lib/prisma';
+import { resolveMemberAreas } from '@/lib/member-fields';
 import { db } from '@/lib/institutional/db';
 import { memberSummary } from '@/lib/attendance/summary';
 import { weekKey } from '@/lib/attendance/time';
@@ -48,6 +49,7 @@ export async function MemberListPage() {
             id: pendingRaw.id,
             memberId: member!.id,
             createdAt: pendingRaw.createdAt.toISOString(),
+            updatedAt: pendingRaw.updatedAt.toISOString(),
             changes: pendingChangesObj,
           }
         : null;
@@ -58,47 +60,26 @@ export async function MemberListPage() {
       if (Array.isArray(ids)) projectNames = ids.filter(id => typeof id === 'number' || typeof id === 'string').map(id => projectById.get(String(id)) || `#${id}`).join(', ');
     } catch { /* Legacy malformed project lists do not prevent reading the roster. */ }
 
-    // Reflect proposed site changes in the directory table while flagging them as pending management approval
-    const effectiveName = typeof pendingChangesObj?.name === 'string' && pendingChangesObj.name ? pendingChangesObj.name : record.name;
-    const effectiveBio = 'bio' in (pendingChangesObj || {}) ? (pendingChangesObj!.bio as string | null) : record.bio;
-    const effectivePhoto = 'photo' in (pendingChangesObj || {}) ? (pendingChangesObj!.photo as string | null) : record.photo;
-    const effectiveCourse = 'course' in (pendingChangesObj || {}) ? (pendingChangesObj!.course as string | null) : record.course;
-    const effectiveLinkedin = 'linkedin' in (pendingChangesObj || {}) ? (pendingChangesObj!.linkedin as string | null) : record.linkedin;
-    const effectiveGithub = 'github' in (pendingChangesObj || {}) ? (pendingChangesObj!.github as string | null) : record.github;
-    const effectiveInstagram = 'instagram' in (pendingChangesObj || {}) ? (pendingChangesObj!.instagram as string | null) : record.instagram;
-    const effectiveIsFemale = typeof pendingChangesObj?.isFemale === 'boolean' ? pendingChangesObj.isFemale : record.isFemale;
-
-    const effectiveArea =
-      record.area && record.area !== 'Não informada'
-        ? record.area
-        : (member?.area && member.area !== 'Não informada'
-            ? member.area
-            : (member?.role === 'MANAGEMENT' ? 'Gestão' : record.area));
-
-    const effectiveInternalArea =
-      member?.area && member.area !== 'Não informada'
-        ? member.area
-        : (member?.role === 'MANAGEMENT' ? 'Gestão' : (record.area && record.area !== 'Não informada' ? record.area : null));
-
+    const areas = resolveMemberAreas(record.area, member?.area);
     return {
       id: record.id,
-      name: effectiveName,
+      name: record.name,
       role: record.role,
-      area: effectiveArea,
+      area: areas.site || '',
       age: record.age,
       teamId: record.teamId,
       teamName: record.team?.name || 'Autônomos / Geral',
       active: record.active,
       showOnSite: record.showOnSite,
-      photo: effectivePhoto,
-      bio: effectiveBio,
-      course: effectiveCourse,
-      linkedin: effectiveLinkedin,
-      github: effectiveGithub,
-      instagram: effectiveInstagram,
+      photo: record.photo,
+      bio: record.bio,
+      course: record.course,
+      linkedin: record.linkedin,
+      github: record.github,
+      instagram: record.instagram,
       joinedYear: record.joinedYear,
       leftYear: record.leftYear,
-      isFemale: effectiveIsFemale,
+      isFemale: record.isFemale,
       projectNames,
       roleEn: record.roleEn,
       roleFr: record.roleFr,
@@ -109,7 +90,7 @@ export async function MemberListPage() {
       pendingChange,
       internal: {
         name: member?.name || null,
-        area: effectiveInternalArea,
+        area: areas.internal,
         email: member?.email || null,
         phone: member?.phone || null,
         dre: member?.dre || null,
@@ -122,7 +103,7 @@ export async function MemberListPage() {
         notes: member?.notes || null,
         missedWeeks: member
           ? memberSummary(
-              { id: member.id, name: record.name, area: effectiveInternalArea || effectiveArea || 'Software', email: member.email || null },
+              { id: member.id, name: record.name, area: areas.internal || 'Não informada', email: member.email || null },
               member.attendancePeriods,
               member.attendanceVisits,
               weekKey()

@@ -1,5 +1,6 @@
 import { Prisma } from '@/generated/institutional';
 import { adminModels, type AdminField } from './admin-config';
+import { normalizeMemberArea, normalizeMemberRole } from '../member-fields';
 import { db } from './db';
 
 export class InstitutionalError extends Error { constructor(message: string, public status = 400) { super(message); } }
@@ -22,6 +23,11 @@ export function recordData(table: string, input: unknown, creating: boolean) {
     const column = fields.find(item => item.name === key && item.kind === 'scalar');
     if (!field || !column) throw new InstitutionalError(`Campo não permitido: ${key}.`);
     let clean = value;
+    if (table === 'member' && key === 'role' && typeof clean === 'string') clean = normalizeMemberRole(clean);
+    if (table === 'member' && key === 'area' && typeof clean === 'string') {
+      clean = normalizeMemberArea(clean);
+      if (!clean) throw new InstitutionalError('Selecione a área na equipe.');
+    }
     if (clean === '' || clean === undefined) clean = column.isRequired && column.type === 'String' ? '' : null;
     if (clean === null) {
       if (column.isRequired) throw new InstitutionalError(`Preencha ${field.label}.`);

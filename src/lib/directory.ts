@@ -1,3 +1,4 @@
+import { normalizeMemberArea } from './member-fields';
 import { Prisma } from '@prisma/client';
 import { prisma } from './prisma';
 import { db } from './institutional/db';
@@ -23,7 +24,7 @@ export async function memberPrivateDetails(institutionalMemberId: number) {
   });
   return {
     name: member?.name || '',
-    area: member?.area || '',
+    area: normalizeMemberArea(member?.area) || '',
     email: member?.email || '',
     phone: member?.phone || '',
     dre: member?.dre || '',
@@ -87,7 +88,7 @@ export async function savePrivateDetails(table: 'member' | 'project', id: number
             institutionalMemberId: id,
             ...stored,
             name: rawName || targetAccount.name || instMember.name,
-            area: rawArea || targetAccount.area || instMember.area || 'Não informada',
+            area: normalizeMemberArea(rawArea) || normalizeMemberArea(targetAccount.area) || normalizeMemberArea(instMember.area) || 'Não informada',
           },
         });
         await ensureAttendanceEnrollment(tx, current);
@@ -100,7 +101,7 @@ export async function savePrivateDetails(table: 'member' | 'project', id: number
           data: {
             ...stored,
             name: rawName || current.name || instMember.name,
-            area: rawArea || current.area || instMember.area || 'Não informada',
+            area: normalizeMemberArea(rawArea) || normalizeMemberArea(current.area) || normalizeMemberArea(instMember.area) || 'Não informada',
           },
         });
       }
@@ -110,7 +111,7 @@ export async function savePrivateDetails(table: 'member' | 'project', id: number
           institutionalMemberId: id,
           ...stored,
           name: rawName || instMember.name,
-          area: rawArea || instMember.area || 'Não informada',
+          area: normalizeMemberArea(rawArea) || normalizeMemberArea(instMember.area) || 'Não informada',
           course: stored.course !== undefined ? stored.course : instMember.course,
           role: 'MEMBER',
           status: 'APPROVED',

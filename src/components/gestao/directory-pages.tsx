@@ -3,6 +3,7 @@ import { notFound } from 'next/navigation';
 import { Plus, ArrowLeft } from 'lucide-react';
 import { requirePageUser } from '@/lib/session';
 import { prisma } from '@/lib/prisma';
+import { normalizeMemberRole, resolveMemberAreas } from '@/lib/member-fields';
 import { db } from '@/lib/institutional/db';
 import { adminModels } from '@/lib/institutional/admin-config';
 import { directoryPath } from '@/lib/institutional/routes';
@@ -32,14 +33,14 @@ export async function DirectoryListPage({ table }: { table: DirectoryTable }) {
 export async function DirectoryFormPage({ table, id, initialView }: { table: DirectoryTable; id: string; initialView?: string }) {
   await requirePageUser(true);
   const isNew = id === 'new';
-  if (!isNew && !/^[1-9]\d*$/.test(id)) notFound();
+  if (!isNew && (!/^[1-9]\d*$/.test(id) || !Number.isSafeInteger(Number(id)))) notFound();
   const record = isNew ? null : table === 'member'
     ? await db.institutionalMember.findUnique({ where: { id: Number(id) } })
     : await db.project.findUnique({ where: { id: Number(id) } });
   if (!isNew && !record) notFound();
   const teams = await db.team.findMany({ select: { id: true, name: true }, orderBy: { name: 'asc' } });
   const config = { ...adminModels[table], fields: adminModels[table].fields.map(field => field.name === 'teamId' ? {
-    ...field, options: [...(table === 'member' ? [{ label: 'Autônomos / Geral', value: '' }] : []), ...teams.map(team => ({ label: team.name, value: team.id }))],
+    ...field, options: [...(table === 'member' ? [{ label: 'UFRJ Autônomos', value: '' }] : []), ...teams.map(team => ({ label: team.name, value: team.id }))],
   } : field) };
   const projectsList = table === 'member' ? await db.project.findMany({ select: { id: true, slug: true, name: true, teamId: true } }) : [];
   const models = table === 'project' ? await db.model3D.findMany({ orderBy: { name: 'asc' } }) : [];
@@ -60,7 +61,7 @@ export async function DirectoryFormPage({ table, id, initialView }: { table: Dir
       id: account.id,
       label: `${account.name}${account.email ? ` — ${account.email}` : ' (sem email)'}${account.status !== 'APPROVED' ? ' (acesso suspenso)' : ''}`,
     }));
-  const initialData = record || { showOnSite: false, ...(table === 'member' ? { active: true } : { importance: 5 }) };
+  const initialData = record && table === 'member' ? { ...record, role: normalizeMemberRole('role' in record ? record.role : ''), area: resolveMemberAreas('area' in record ? record.area : null, details && 'area' in details ? details.area : null).site || '', teamId: record.teamId ?? '' } : record || { showOnSite: false, ...(table === 'member' ? { active: true } : { importance: 5 }) };
   return <div className="max-w-5xl space-y-6">
     <Link href={directoryPath(table)} className="inline-flex min-h-11 items-center gap-2 text-sm text-zinc-400 hover:text-zinc-100"><ArrowLeft className="h-4 w-4" />Voltar para {config.name.toLowerCase()}</Link>
     <SectionHeader title={isNew ? (table === 'member' ? 'Novo integrante' : 'Novo projeto') : record!.name} description="Edite os dados compartilhados com o site e as informações exclusivas da gestão." />
