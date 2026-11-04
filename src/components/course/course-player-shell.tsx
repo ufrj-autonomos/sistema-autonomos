@@ -131,7 +131,7 @@ export function CoursePlayerShell({
     Boolean(activeLesson.youtubeVideoId);
 
   return (
-    <div className="flex flex-col h-screen overflow-hidden bg-[#0A0A0B] text-zinc-100">
+    <div className="flex flex-col h-screen overflow-hidden bg-background text-foreground">
       {/* 1. Header do Player */}
       <CourseHeader
         courseTitle={course.title}
@@ -185,12 +185,12 @@ export function CoursePlayerShell({
                       moduleTitle={activeLesson.module?.title}
                       videoStatus={activeLesson.videoStatus}
                     />
-                    <div className="mt-2.5 flex flex-wrap items-center justify-between gap-2 px-3 py-1.5 rounded-lg bg-zinc-900/60 border border-white/5 text-[11px] text-zinc-400 font-mono">
-                      <div className="flex items-center gap-1.5 text-emerald-400">
+                    <div className="mt-2.5 flex flex-wrap items-center justify-between gap-2 px-3 py-1.5 rounded-lg bg-muted/60 border border-border text-[11px] text-muted-foreground font-mono">
+                      <div className="flex items-center gap-1.5 text-emerald-700 dark:text-emerald-400">
                         <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
                         <span>Legendas em Português disponíveis</span>
                       </div>
-                      <span className="text-zinc-500 text-[10.5px]">
+                      <span className="text-muted-foreground text-[10.5px]">
                         Dica: Para áudio dublado ou ajustar a tradução, clique na engrenagem ⚙️ do player &gt; Faixa de áudio / Legendas &gt; Tradução automática
                       </span>
                     </div>
@@ -233,16 +233,16 @@ export function CoursePlayerShell({
             )}
 
             {/* Bloco 4: Barra de Navegação Inferior (Bottom Bar) */}
-            <div className="pt-8 border-t border-white/10 flex flex-col sm:flex-row items-center justify-between gap-4">
+            <div className="pt-8 border-t border-border flex flex-col sm:flex-row items-center justify-between gap-4">
               {/* Botão Aula Anterior */}
               {previousLesson ? (
                 <Link
                   href={`/curso/${previousLesson.slug}`}
-                  className="w-full sm:w-auto flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-white/5 hover:bg-white/10 text-zinc-300 hover:text-white border border-white/10 text-xs font-mono transition"
+                  className="w-full sm:w-auto flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-foreground/5 hover:bg-foreground/10 text-secondary-foreground hover:text-foreground border border-border text-xs font-mono transition"
                 >
                   <ChevronLeft className="w-4 h-4" />
                   <div className="text-left">
-                    <div className="text-[10px] text-zinc-500 uppercase">Anterior</div>
+                    <div className="text-[10px] text-muted-foreground uppercase">Anterior</div>
                     <div className="font-semibold truncate max-w-[180px]">
                       {previousLesson.title}
                     </div>
@@ -264,18 +264,18 @@ export function CoursePlayerShell({
                 className={cn(
                   "w-full sm:w-auto flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl text-xs font-mono font-semibold transition-all cursor-pointer border",
                   isCurrentLessonCompleted
-                    ? "bg-emerald-500/20 text-emerald-300 border-emerald-500/40 hover:bg-emerald-500/30"
-                    : "bg-white/10 hover:bg-white/15 text-white border-white/10"
+                    ? "bg-emerald-500/20 text-emerald-700 dark:text-emerald-300 border-emerald-500/40 hover:bg-emerald-500/30"
+                    : "bg-foreground/10 hover:bg-foreground/15 text-foreground border-border"
                 )}
               >
                 {isCurrentLessonCompleted ? (
                   <>
-                    <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+                    <CheckCircle2 className="w-4 h-4 text-emerald-700 dark:text-emerald-400" />
                     <span>Aula Concluída</span>
                   </>
                 ) : (
                   <>
-                    <Circle className="w-4 h-4 text-zinc-400" />
+                    <Circle className="w-4 h-4 text-muted-foreground" />
                     <span>Marcar Aula como Concluída</span>
                   </>
                 )}
@@ -285,16 +285,16 @@ export function CoursePlayerShell({
               {nextLesson ? (
                 <Link
                   href={`/curso/${nextLesson.slug}`}
-                  className="w-full sm:w-auto flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl bg-zinc-100 hover:bg-white text-zinc-950 text-xs font-mono font-semibold transition shadow-md"
+                  className="w-full sm:w-auto flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl bg-primary hover:bg-primary/90 text-primary-foreground text-xs font-mono font-semibold transition shadow-md"
                 >
                   <div className="text-right">
-                    <div className="text-[10px] text-zinc-600 uppercase">Próxima</div>
+                    <div className="text-[10px] text-primary-foreground uppercase">Próxima</div>
                     <div className="truncate max-w-[180px]">{nextLesson.title}</div>
                   </div>
                   <ChevronRight className="w-4 h-4" />
                 </Link>
               ) : (
-                <span className="w-full sm:w-auto flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-white/5 text-zinc-500 border border-white/10 text-xs font-mono">
+                <span className="w-full sm:w-auto flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-foreground/5 text-muted-foreground border border-border text-xs font-mono">
                   <span>Última Aula</span>
                 </span>
               )}
@@ -324,15 +324,15 @@ export function CoursePlayerShell({
             />
 
             {/* Painel Lateral */}
-            <div className="relative ml-auto w-full max-w-sm sm:max-w-md h-full bg-[#0D0D10] shadow-2xl flex flex-col z-10 animate-in slide-in-from-right duration-200">
-              <div className="flex items-center justify-between p-3.5 border-b border-white/10 bg-[#121215]">
-                <h3 className="font-display font-semibold text-sm text-zinc-100">
+            <div className="relative ml-auto w-full max-w-sm sm:max-w-md h-full bg-background shadow-2xl flex flex-col z-10 animate-in slide-in-from-right duration-200">
+              <div className="flex items-center justify-between p-3.5 border-b border-border bg-card">
+                <h3 className="font-display font-semibold text-sm text-foreground">
                   Grade Curricular
                 </h3>
                 <button
                   type="button"
                   onClick={() => setIsMobileDrawerOpen(false)}
-                  className="p-1.5 rounded-lg bg-white/5 text-zinc-400 hover:text-white transition cursor-pointer"
+                  className="p-1.5 rounded-lg bg-foreground/5 text-muted-foreground hover:text-foreground transition cursor-pointer"
                   aria-label="Fechar grade curricular"
                 >
                   <X className="w-4 h-4" />

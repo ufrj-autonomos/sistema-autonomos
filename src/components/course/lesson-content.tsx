@@ -32,7 +32,7 @@ export function LessonContent({
   const renderFormattedContent = (rawText: string) => {
     if (!rawText || !rawText.trim()) {
       return (
-        <div className="p-6 text-center text-zinc-500 font-mono text-sm border border-dashed border-white/10 rounded-xl">
+        <div className="p-6 text-center text-muted-foreground font-mono text-sm border border-dashed border-border rounded-xl">
           Nenhuma documentação teórica escrita disponível para esta aula.
         </div>
       );
@@ -92,30 +92,30 @@ export function LessonContent({
   };
 
   return (
-    <div id="lesson-content" className={`space-y-6 text-zinc-200 ${className}`}>
+    <div id="lesson-content" className={`space-y-6 text-foreground ${className}`}>
       {/* Header Informativo da Lição */}
-      <div className="flex flex-wrap items-center justify-between gap-3 pb-4 border-b border-white/10">
+      <div className="flex flex-wrap items-center justify-between gap-3 pb-4 border-b border-border">
         <div className="flex items-center gap-3">
           <div className={cn(
             "w-9 h-9 rounded-xl flex items-center justify-center border",
             isText
-              ? "bg-blue-950/40 border-blue-500/30 text-blue-400"
-              : "bg-white/5 border-white/10 text-purple-400"
+              ? "bg-blue-100 dark:bg-blue-950/40 border-blue-500/30 text-blue-700 dark:text-blue-400"
+              : "bg-foreground/5 border-border text-purple-700 dark:text-purple-400"
           )}>
             {isText ? <BookOpen className="w-4 h-4" /> : <FileText className="w-4 h-4" />}
           </div>
           <div>
             <div className="flex items-center gap-2">
-              <h3 className="font-display font-semibold text-lg text-white">
+              <h3 className="font-display font-semibold text-lg text-foreground">
                 {lessonTitle || "Guia Técnico & Documentação ROS 2"}
               </h3>
               {isText && (
-                <span className="px-2 py-0.5 rounded text-[10px] font-mono font-medium bg-blue-500/10 text-blue-300 border border-blue-500/20">
+                <span className="px-2 py-0.5 rounded text-[10px] font-mono font-medium bg-blue-500/10 text-blue-700 dark:text-blue-300 border border-blue-500/20">
                   Aula Teórica
                 </span>
               )}
             </div>
-            <p className="text-xs font-mono text-zinc-400">
+            <p className="text-xs font-mono text-muted-foreground">
               {isText
                 ? "Conteúdo didático e guia passo a passo traduzido e estruturado"
                 : "Sintetizado para a distribuição ROS 2 Jazzy Jalisco"}
@@ -125,18 +125,18 @@ export function LessonContent({
 
         <div className="flex items-center gap-2">
           {isText ? (
-            <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-blue-950/30 border border-blue-800/40 text-xs font-mono text-blue-300">
-              <BookOpen size={12} className="text-blue-400" />
+            <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-blue-100 dark:bg-blue-950/30 border border-blue-800/40 text-xs font-mono text-blue-700 dark:text-blue-300">
+              <BookOpen size={12} className="text-blue-700 dark:text-blue-400" />
               <span>~{readingTimeMin} min leitura</span>
             </div>
           ) : durationSeconds ? (
-            <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-white/5 border border-white/10 text-xs font-mono text-zinc-300">
-              <Clock size={12} className="text-amber-400" />
+            <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-foreground/5 border border-border text-xs font-mono text-secondary-foreground">
+              <Clock size={12} className="text-amber-700 dark:text-amber-400" />
               <span>{Math.floor(durationSeconds / 60)} min aula</span>
             </div>
           ) : (
-            <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-white/5 border border-white/10 text-xs font-mono text-zinc-300">
-              <Clock size={12} className="text-blue-400" />
+            <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-foreground/5 border border-border text-xs font-mono text-secondary-foreground">
+              <Clock size={12} className="text-blue-700 dark:text-blue-400" />
               <span>~{readingTimeMin} min leitura</span>
             </div>
           )}
@@ -145,14 +145,14 @@ export function LessonContent({
 
       {/* Card de Link com a Documentação Oficial ROS 2 Jazzy */}
       {rosDocsUrl && (
-        <div className="flex items-center justify-between p-3.5 rounded-xl bg-[#111113] border border-purple-500/30 shadow-sm hover:border-purple-500/50 transition-colors">
+        <div className="flex items-center justify-between p-3.5 rounded-xl bg-card border border-purple-500/30 shadow-sm hover:border-purple-500/50 transition-colors">
           <div className="flex items-center gap-3">
-            <BookOpen className="w-5 h-5 text-purple-400 shrink-0" />
+            <BookOpen className="w-5 h-5 text-purple-700 dark:text-purple-400 shrink-0" />
             <div>
-              <div className="font-mono text-xs font-semibold text-purple-300 uppercase tracking-wider">
+              <div className="font-mono text-xs font-semibold text-purple-700 dark:text-purple-300 uppercase tracking-wider">
                 Documentação Oficial ROS 2
               </div>
-              <div className="text-xs text-zinc-400">
+              <div className="text-xs text-muted-foreground">
                 Consulte o repositório oficial de documentação da Open Robotics
               </div>
             </div>
@@ -161,7 +161,7 @@ export function LessonContent({
             href={rosDocsUrl}
             target="_blank"
             rel="noopener noreferrer"
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-purple-500/10 hover:bg-purple-500/20 text-purple-300 border border-purple-500/30 text-xs font-mono font-medium transition-colors"
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-purple-500/10 hover:bg-purple-500/20 text-purple-700 dark:text-purple-300 border border-purple-500/30 text-xs font-mono font-medium transition-colors"
           >
             <span>docs.ros.org</span>
             <ExternalLink size={12} />
@@ -171,18 +171,18 @@ export function LessonContent({
 
       {/* Sumário Executivo */}
       {summary && (
-        <div className="p-4 rounded-xl bg-white/5 border border-white/10 blueprint-corners">
-          <div className="font-mono text-xs uppercase tracking-wider text-zinc-400 font-semibold mb-1">
+        <div className="p-4 rounded-xl bg-foreground/5 border border-border blueprint-corners">
+          <div className="font-mono text-xs uppercase tracking-wider text-muted-foreground font-semibold mb-1">
             Sumário da Lição
           </div>
-          <p className="text-sm text-zinc-300 leading-relaxed">
+          <p className="text-sm text-secondary-foreground leading-relaxed">
             <InlineMarkdownRenderer text={summary} />
           </p>
         </div>
       )}
 
       {/* Conteúdo Formatado com Code Blocks e Callouts */}
-      <div className="lesson-body text-zinc-300 leading-relaxed space-y-4">
+      <div className="lesson-body text-secondary-foreground leading-relaxed space-y-4">
         {renderFormattedContent(content)}
       </div>
     </div>
@@ -258,7 +258,7 @@ function StandardTextRenderer({ text }: { text: string }) {
           return (
             <h5
               key={pIdx}
-              className="font-display font-semibold text-base text-zinc-100 mt-6 mb-2"
+              className="font-display font-semibold text-base text-foreground mt-6 mb-2"
             >
               <InlineMarkdownRenderer text={trimmed.replace("#### ", "")} />
             </h5>
@@ -268,7 +268,7 @@ function StandardTextRenderer({ text }: { text: string }) {
           return (
             <h4
               key={pIdx}
-              className="font-display font-bold text-lg text-white mt-7 mb-2 border-b border-white/5 pb-1"
+              className="font-display font-bold text-lg text-foreground mt-7 mb-2 border-b border-border pb-1"
             >
               <InlineMarkdownRenderer text={trimmed.replace("### ", "")} />
             </h4>
@@ -278,7 +278,7 @@ function StandardTextRenderer({ text }: { text: string }) {
           return (
             <h3
               key={pIdx}
-              className="font-display font-bold text-xl text-white mt-8 mb-3"
+              className="font-display font-bold text-xl text-foreground mt-8 mb-3"
             >
               <InlineMarkdownRenderer text={trimmed.replace("## ", "")} />
             </h3>
@@ -288,7 +288,7 @@ function StandardTextRenderer({ text }: { text: string }) {
           return (
             <h2
               key={pIdx}
-              className="font-display font-bold text-2xl text-white mt-8 mb-3"
+              className="font-display font-bold text-2xl text-foreground mt-8 mb-3"
             >
               <InlineMarkdownRenderer text={trimmed.replace("# ", "")} />
             </h2>
@@ -303,7 +303,7 @@ function StandardTextRenderer({ text }: { text: string }) {
           return (
             <ul
               key={pIdx}
-              className="list-disc list-inside space-y-1.5 my-3 pl-2 text-zinc-300"
+              className="list-disc list-inside space-y-1.5 my-3 pl-2 text-secondary-foreground"
             >
               {items.map((item, itemIdx) => (
                 <li key={itemIdx} className="leading-relaxed">
@@ -322,7 +322,7 @@ function StandardTextRenderer({ text }: { text: string }) {
           return (
             <ol
               key={pIdx}
-              className="list-decimal list-inside space-y-1.5 my-3 pl-2 text-zinc-300"
+              className="list-decimal list-inside space-y-1.5 my-3 pl-2 text-secondary-foreground"
             >
               {items.map((item, itemIdx) => (
                 <li key={itemIdx} className="leading-relaxed">
@@ -340,7 +340,7 @@ function StandardTextRenderer({ text }: { text: string }) {
             return (
               <figure
                 key={pIdx}
-                className="my-6 rounded-xl overflow-hidden border border-white/10 bg-black/40 p-2"
+                className="my-6 rounded-xl overflow-hidden border border-border bg-muted/60 p-2"
               >
                 <img
                   src={imgMatch[1]}
@@ -355,7 +355,7 @@ function StandardTextRenderer({ text }: { text: string }) {
 
         // Parágrafo Padrão
         return (
-          <p key={pIdx} className="leading-relaxed text-zinc-300 my-2">
+          <p key={pIdx} className="leading-relaxed text-secondary-foreground my-2">
             <InlineMarkdownRenderer text={trimmed} />
           </p>
         );
@@ -378,7 +378,7 @@ function InlineMarkdownRenderer({ text }: { text: string }) {
           return (
             <code
               key={i}
-              className="px-1.5 py-0.5 mx-0.5 rounded bg-zinc-800 text-purple-300 font-mono text-xs border border-white/10"
+              className="px-1.5 py-0.5 mx-0.5 rounded bg-accent text-purple-700 dark:text-purple-300 font-mono text-xs border border-border"
             >
               {part.slice(1, -1)}
             </code>
@@ -388,7 +388,7 @@ function InlineMarkdownRenderer({ text }: { text: string }) {
         // Bold **...**
         if (part.startsWith("**") && part.endsWith("**")) {
           return (
-            <strong key={i} className="font-semibold text-white">
+            <strong key={i} className="font-semibold text-foreground">
               {part.slice(2, -2)}
             </strong>
           );
@@ -404,7 +404,7 @@ function InlineMarkdownRenderer({ text }: { text: string }) {
                 href={match[2]}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="text-purple-400 hover:text-purple-300 underline underline-offset-2 transition-colors font-medium"
+                className="text-purple-700 dark:text-purple-400 hover:text-purple-300 underline underline-offset-2 transition-colors font-medium"
               >
                 {match[1]}
               </a>

@@ -100,49 +100,49 @@ function LoginForm() {
       <div className="flex items-center justify-between">
         <Link
           href="/"
-          className="inline-flex items-center gap-2 text-xs font-mono text-zinc-400 hover:text-white transition-colors"
+          className="inline-flex items-center gap-2 text-xs font-mono text-muted-foreground hover:text-foreground transition-colors"
         >
           <ArrowLeft className="w-3.5 h-3.5" />
           <span>Voltar ao portal</span>
         </Link>
-        <span className="text-[11px] font-mono text-zinc-500">
+        <span className="text-[11px] font-mono text-muted-foreground">
           UFRJ • CT • COPPE
         </span>
       </div>
 
       {/* Card Principal — Engineering Studio com Blueprint Corners */}
-      <div className="relative rounded-2xl bg-[#111113] border border-white/10 p-6 sm:p-8 shadow-2xl blueprint-corners overflow-hidden">
+      <div className="relative rounded-2xl bg-card border border-border p-6 sm:p-8 shadow-2xl blueprint-corners overflow-hidden">
         {/* Glow sutil no topo do card */}
-        <div className="pointer-events-none absolute -top-24 left-1/2 -translate-x-1/2 w-72 h-32 bg-white/5 blur-2xl rounded-full" />
+        <div className="pointer-events-none absolute -top-24 left-1/2 -translate-x-1/2 w-72 h-32 bg-foreground/5 blur-2xl rounded-full" />
 
         {/* Cabeçalho do Card com Logo Vetorial */}
-        <div className="relative space-y-4 text-center pb-6 border-b border-white/10">
+        <div className="relative space-y-4 text-center pb-6 border-b border-border">
           <div className="flex justify-center">
             <Logo division="autonomos" variant="horizontal" size="md" priority />
           </div>
 
-          <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-white/5 border border-white/10 text-[11px] font-mono text-zinc-300">
-            <Terminal className="w-3 h-3 text-zinc-400" />
+          <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-foreground/5 border border-border text-[11px] font-mono text-secondary-foreground">
+            <Terminal className="w-3 h-3 text-muted-foreground" />
             <span className="tracking-widest uppercase">AUTÔNOMOS AUTH // ENTRADA</span>
           </div>
 
           <div className="space-y-1">
-            <h1 className="text-xl sm:text-2xl font-bold font-display text-white">
+            <h1 className="text-xl sm:text-2xl font-bold font-display text-foreground">
               Acessar Plataforma
             </h1>
-            <p className="text-xs sm:text-sm text-zinc-400">
+            <p className="text-xs sm:text-sm text-muted-foreground">
               Entre com uma conta aprovada para acessar a equipe e os cursos.
             </p>
           </div>
         </div>
 
         {searchParams.get("registered") === "1" && (
-          <p role="status" className="mt-4 rounded-lg border border-emerald-500/30 bg-emerald-500/10 p-4 text-sm text-emerald-300">
+          <p role="status" className="mt-4 rounded-lg border border-emerald-500/30 bg-emerald-500/10 p-4 text-sm text-emerald-700 dark:text-emerald-300">
             Cadastro recebido. Aguarde a aprovação de um administrador. Depois, entre com seu email e senha.
           </p>
         )}
         {searchParams.get("reset") === "1" && (
-          <p role="status" className="mt-4 rounded-lg border border-emerald-500/30 bg-emerald-500/10 p-4 text-sm text-emerald-300">
+          <p role="status" className="mt-4 rounded-lg border border-emerald-500/30 bg-emerald-500/10 p-4 text-sm text-emerald-700 dark:text-emerald-300">
             Senha atualizada com sucesso! Entre com seu email e sua nova senha.
           </p>
         )}
@@ -150,7 +150,7 @@ function LoginForm() {
         {errorMessage && (
           <div
             role="alert"
-            className="mt-4 p-3 rounded-lg bg-red-500/10 border border-red-500/30 text-red-400 text-xs font-mono flex items-start gap-2.5 animate-in fade-in duration-200"
+            className="mt-4 p-3 rounded-lg bg-red-500/10 border border-red-500/30 text-red-700 dark:text-red-400 text-xs font-mono flex items-start gap-2.5 animate-in fade-in duration-200"
           >
             <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5" />
             <div className="flex-1 leading-relaxed">{errorMessage}</div>
@@ -163,12 +163,12 @@ function LoginForm() {
           <div className="space-y-1.5">
             <label
               htmlFor="email"
-              className="block text-xs font-mono uppercase tracking-wider text-zinc-400"
+              className="block text-xs font-mono uppercase tracking-wider text-muted-foreground"
             >
               Email de Acesso
             </label>
             <div className="relative">
-              <div className="pointer-events-none absolute inset-y-0 left-0 pl-3 flex items-center text-zinc-500">
+              <div className="pointer-events-none absolute inset-y-0 left-0 pl-3 flex items-center text-muted-foreground">
                 <Mail className="w-4 h-4" />
               </div>
               <input
@@ -179,7 +179,7 @@ function LoginForm() {
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="seu.email@poli.ufrj.br"
-                className="w-full rounded-lg bg-black/40 border border-white/10 pl-9 pr-3.5 py-2.5 text-sm text-zinc-100 placeholder-zinc-500 focus:outline-hidden focus:border-zinc-300 focus:ring-1 focus:ring-zinc-300 transition-all font-sans disabled:opacity-50"
+                className="w-full rounded-lg bg-muted/60 border border-input pl-9 pr-3.5 py-2.5 text-sm text-foreground placeholder-zinc-500 focus:outline-hidden focus:border-input focus:ring-1 focus:ring-ring transition-all font-sans disabled:opacity-50"
               />
             </div>
           </div>
@@ -189,14 +189,14 @@ function LoginForm() {
             <div className="flex items-center justify-between">
               <label
                 htmlFor="password"
-                className="block text-xs font-mono uppercase tracking-wider text-zinc-400"
+                className="block text-xs font-mono uppercase tracking-wider text-muted-foreground"
               >
                 Senha
               </label>
               
             </div>
             <div className="relative">
-              <div className="pointer-events-none absolute inset-y-0 left-0 pl-3 flex items-center text-zinc-500">
+              <div className="pointer-events-none absolute inset-y-0 left-0 pl-3 flex items-center text-muted-foreground">
                 <Lock className="w-4 h-4" />
               </div>
               <input
@@ -207,12 +207,12 @@ function LoginForm() {
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="••••••••"
-                className="w-full rounded-lg bg-black/40 border border-white/10 pl-9 pr-10 py-2.5 text-sm text-zinc-100 placeholder-zinc-500 focus:outline-hidden focus:border-zinc-300 focus:ring-1 focus:ring-zinc-300 transition-all font-sans disabled:opacity-50"
+                className="w-full rounded-lg bg-muted/60 border border-input pl-9 pr-10 py-2.5 text-sm text-foreground placeholder-zinc-500 focus:outline-hidden focus:border-input focus:ring-1 focus:ring-ring transition-all font-sans disabled:opacity-50"
               />
               <button
                 type="button"
                 onClick={() => setShowPassword((prev) => !prev)}
-                className="absolute inset-y-0 right-0 pr-3 flex items-center text-zinc-400 hover:text-zinc-200 focus:outline-hidden cursor-pointer"
+                className="absolute inset-y-0 right-0 pr-3 flex items-center text-muted-foreground hover:text-foreground focus:outline-hidden cursor-pointer"
                 aria-label={showPassword ? "Ocultar senha" : "Exibir senha"}
               >
                 {showPassword ? (
@@ -224,7 +224,7 @@ function LoginForm() {
             </div>
             <Link
                 href={email.trim() ? `/forgot-password?email=${encodeURIComponent(email.trim())}` : "/forgot-password"}
-                className="text-xs font-mono text-red-400 hover:text-red-300 underline underline-offset-4 transition-colors"
+                className="text-xs font-mono text-red-700 dark:text-red-400 hover:text-red-300 underline underline-offset-4 transition-colors"
               >
                 Esqueci minha senha              
             </Link>
@@ -234,11 +234,11 @@ function LoginForm() {
           <button
             type="submit"
             disabled={isSubmitting}
-            className="w-full mt-2 py-2.5 px-4 rounded-lg bg-zinc-100 hover:bg-white text-zinc-950 font-semibold font-display text-sm flex items-center justify-center gap-2 transition-all shadow-sm disabled:opacity-60 disabled:cursor-not-allowed cursor-pointer"
+            className="w-full mt-2 py-2.5 px-4 rounded-lg bg-primary hover:bg-primary/90 text-primary-foreground font-semibold font-display text-sm flex items-center justify-center gap-2 transition-all shadow-sm disabled:opacity-60 disabled:cursor-not-allowed cursor-pointer"
           >
             {isSubmitting ? (
               <>
-                <Loader2 className="w-4 h-4 animate-spin text-zinc-900" />
+                <Loader2 className="w-4 h-4 animate-spin text-foreground" />
                 <span>Autenticando...</span>
               </>
             ) : (
@@ -251,7 +251,7 @@ function LoginForm() {
         </form>
 
         {/* Rodapé Interno do Card */}
-        <div className="mt-6 pt-5 border-t border-white/10 flex flex-col items-center justify-between gap-3 text-xs text-zinc-400">
+        <div className="mt-6 pt-5 border-t border-border flex flex-col items-center justify-between gap-3 text-xs text-muted-foreground">
           <p>
             Não possui uma conta?{" "}
             <Link
@@ -260,14 +260,14 @@ function LoginForm() {
                   ? `?redirect=${encodeURIComponent(safeRedirect)}`
                   : ""
               }`}
-              className="text-zinc-200 hover:text-white font-medium underline underline-offset-4 decoration-zinc-600 hover:decoration-white transition-colors"
+              className="text-foreground hover:text-foreground font-medium underline underline-offset-4 decoration-zinc-600 hover:decoration-white transition-colors"
             >
               Cadastre-se gratuitamente
             </Link>
           </p>
 
-          <div className="flex items-center gap-1.5 text-[10px] font-mono text-zinc-500">
-            <ShieldCheck className="w-3.5 h-3.5 text-zinc-400" />
+          <div className="flex items-center gap-1.5 text-[10px] font-mono text-muted-foreground">
+            <ShieldCheck className="w-3.5 h-3.5 text-muted-foreground" />
             <span>SESSÃO SEGURA • CRIPTOGRAFIA AES-256 JWT</span>
           </div>
         </div>
@@ -278,13 +278,13 @@ function LoginForm() {
 
 function LoginFormSkeleton() {
   return (
-    <div className="w-full max-w-md p-8 rounded-2xl bg-[#111113] border border-white/10 animate-pulse space-y-6">
-      <div className="h-8 w-40 mx-auto bg-white/5 rounded-lg" />
-      <div className="h-4 w-48 mx-auto bg-white/5 rounded-lg" />
+    <div className="w-full max-w-md p-8 rounded-2xl bg-card border border-border animate-pulse space-y-6">
+      <div className="h-8 w-40 mx-auto bg-foreground/5 rounded-lg" />
+      <div className="h-4 w-48 mx-auto bg-foreground/5 rounded-lg" />
       <div className="space-y-4 pt-4">
-        <div className="h-10 bg-white/5 rounded-lg" />
-        <div className="h-10 bg-white/5 rounded-lg" />
-        <div className="h-10 bg-white/10 rounded-lg" />
+        <div className="h-10 bg-foreground/5 rounded-lg" />
+        <div className="h-10 bg-foreground/5 rounded-lg" />
+        <div className="h-10 bg-foreground/10 rounded-lg" />
       </div>
     </div>
   );
@@ -292,7 +292,7 @@ function LoginFormSkeleton() {
 
 export default function LoginPage() {
   return (
-    <div className="flex-1 min-h-[calc(100vh-4rem)] flex items-center justify-center px-4 py-12 relative overflow-hidden bg-[#0A0A0B] bg-grid-sm">
+    <div className="flex-1 min-h-[calc(100vh-4rem)] flex items-center justify-center px-4 py-12 relative overflow-hidden bg-background bg-grid-sm">
       {/* Luz ambiente técnica */}
       <div className="pointer-events-none absolute -top-40 right-1/4 w-96 h-96 rounded-full bg-cyan-500/5 blur-3xl" />
       <div className="pointer-events-none absolute -bottom-40 left-1/4 w-96 h-96 rounded-full bg-purple-500/5 blur-3xl" />

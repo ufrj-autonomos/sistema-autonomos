@@ -48,6 +48,7 @@
 
 /* ---- TEMA MATRIZ: AUTÔNOMOS (Default Dark Titanium) ---- */
 :root {
+  color-scheme: dark;
   --radius: 0.5rem;
 
   /* Autônomos Dark Titanium */
@@ -67,8 +68,8 @@
   --accent-foreground: #F4F4F5;
   --destructive: #B42318;
   --border: rgba(255, 255, 255, 0.08);
-  --input: rgba(255, 255, 255, 0.10);
-  --ring: #52525B;
+  --input: #666670;
+  --ring: #A1A1AA;
 
   /* Destaque Matriz */
   --team-primary: #8B8E96;
@@ -98,11 +99,12 @@
   --accent: #E4E4E7;
   --accent-foreground: #0A0A0B;
   --border: rgba(10, 10, 11, 0.10);
-  --input: rgba(10, 10, 11, 0.12);
-  --ring: #A1A1AA;
+  --input: #878791;
+  --ring: #52525B;
   --hairline: rgba(10, 10, 11, 0.08);
   --hairline-strong: rgba(10, 10, 11, 0.16);
   --grain-opacity: 0.02;
+  color-scheme: light;
 }
 
 /* ---- TEMA DA DIVISÃO HARPIA (Aeronaves Autônomas) ---- */
@@ -314,3 +316,15 @@
   body:has([data-lab-qr]) nav { display: none !important; }
   [data-lab-qr] { break-inside: avoid; border: 0; }
 }
+
+/* Theme-aware assets and operational overview; existing navigation is preserved. */
+.brand-light { display: none; }
+.light .brand-light { display: block; }
+.light .brand-dark { display: none; }
+.overview-progress { appearance: none; overflow: hidden; border: 0; border-radius: 999px; background: var(--muted); color: var(--foreground); accent-color: var(--foreground); }
+.overview-progress::-webkit-progress-bar { background: var(--muted); }
+.overview-progress::-webkit-progress-value { background: var(--foreground); border-radius: 999px; }
+.overview-progress::-moz-progress-bar { background: var(--foreground); border-radius: 999px; }
+:where(a, button, input, textarea, select, summary, [tabindex="0"]):focus-visible { outline: 2px solid var(--ring); outline-offset: 3px; }
+html { scroll-padding-top: 6rem; }
+@media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; scroll-behavior: auto !important; } }

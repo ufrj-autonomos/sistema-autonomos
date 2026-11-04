@@ -53,7 +53,7 @@ export function CourseHeader({
   return (
     <header
       className={cn(
-        "h-14 bg-[#111114] border-b border-white/10 px-3 sm:px-4 flex items-center justify-between select-none z-30 shrink-0",
+        "h-14 bg-card border-b border-border px-3 sm:px-4 flex items-center justify-between select-none z-30 shrink-0",
         className
       )}
     >
@@ -61,26 +61,26 @@ export function CourseHeader({
       <div className="flex items-center gap-3 min-w-0">
         <Link
           href="/ensino"
-          className="flex items-center gap-1.5 p-1.5 sm:px-2.5 sm:py-1.5 rounded-lg bg-white/5 hover:bg-white/10 text-zinc-300 hover:text-white border border-white/10 text-xs font-mono transition shrink-0"
+          className="flex items-center gap-1.5 p-1.5 sm:px-2.5 sm:py-1.5 rounded-lg bg-foreground/5 hover:bg-foreground/10 text-secondary-foreground hover:text-foreground border border-border text-xs font-mono transition shrink-0"
           title="Voltar ao Catálogo de Cursos"
         >
           <ArrowLeft className="w-4 h-4" />
           <span className="hidden sm:inline">Catálogo</span>
         </Link>
 
-        <div className="h-5 w-px bg-white/10 shrink-0 hidden sm:block" />
+        <div className="h-5 w-px bg-foreground/10 shrink-0 hidden sm:block" />
 
         <div className="flex flex-col min-w-0">
-          <div className="flex items-center gap-1.5 text-[10px] font-mono text-zinc-400 truncate">
-            <span className="text-cyan-400 font-semibold">{courseTitle}</span>
+          <div className="flex items-center gap-1.5 text-[10px] font-mono text-muted-foreground truncate">
+            <span className="text-cyan-700 dark:text-cyan-400 font-semibold">{courseTitle}</span>
             {moduleOrder && (
               <>
-                <span className="text-zinc-600">•</span>
+                <span className="text-muted-foreground">•</span>
                 <span className="truncate">Mod {moduleOrder}: {moduleTitle}</span>
               </>
             )}
           </div>
-          <h1 className="text-xs sm:text-sm font-display font-semibold text-zinc-100 truncate">
+          <h1 className="text-xs sm:text-sm font-display font-semibold text-foreground truncate">
             #{String(activeLesson.orderIndex).padStart(3, "0")}: {activeLesson.title}
           </h1>
         </div>
@@ -92,7 +92,7 @@ export function CourseHeader({
         {previousLesson ? (
           <Link
             href={`/curso/${previousLesson.slug}`}
-            className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-white/5 hover:bg-white/10 text-zinc-300 hover:text-white border border-white/10 text-xs font-mono transition"
+            className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-foreground/5 hover:bg-foreground/10 text-secondary-foreground hover:text-foreground border border-border text-xs font-mono transition"
             title={`Aula Anterior: ${previousLesson.title}`}
           >
             <ChevronLeft className="w-3.5 h-3.5" />
@@ -100,7 +100,7 @@ export function CourseHeader({
           </Link>
         ) : (
           <span
-            className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-white/[0.02] text-zinc-600 border border-white/[0.04] text-xs font-mono cursor-not-allowed"
+            className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-foreground/[0.02] text-muted-foreground border border-border text-xs font-mono cursor-not-allowed"
             title="Primeira aula do curso"
           >
             <ChevronLeft className="w-3.5 h-3.5" />
@@ -112,7 +112,7 @@ export function CourseHeader({
         {nextLesson ? (
           <Link
             href={`/curso/${nextLesson.slug}`}
-            className="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-zinc-100 hover:bg-white text-zinc-950 font-semibold text-xs font-mono transition shadow-sm"
+            className="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-primary hover:bg-primary/90 text-primary-foreground font-semibold text-xs font-mono transition shadow-sm"
             title={`Próxima Aula: ${nextLesson.title}`}
           >
             <span className="hidden md:inline">Próxima</span>
@@ -120,7 +120,7 @@ export function CourseHeader({
           </Link>
         ) : (
           <span
-            className="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-white/[0.05] text-zinc-500 border border-white/10 text-xs font-mono cursor-not-allowed"
+            className="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-foreground/[0.05] text-muted-foreground border border-border text-xs font-mono cursor-not-allowed"
             title="Última aula do curso"
           >
             <span className="hidden md:inline">Concluído</span>
@@ -146,18 +146,18 @@ export function CourseHeader({
             className={cn(
               "flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-lg text-xs font-mono font-medium transition-all duration-200 border cursor-pointer",
               isCompleted
-                ? "bg-emerald-500/20 text-emerald-300 border-emerald-500/40 hover:bg-emerald-500/30 shadow-sm shadow-emerald-950/20"
-                : "bg-white/5 text-zinc-300 border-white/10 hover:bg-white/10 hover:text-white"
+                ? "bg-emerald-500/20 text-emerald-700 dark:text-emerald-300 border-emerald-500/40 hover:bg-emerald-500/30 shadow-sm shadow-emerald-950/20"
+                : "bg-foreground/5 text-secondary-foreground border-border hover:bg-foreground/10 hover:text-foreground"
             )}
           >
             {isCompleted ? (
               <>
-                <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+                <CheckCircle2 className="w-3.5 h-3.5 text-emerald-700 dark:text-emerald-400 shrink-0" />
                 <span className="hidden sm:inline">Concluída</span>
               </>
             ) : (
               <>
-                <Circle className="w-3.5 h-3.5 text-zinc-400 shrink-0" />
+                <Circle className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
                 <span className="hidden sm:inline">Concluir</span>
               </>
             )}
@@ -165,14 +165,14 @@ export function CourseHeader({
         )}
 
         {/* Divisor */}
-        <div className="h-5 w-px bg-white/10 shrink-0 mx-1 hidden sm:block" />
+        <div className="h-5 w-px bg-foreground/10 shrink-0 mx-1 hidden sm:block" />
 
         {/* Modo Teatro Toggle (Desktop) */}
         {onToggleTheaterMode && (
           <button
             type="button"
             onClick={onToggleTheaterMode}
-            className="hidden lg:flex items-center justify-center p-2 rounded-lg bg-white/5 hover:bg-white/10 text-zinc-400 hover:text-white border border-white/10 transition cursor-pointer"
+            className="hidden lg:flex items-center justify-center p-2 rounded-lg bg-foreground/5 hover:bg-foreground/10 text-muted-foreground hover:text-foreground border border-border transition cursor-pointer"
             title={isTheaterMode ? "Sair do Modo Teatro" : "Modo Teatro"}
             aria-label={isTheaterMode ? "Sair do Modo Teatro" : "Modo Teatro"}
           >
@@ -188,12 +188,12 @@ export function CourseHeader({
         <button
           type="button"
           onClick={onToggleSidebar}
-          className="hidden lg:flex items-center justify-center p-2 rounded-lg bg-white/5 hover:bg-white/10 text-zinc-400 hover:text-white border border-white/10 transition cursor-pointer"
+          className="hidden lg:flex items-center justify-center p-2 rounded-lg bg-foreground/5 hover:bg-foreground/10 text-muted-foreground hover:text-foreground border border-border transition cursor-pointer"
           title={isSidebarOpen ? "Recolher Grade Curricular" : "Expandir Grade Curricular"}
           aria-label={isSidebarOpen ? "Recolher Grade Curricular" : "Expandir Grade Curricular"}
         >
           {isSidebarOpen ? (
-            <PanelRightClose className="w-4 h-4 text-cyan-400" />
+            <PanelRightClose className="w-4 h-4 text-cyan-700 dark:text-cyan-400" />
           ) : (
             <PanelRightOpen className="w-4 h-4" />
           )}
@@ -203,7 +203,7 @@ export function CourseHeader({
         <button
           type="button"
           onClick={onToggleMobileDrawer}
-          className="lg:hidden flex items-center justify-center p-2 rounded-lg bg-white/5 hover:bg-white/10 text-zinc-400 hover:text-white border border-white/10 transition cursor-pointer"
+          className="lg:hidden flex items-center justify-center p-2 rounded-lg bg-foreground/5 hover:bg-foreground/10 text-muted-foreground hover:text-foreground border border-border transition cursor-pointer"
           aria-label="Abrir grade curricular"
         >
           <Menu className="w-4 h-4" />

@@ -282,7 +282,7 @@ export function Logo({
   division = "autonomos",
   variant = "horizontal",
   size = "md",
-  theme = "dark",
+  theme = "auto",
   dark = false,
   href,
   className,
@@ -294,6 +294,7 @@ export function Logo({
   // dark=true ou theme='light' significa aplicar arte escura em fundo claro
   const isDarkArtwork = dark || theme === "light";
 
+  const automatic = theme === "auto" && !dark && variant !== "badge";
   const src = resolveAssetSrc(division, variant, isDarkArtwork, symbolType, badgeShape);
 
   const dimKey =
@@ -338,16 +339,19 @@ export function Logo({
     >
       <Image
         src={src}
-        alt={accessibleAlt}
+        alt=""
+        aria-hidden="true"
         width={dimensions.width}
         height={dimensions.height}
         unoptimized
         priority={priority}
         className={cn(
           "h-full w-auto object-contain transition-transform duration-300",
+          automatic && "brand-dark",
           variant === "symbol" || variant === "badge" ? "aspect-square" : ""
         )}
       />
+      {automatic && <Image src={resolveAssetSrc(division, variant, true, symbolType, badgeShape)} alt="" aria-hidden="true" width={dimensions.width} height={dimensions.height} unoptimized priority={priority} className={cn("brand-light h-full w-auto object-contain", variant === "symbol" ? "aspect-square" : "")} />}
       <span className="sr-only">{accessibleAlt}</span>
     </span>
   );

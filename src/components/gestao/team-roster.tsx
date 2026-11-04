@@ -75,30 +75,30 @@ export function TeamRoster({ initialMembers }: TeamRosterProps) {
       {/* Header e Controles */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <div className="inline-flex items-center gap-1.5 font-mono text-xs uppercase tracking-wider text-zinc-400">
-            <Users className="h-3.5 w-3.5 text-zinc-400" />
+          <div className="inline-flex items-center gap-1.5 font-mono text-xs uppercase tracking-wider text-muted-foreground">
+            <Users className="h-3.5 w-3.5 text-muted-foreground" />
             <span>DIRETÓRIO & ROSTER DE ENGENHARIA</span>
           </div>
-          <h2 className="font-display text-xl sm:text-2xl font-bold text-white mt-1">
+          <h2 className="font-display text-xl sm:text-2xl font-bold text-foreground mt-1">
             Quadro de Integrantes
           </h2>
         </div>
 
         {/* Campo de Busca */}
         <div className="relative w-full md:w-72">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-zinc-500" />
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <input
             type="text"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder="Buscar por nome, papel ou curso..."
-            className="w-full rounded-lg border border-white/10 bg-[#111113] pl-9 pr-3 py-2 font-mono text-xs text-white placeholder-zinc-500 focus:border-white/30 focus:outline-none transition-colors"
+            className="w-full rounded-lg border border-input bg-card pl-9 pr-3 py-2 font-mono text-xs text-foreground placeholder-zinc-500 focus:border-input focus:outline-none transition-colors"
           />
         </div>
       </div>
 
       {/* Filtros em Abas */}
-      <div className="flex flex-wrap items-center justify-between gap-3 border-y border-white/10 py-3">
+      <div className="flex flex-wrap items-center justify-between gap-3 border-y border-border py-3">
         {/* Abas de Divisão */}
         <div className="flex flex-wrap items-center gap-1.5">
           <button
@@ -106,8 +106,8 @@ export function TeamRoster({ initialMembers }: TeamRosterProps) {
             onClick={() => setSelectedDivision("all")}
             className={`rounded-lg px-3 py-1.5 font-mono text-xs transition-colors cursor-pointer ${
               selectedDivision === "all"
-                ? "bg-white text-black font-semibold"
-                : "bg-[#18181B] text-zinc-400 hover:text-white"
+                ? "bg-primary text-primary-foreground font-semibold"
+                : "bg-card text-muted-foreground hover:text-foreground"
             }`}
           >
             Todos ({initialMembers.length})
@@ -118,7 +118,7 @@ export function TeamRoster({ initialMembers }: TeamRosterProps) {
             className={`rounded-lg px-3 py-1.5 font-mono text-xs transition-colors cursor-pointer ${
               selectedDivision === "harpia"
                 ? "bg-purple-600 text-white font-semibold"
-                : "bg-[#18181B] text-zinc-400 hover:text-purple-300"
+                : "bg-card text-muted-foreground hover:text-purple-300"
             }`}
           >
             Harpia (UAV)
@@ -129,7 +129,7 @@ export function TeamRoster({ initialMembers }: TeamRosterProps) {
             className={`rounded-lg px-3 py-1.5 font-mono text-xs transition-colors cursor-pointer ${
               selectedDivision === "nautilus"
                 ? "bg-blue-600 text-white font-semibold"
-                : "bg-[#18181B] text-zinc-400 hover:text-blue-300"
+                : "bg-card text-muted-foreground hover:text-blue-300"
             }`}
           >
             Nautilus (AUV)
@@ -139,8 +139,8 @@ export function TeamRoster({ initialMembers }: TeamRosterProps) {
             onClick={() => setSelectedDivision("geral")}
             className={`rounded-lg px-3 py-1.5 font-mono text-xs transition-colors cursor-pointer ${
               selectedDivision === "geral"
-                ? "bg-zinc-700 text-white font-semibold"
-                : "bg-[#18181B] text-zinc-400 hover:text-white"
+                ? "bg-accent text-foreground font-semibold"
+                : "bg-card text-muted-foreground hover:text-foreground"
             }`}
           >
             Geral / Gestão
@@ -149,12 +149,12 @@ export function TeamRoster({ initialMembers }: TeamRosterProps) {
 
         {/* Filtro de Área Técnica */}
         <div className="flex items-center gap-2 font-mono text-xs">
-          <Filter className="h-3.5 w-3.5 text-zinc-500" />
-          <span className="text-zinc-400">Área:</span>
+          <Filter className="h-3.5 w-3.5 text-muted-foreground" />
+          <span className="text-muted-foreground">Área:</span>
           <select
             value={selectedArea}
             onChange={(e) => setSelectedArea(e.target.value)}
-            className="rounded-lg border border-white/10 bg-[#18181B] px-2.5 py-1 text-xs text-white focus:outline-none"
+            className="rounded-lg border border-input bg-card px-2.5 py-1 text-xs text-foreground focus:outline-none"
           >
             <option value="all">Todas as Áreas</option>
             <option value="software">Software</option>
@@ -166,9 +166,9 @@ export function TeamRoster({ initialMembers }: TeamRosterProps) {
       </div>
 
       {/* Tabela Responsiva (Desktop) */}
-      <div className="hidden md:block rounded-xl border border-white/10 bg-[#111113] overflow-x-auto">
+      <div className="hidden md:block rounded-xl border border-border bg-card overflow-x-auto">
         <table className="w-full min-w-[800px] text-left font-mono text-xs">
-          <thead className="border-b border-white/10 bg-black/40 text-zinc-400">
+          <thead className="border-b border-border bg-muted/60 text-muted-foreground">
             <tr>
               <th className="py-3.5 pl-4 pr-3 font-semibold uppercase">Integrante</th>
               <th className="px-3 py-3.5 font-semibold uppercase">Papel / Função</th>
@@ -178,38 +178,38 @@ export function TeamRoster({ initialMembers }: TeamRosterProps) {
               <th className="py-3.5 pl-3 pr-4 text-right font-semibold uppercase">Links</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-white/5">
+          <tbody className="divide-y divide-border">
             {filteredMembers.length > 0 ? (
               filteredMembers.map((m) => (
-                <tr key={m.id} className="hover:bg-white/[0.02] transition-colors">
+                <tr key={m.id} className="hover:bg-foreground/[0.02] transition-colors">
                   <td className="py-3 pl-4 pr-3">
-                    <div className="font-sans font-medium text-white text-sm">
+                    <div className="font-sans font-medium text-foreground text-sm">
                       {m.name}
                     </div>
                     {m.bio && (
-                      <div className="text-[11px] text-zinc-400 line-clamp-1 max-w-xs font-mono">
+                      <div className="text-[11px] text-muted-foreground line-clamp-1 max-w-xs font-mono">
                         {m.bio}
                       </div>
                     )}
                   </td>
-                  <td className="px-3 py-3 text-zinc-200">
-                    <span className="font-semibold text-zinc-100">{m.role}</span>
+                  <td className="px-3 py-3 text-foreground">
+                    <span className="font-semibold text-foreground">{m.role}</span>
                   </td>
                   <td className="px-3 py-3">
                     <span
                       className={`inline-flex items-center rounded px-2 py-0.5 text-[10px] font-semibold ${
                         m.division === "harpia"
-                          ? "bg-purple-900/40 text-purple-300 border border-purple-500/30"
+                          ? "bg-purple-100 dark:bg-purple-900/40 text-purple-700 dark:text-purple-300 border border-purple-500/30"
                           : m.division === "nautilus"
-                          ? "bg-blue-900/40 text-blue-300 border border-blue-500/30"
-                          : "bg-zinc-800 text-zinc-300 border border-zinc-700"
+                          ? "bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-300 border border-blue-500/30"
+                          : "bg-accent text-secondary-foreground border border-border"
                       }`}
                     >
                       {m.divisionLabel}
                     </span>
                   </td>
-                  <td className="px-3 py-3 text-zinc-400">{m.area}</td>
-                  <td className="px-3 py-3 text-zinc-400">{m.course || "—"}</td>
+                  <td className="px-3 py-3 text-muted-foreground">{m.area}</td>
+                  <td className="px-3 py-3 text-muted-foreground">{m.course || "—"}</td>
                   <td className="py-3 pl-3 pr-4 text-right">
                     <div className="flex items-center justify-end gap-2">
                       {m.linkedin && (
@@ -217,7 +217,7 @@ export function TeamRoster({ initialMembers }: TeamRosterProps) {
                           href={m.linkedin}
                           target="_blank"
                           rel="noreferrer"
-                          className="text-zinc-500 hover:text-blue-400 transition-colors"
+                          className="text-muted-foreground hover:text-blue-400 transition-colors"
                           aria-label="LinkedIn"
                         >
                           <Linkedin className="h-4 w-4" />
@@ -228,7 +228,7 @@ export function TeamRoster({ initialMembers }: TeamRosterProps) {
                           href={m.github}
                           target="_blank"
                           rel="noreferrer"
-                          className="text-zinc-500 hover:text-white transition-colors"
+                          className="text-muted-foreground hover:text-foreground transition-colors"
                           aria-label="GitHub"
                         >
                           <Github className="h-4 w-4" />
@@ -240,7 +240,7 @@ export function TeamRoster({ initialMembers }: TeamRosterProps) {
               ))
             ) : (
               <tr>
-                <td colSpan={6} className="py-8 text-center text-zinc-500">
+                <td colSpan={6} className="py-8 text-center text-muted-foreground">
                   Nenhum integrante encontrado com os filtros selecionados.
                 </td>
               </tr>
@@ -254,38 +254,38 @@ export function TeamRoster({ initialMembers }: TeamRosterProps) {
         {filteredMembers.map((m) => (
           <div
             key={m.id}
-            className="rounded-xl border border-white/10 bg-[#111113] p-4 space-y-2.5"
+            className="rounded-xl border border-border bg-card p-4 space-y-2.5"
           >
             <div className="flex items-start justify-between gap-2">
               <div>
-                <h4 className="font-sans font-bold text-white text-sm">{m.name}</h4>
-                <p className="font-mono text-xs text-zinc-300">{m.role}</p>
+                <h4 className="font-sans font-bold text-foreground text-sm">{m.name}</h4>
+                <p className="font-mono text-xs text-secondary-foreground">{m.role}</p>
               </div>
               <span
                 className={`rounded px-2 py-0.5 font-mono text-[10px] font-semibold ${
                   m.division === "harpia"
-                    ? "bg-purple-900/40 text-purple-300 border border-purple-500/30"
+                    ? "bg-purple-100 dark:bg-purple-900/40 text-purple-700 dark:text-purple-300 border border-purple-500/30"
                     : m.division === "nautilus"
-                    ? "bg-blue-900/40 text-blue-300 border border-blue-500/30"
-                    : "bg-zinc-800 text-zinc-300 border border-zinc-700"
+                    ? "bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-300 border border-blue-500/30"
+                    : "bg-accent text-secondary-foreground border border-border"
                 }`}
               >
                 {m.divisionLabel}
               </span>
             </div>
 
-            {m.bio && <p className="text-xs text-zinc-400 line-clamp-2">{m.bio}</p>}
+            {m.bio && <p className="text-xs text-muted-foreground line-clamp-2">{m.bio}</p>}
 
-            <div className="flex items-center justify-between pt-2 border-t border-white/5 font-mono text-[11px] text-zinc-400">
+            <div className="flex items-center justify-between pt-2 border-t border-border font-mono text-[11px] text-muted-foreground">
               <span>{m.area} • {m.course || "UFRJ"}</span>
               <div className="flex items-center gap-2">
                 {m.linkedin && (
-                  <a href={m.linkedin} target="_blank" rel="noreferrer" className="text-zinc-400 hover:text-blue-400">
+                  <a href={m.linkedin} target="_blank" rel="noreferrer" className="text-muted-foreground hover:text-blue-400">
                     <Linkedin className="h-3.5 w-3.5" />
                   </a>
                 )}
                 {m.github && (
-                  <a href={m.github} target="_blank" rel="noreferrer" className="text-zinc-400 hover:text-white">
+                  <a href={m.github} target="_blank" rel="noreferrer" className="text-muted-foreground hover:text-foreground">
                     <Github className="h-3.5 w-3.5" />
                   </a>
                 )}

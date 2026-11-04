@@ -3,6 +3,8 @@ import { Space_Grotesk, Inter, JetBrains_Mono } from "next/font/google";
 import "./globals.css";
 import { PlatformShell } from "@/components/layout/platform-shell";
 import { AuthProvider } from "@/contexts/auth-context";
+import { ThemeProvider } from "@/contexts/theme-context";
+import { themeBootstrap } from "@/lib/theme";
 import { getAppOrigin } from "@/lib/environment";
 
 const spaceGrotesk = Space_Grotesk({
@@ -67,12 +69,13 @@ export default function RootLayout({
 }) {
   return (
     <html lang="pt-BR" className="dark" suppressHydrationWarning>
+      <head><script dangerouslySetInnerHTML={{ __html: themeBootstrap }} /></head>
       <body
-        className={`${inter.variable} ${spaceGrotesk.variable} ${jetbrainsMono.variable} font-sans antialiased min-h-screen bg-[#0A0A0B] text-[#F4F4F5] flex flex-col selection:bg-zinc-800 selection:text-white`}
+        className={`${inter.variable} ${spaceGrotesk.variable} ${jetbrainsMono.variable} font-sans antialiased min-h-screen bg-background text-foreground flex flex-col`}
       >
-        <AuthProvider>
+        <ThemeProvider><AuthProvider>
           <PlatformShell>{children}</PlatformShell>
-        </AuthProvider>
+        </AuthProvider></ThemeProvider>
       </body>
     </html>
   );

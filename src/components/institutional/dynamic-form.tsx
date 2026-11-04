@@ -83,7 +83,7 @@ function JsonArrayInput({
                 </label>
                 {s.type === "text" ? (
                   <textarea
-                    className="w-full rounded-md border border-border bg-background px-3 py-1.5 text-xs text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary"
+                    className="w-full rounded-md border border-input bg-background px-3 py-1.5 text-xs text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary"
                     value={item[s.name] || ""}
                     onChange={(e) => handleChange(idx, s.name, e.target.value)}
                     rows={2}
@@ -91,7 +91,7 @@ function JsonArrayInput({
                 ) : (
                   <input
                     type="text"
-                    className="w-full rounded-md border border-border bg-background px-3 py-1.5 text-xs text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary"
+                    className="w-full rounded-md border border-input bg-background px-3 py-1.5 text-xs text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary"
                     value={item[s.name] || ""}
                     onChange={(e) => handleChange(idx, s.name, e.target.value)}
                   />
@@ -102,7 +102,7 @@ function JsonArrayInput({
           <button
             type="button"
             onClick={() => handleRemove(idx)}
-            className="text-red-400 hover:text-red-300 p-1.5 rounded-md hover:bg-red-500/10 transition-colors mt-4"
+            className="text-red-700 dark:text-red-400 hover:text-red-300 p-1.5 rounded-md hover:bg-red-500/10 transition-colors mt-4"
             title="Remover item"
           >
             <Trash2 className="w-4 h-4" />
@@ -323,7 +323,7 @@ export function DynamicForm({
         <div key={field.name} className="space-y-1.5 md:col-span-2">
           <label className="flex items-center text-xs font-semibold text-foreground">
             {field.label}
-            {field.required && <span className="text-red-400 ml-1">*</span>}
+            {field.required && <span className="text-red-700 dark:text-red-400 ml-1">*</span>}
             {isMarkdownCandidate && (
               <span className="ml-2 font-mono text-[10px] text-primary border border-primary/30 bg-primary/10 px-1.5 py-0.2 rounded">
                 Markdown .md
@@ -352,7 +352,7 @@ export function DynamicForm({
             />
           ) : (
             <textarea
-              className="w-full rounded-md border border-border bg-background px-3 py-2 text-xs font-mono text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary min-h-[90px]"
+              className="w-full rounded-md border border-input bg-background px-3 py-2 text-xs font-mono text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary min-h-[90px]"
               value={typeof val === "object" ? JSON.stringify(val, null, 2) : val}
               onChange={(e) => handleChange(field, e.target.value)}
               required={field.required}
@@ -368,7 +368,7 @@ export function DynamicForm({
         <div key={field.name} className="space-y-2 md:col-span-2">
           <label className="flex items-center text-xs font-semibold text-foreground">
             {field.label}
-            {field.required && <span className="text-red-400 ml-1">*</span>}
+            {field.required && <span className="text-red-700 dark:text-red-400 ml-1">*</span>}
             {field.description && (
               <TooltipProvider delayDuration={100}>
                 <Tooltip>
@@ -399,7 +399,7 @@ export function DynamicForm({
         <div key={field.name} className="space-y-1.5">
           <label htmlFor={`field-${tableSlug}-${field.name}`} className="flex items-center text-sm font-semibold text-foreground">
             {field.label}
-            {field.required && <span className="text-red-400 ml-1">*</span>}
+            {field.required && <span className="text-red-700 dark:text-red-400 ml-1">*</span>}
             {field.description && (
               <TooltipProvider delayDuration={100}>
                 <Tooltip>
@@ -415,7 +415,7 @@ export function DynamicForm({
           </label>
           <select
             id={`field-${tableSlug}-${field.name}`}
-            className="min-h-11 w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary cursor-pointer"
+            className="min-h-11 w-full rounded-lg border border-input bg-background px-3 py-2 text-sm text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary cursor-pointer"
             value={val}
             onChange={(e) => handleChange(field, e.target.value)}
             required={field.required}
@@ -435,7 +435,7 @@ export function DynamicForm({
         <div key={field.name} className="space-y-1.5">
           <label className="flex items-center text-xs font-semibold text-foreground">
             {field.label}
-            {field.required && <span className="text-red-400 ml-1">*</span>}
+            {field.required && <span className="text-red-700 dark:text-red-400 ml-1">*</span>}
             {field.description && (
               <TooltipProvider delayDuration={100}>
                 <Tooltip>
@@ -450,7 +450,7 @@ export function DynamicForm({
             )}
           </label>
           <select
-            className="w-full rounded-md border border-border bg-background px-3 py-2 text-xs text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary cursor-pointer"
+            className="w-full rounded-md border border-input bg-background px-3 py-2 text-xs text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary cursor-pointer"
             value={val}
             onChange={(e) => handleChange(field, e.target.value)}
             required={field.required}
@@ -506,7 +506,7 @@ export function DynamicForm({
                   >
                     <input
                       type="checkbox"
-                      className="w-3.5 h-3.5 rounded border-border accent-primary"
+                      className="w-3.5 h-3.5 rounded border-input accent-primary"
                       checked={isSelected}
                       onChange={(e) => {
                         const checked = e.target.checked;
@@ -549,8 +549,8 @@ export function DynamicForm({
               "flex min-h-11 items-center gap-2 px-3 py-1.5 rounded-md border text-xs transition-colors cursor-pointer focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary",
               isChecked
                 ? isGenderField
-                  ? "border-rose-500/40 bg-rose-500/10 text-rose-400 font-medium"
-                  : "border-emerald-500/40 bg-emerald-500/10 text-emerald-400 font-medium"
+                  ? "border-rose-500/40 bg-rose-500/10 text-rose-700 dark:text-rose-400 font-medium"
+                  : "border-emerald-500/40 bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 font-medium"
                 : "border-border bg-muted/40 text-muted-foreground"
             )}
           >
@@ -589,7 +589,7 @@ export function DynamicForm({
         <div key={field.name} className="space-y-2 md:col-span-2">
           <label className="flex items-center text-xs font-semibold text-foreground">
             {field.label}
-            {field.required && <span className="text-red-400 ml-1">*</span>}
+            {field.required && <span className="text-red-700 dark:text-red-400 ml-1">*</span>}
             {field.description && (
               <span className="text-muted-foreground ml-2 font-normal text-[11px]">
                 ({field.description})
@@ -634,7 +634,7 @@ export function DynamicForm({
                 <input
                   type="text"
                   placeholder="URL pública da imagem (ou envie um arquivo abaixo)..."
-                  className="w-full rounded-md border border-border bg-background px-3 py-1.5 text-xs text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary font-mono"
+                  className="w-full rounded-md border border-input bg-background px-3 py-1.5 text-xs text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary font-mono"
                   value={val || ""}
                   onChange={(e) => handleChange(field, e.target.value)}
                   required={field.required && !pendingFile}
@@ -669,7 +669,7 @@ export function DynamicForm({
                 </label>
 
                 {pendingFile && (
-                  <span className="font-mono text-[11px] text-emerald-400 flex items-center gap-1">
+                  <span className="font-mono text-[11px] text-emerald-700 dark:text-emerald-400 flex items-center gap-1">
                     <CheckCircle2 className="h-3 w-3" />
                     {pendingFile.name} (será enviado ao salvar)
                   </span>
@@ -686,7 +686,7 @@ export function DynamicForm({
       <div key={field.name} className="space-y-1.5">
         <label className="flex items-center text-xs font-semibold text-foreground">
           {field.label}
-          {field.required && <span className="text-red-400 ml-1">*</span>}
+          {field.required && <span className="text-red-700 dark:text-red-400 ml-1">*</span>}
           {field.description && (
             <TooltipProvider delayDuration={100}>
               <Tooltip>
@@ -703,7 +703,7 @@ export function DynamicForm({
         <input
           type={field.type === "number" ? "number" : "text"}
           step={field.type === "number" ? "any" : undefined}
-          className="w-full rounded-md border border-border bg-background px-3 py-2 text-xs text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary"
+          className="w-full rounded-md border border-input bg-background px-3 py-2 text-xs text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary"
           value={val}
           onChange={(e) => handleChange(field, e.target.value)}
           required={field.required}
@@ -715,7 +715,7 @@ export function DynamicForm({
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
       {error && (
-        <div className="flex items-center gap-2 rounded-lg border border-red-500/30 bg-red-500/10 p-4 text-xs text-red-400">
+        <div className="flex items-center gap-2 rounded-lg border border-red-500/30 bg-red-500/10 p-4 text-xs text-red-700 dark:text-red-400">
           <AlertCircle className="h-4 w-4 shrink-0" />
           <span>{error}</span>
         </div>

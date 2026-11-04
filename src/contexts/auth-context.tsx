@@ -82,12 +82,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     };
 
     window.addEventListener(AUTH_CHANGE_EVENT, handleAuthChange);
-    window.addEventListener("storage", handleAuthChange);
+    const handleStorage = (event: StorageEvent) => { if (event.key === AUTH_CHANGE_EVENT || event.key === null) handleAuthChange(); };
+    window.addEventListener("storage", handleStorage);
     window.addEventListener("focus", handleAuthChange);
 
     return () => {
       window.removeEventListener(AUTH_CHANGE_EVENT, handleAuthChange);
-      window.removeEventListener("storage", handleAuthChange);
+      window.removeEventListener("storage", handleStorage);
       window.removeEventListener("focus", handleAuthChange);
     };
   }, [refreshSession]);
