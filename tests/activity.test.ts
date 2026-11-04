@@ -9,7 +9,7 @@ import { clientEvents, logFilters } from '../src/lib/activity/input';
 import { prisma } from '../src/lib/prisma';
 Object.assign(process.env, { NODE_ENV: 'test' });
 const actor = { id: 'admin', name: 'Admin', role: 'ADMIN' };
-const event = { id: '7adf4b99-1aa1-42c5-815b-745d5d1e86cc', action: 'BUTTON_CLICK', path: '/perfil?token=SECRET#CPF' };
+const event = { id: '7adf4b99-1aa1-42c5-815b-745d5d1e86cc', action: 'PAGE_VIEW', path: '/perfil?token=SECRET#CPF' };
 beforeEach(() => { recordedActivity.length = 0; });
 test('paths strip queries and fragments and reject external/control paths', () => {
   assert.equal(activityPath('/perfil?password=SECRET#fragment'), '/perfil');
@@ -24,7 +24,7 @@ test('client can only submit bounded observed interactions, never identity, cred
   assert.throws(() => clientEvents({ events: [{ ...event, control: 'CPF: 123.456.789-09' }] }));
 });
 test('API trace keeps actor contexts separate under concurrent requests and records failures', async () => {
-  await Promise.all(['Ana', 'Bia'].map((name, index) => traceApi(new NextRequest('http://localhost/api/profile?cpf=SECRET'), 'GET /api/profile', async () => {
+  await Promise.all(['Ana', 'Bia'].map((name, index) => traceApi(new NextRequest('http://localhost/api/profile?cpf=SECRET', { method: 'PUT' }), 'PUT /api/profile', async () => {
     rememberActivityActor({ ...actor, id: name, name });
     await new Promise(resolve => setTimeout(resolve, index ? 1 : 8));
     return NextResponse.json({ privateData: 'DO NOT LOG' }, { status: index ? 403 : 200 });
@@ -52,18 +52,25 @@ test('returned failures and exceptions are recorded without storing error conten
   assert.ok(!JSON.stringify(recordedActivity).includes('SECRET'));
 });
 test('an actor deleted during the action retains a detached snapshot and log failures never change action results', async () => {
-  const original = prisma.activityLog.create;
+  const original = prisma.activityLog.upsert;
   let calls = 0;
   try {
-    (prisma.activityLog as any).create = async ({ data }: any) => { calls++; if (data.actorId) throw { code: 'P2003' }; recordedActivity.push(data); return data; };
+    (prisma.activityLog as any).upsert = async ({ create }: any) => { calls++; if (create.actorId) throw { code: 'P2003' }; recordedActivity.push(create); return create; };
     await writeActivity({ actor, kind: 'SERVER_ACTION', action: 'deleteRecord', path: '/gestao', outcome: 'SUCCESS' });
     assert.equal(calls, 2); assert.equal(recordedActivity[0].actorId, null); assert.equal(recordedActivity[0].actorName, 'Admin');
-    (prisma.activityLog as any).create = async () => { throw Error('offline'); };
+    (prisma.activityLog as any).upsert = async () => { throw Error('offline'); };
     assert.equal((await traceServerAction('saveDirectoryDetails', async () => ({ success: true }))).success, true);
-  } finally { prisma.activityLog.create = original; }
+  } finally { prisma.activityLog.upsert = original; }
 });
 test('log filters have bounded periods, query lengths and cursors', () => {
   assert.equal(logFilters(new URLSearchParams()).days, 7);
   assert.equal(logFilters(new URLSearchParams('days=0')).days, 0);
   for (const filter of ['days=10000', 'kind=PRIVATE', 'outcome=ADMIN', `q=${'a'.repeat(101)}`, 'cursor=../private']) assert.throws(() => logFilters(new URLSearchParams(filter)));
+});
+
+test('polling and reads are omitted while repeated meaningful actions are summarized', async () => {
+  await traceApi(new NextRequest('http://localhost/api/auth/me'), 'GET /api/auth/me', async () => { rememberActivityActor(actor); return NextResponse.json({}); });
+  assert.equal(recordedActivity.length, 0);
+  for (let index = 0; index < 3; index++) await traceServerAction('updateRecord', async () => { rememberActivityActor(actor); activityTarget('/gestao/projetos/12'); return { success: true }; });
+  assert.equal(recordedActivity.length, 1); assert.equal(recordedActivity[0].occurrences, 3);
 });

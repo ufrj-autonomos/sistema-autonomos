@@ -2,15 +2,13 @@
 
 import { traceServerAction } from '@/lib/activity/server';
 import { activityTarget } from '@/lib/activity/context';
-import { randomUUID } from 'node:crypto';
-import sharp from 'sharp';
-import { createClient } from '@supabase/supabase-js';
 import { revalidatePath } from 'next/cache';
 import { requirePageUser } from '@/lib/session';
 import { getInstitutionalModel, recordData, institutionalFailure, InstitutionalError } from '@/lib/institutional/records';
 import { publishInstitutionalSite } from '@/lib/institutional/publish';
 import { directoryPath } from '@/lib/institutional/routes';
 import { memberRoleTranslations } from '@/lib/member-fields';
+import { storeInstitutionalImage } from '@/lib/institutional/image-upload';
 import { prisma } from '@/lib/prisma';
 
 async function changed(table: string) {
@@ -61,6 +59,8 @@ export async function updateRecord(table: string, id: number, data: unknown): Pr
     const { model } = getInstitutionalModel(table);
     activityTarget(`${directoryPath(table)}/${id}`);
     const parsed = recordData(table, data, false);
+    const fields = Object.keys(parsed);
+    if (fields.length === 1) activityTarget(`${directoryPath(table)}/${id}`, fields[0]);
     if (table === 'member' && typeof parsed.role === 'string') {
       const previous = await model.findUnique({ where: { id } });
       const translations = memberRoleTranslations(parsed.role);
@@ -107,19 +107,10 @@ export async function deleteRecord(table: string, id: number): Promise<{ success
 }
 export async function uploadImageToSupabase(formData: FormData): Promise<{ success: boolean; url?: string; error?: string }> {
   return traceServerAction("uploadImageToSupabase", async () => {
-  await requirePageUser(true);
+  const user = await requirePageUser(true);
   try {
     activityTarget('/gestao/site', 'image');
-    const file = formData.get('file');
-    if (!(file instanceof File) || !file.type.startsWith('image/') || file.size < 1 || file.size > 4 * 1024 * 1024) throw new InstitutionalError('Envie uma imagem de até 4 MB.');
-    const url = process.env.INSTITUTIONAL_SUPABASE_URL; const key = process.env.INSTITUTIONAL_SUPABASE_SECRET_KEY;
-    if (!url || !key) throw new InstitutionalError('O armazenamento institucional não foi configurado.');
-    const buffer = await sharp(Buffer.from(await file.arrayBuffer()), { limitInputPixels: 40000000 }).rotate().resize({ width: 2560, height: 2560, fit: 'inside', withoutEnlargement: true }).webp({ quality: 80 }).toBuffer();
-    const storage = createClient(url, key, { auth: { persistSession: false, autoRefreshToken: false } }).storage.from('galery-autonomos');
-    const path = `uploads/${randomUUID()}.webp`;
-    const { error } = await storage.upload(path, buffer, { contentType: 'image/webp', upsert: false });
-    if (error) throw new Error('Storage unavailable');
-    return { success: true, url: storage.getPublicUrl(path).data.publicUrl };
+    return { success: true, url: await storeInstitutionalImage(formData.get('file'), { folder: 'content', actorId: user.id }) };
   } catch (error) { return { success: false, error: institutionalFailure(error) }; }
 
   });

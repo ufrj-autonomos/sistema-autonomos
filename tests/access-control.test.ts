@@ -432,7 +432,8 @@ test('existing directory member with email cannot register a duplicate account a
 
 stub(prisma.activityLog, 'findMany', async () => []);
 stub(prisma.activityLog, 'count', async () => 0);
-stub(prisma.activityLog, 'aggregate', async () => ({ _min: { createdAt: null } }));
+stub(prisma.activityLog, 'groupBy', async () => []);
+stub(prisma.activityLog, 'aggregate', async () => ({ _min: { createdAt: null }, _sum: { occurrences: 0 } }));
 test('only a live approved Admin may read logs; management and forged role claims cannot', async () => {
   assert.equal((await activityLogs(request('/api/admin/activity'))).status, 401);
   for (const role of ['MEMBER', 'TRAINEE', 'MANAGEMENT']) {
@@ -467,4 +468,18 @@ test('successful login and logout keep verified actor snapshots without request 
   assert.equal((await logout(request('/api/auth/logout', cookie, undefined, 'POST'))).status, 200);
   assert.equal(recordedActivity.at(-1).actorId, 'admin');
   assert.ok(!JSON.stringify(recordedActivity).includes('valid-password'));
+});
+
+
+test('image upload requires live management privileges and rejects oversized multipart requests', async () => {
+  const { POST: uploadImage } = await import('../src/app/api/admin/images/route');
+  assert.equal((await uploadImage(request('/api/admin/images', undefined, {}, 'POST'))).status, 401);
+  const memberToken = await tokenFor('student', { role: 'ADMIN' });
+  assert.equal((await uploadImage(request('/api/admin/images', memberToken, {}, 'POST'))).status, 403);
+  users[1].role = 'MANAGEMENT';
+  const token = await tokenFor('student');
+  const oversized = new NextRequest('http://localhost/api/admin/images', { method: 'POST', headers: { cookie: `${SESSION_COOKIE_NAME}=${token}`, 'content-length': '5000000' } });
+  assert.equal((await uploadImage(oversized)).status, 413);
+  users[1].role = 'MEMBER';
+  assert.equal((await uploadImage(request('/api/admin/images', token, {}, 'POST'))).status, 403);
 });

@@ -1,5 +1,6 @@
 "use client";
 
+import { ImageCropDialog } from '@/components/institutional/image-crop-dialog';
 import React, { useEffect, useState, Suspense } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
@@ -70,6 +71,7 @@ function ProfileFormContent() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
+  const [cropPhoto, setCropPhoto] = useState<File | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
@@ -158,9 +160,13 @@ function ProfileFormContent() {
     void loadProfile();
   }, []);
 
-  async function handlePhotoUpload(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0];
+  function handlePhotoUpload(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0]; e.target.value = '';
     if (!file) return;
+    if (!file.type.startsWith('image/') || file.size > 25 * 1024 * 1024) { setError('Escolha uma imagem de até 25 MB.'); return; }
+    setCropPhoto(file);
+  }
+  async function uploadCroppedPhoto(file: File) {
     setUploadingPhoto(true);
     setError(null);
     try {
@@ -173,8 +179,10 @@ function ProfileFormContent() {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Não foi possível enviar a foto.");
       setPhoto(data.url);
+      setCropPhoto(null);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Erro ao enviar foto.");
+      throw err;
     } finally {
       setUploadingPhoto(false);
     }
@@ -317,6 +325,7 @@ function ProfileFormContent() {
         </div>
       )}
 
+      {cropPhoto && <ImageCropDialog file={cropPhoto} profile onCancel={() => setCropPhoto(null)} onConfirm={uploadCroppedPhoto} />}
       <form onSubmit={handleSubmit} className="mt-8 space-y-10">
         {/* Seção 1: Dados Internos & Operacionais */}
         <section className="rounded-2xl border border-border bg-card p-6 sm:p-8 space-y-6">
@@ -497,7 +506,7 @@ function ProfileFormContent() {
                 ) : (
                   <>
                     <Camera className="h-4 w-4" />
-                    <span>Enviar nova foto (até 4 MB)</span>
+                    <span>Enviar e recortar foto</span>
                   </>
                 )}
                 <input
@@ -509,7 +518,7 @@ function ProfileFormContent() {
                 />
               </label>
               <p className="text-xs text-muted-foreground">
-                Ou informe a URL pública da foto abaixo.
+                Original até 25 MB; envio até 4 MB após o recorte. Você também pode informar a URL abaixo.
               </p>
             </div>
           </div>

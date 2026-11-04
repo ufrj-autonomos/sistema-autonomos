@@ -1,32 +1,29 @@
 "use client";
 
+import { ImageUploadField } from "./image-upload-field";
 import { selectOptions } from "@/lib/form-select";
 import { normalizeMemberRole } from "@/lib/member-fields";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import type { AdminModel, AdminField } from "@/lib/institutional/admin-config";
-import { createRecord, updateRecord, uploadImageToSupabase } from "@/app/(gestao)/gestao/site/actions";
+import { createRecord, updateRecord } from "@/app/(gestao)/gestao/site/actions";
 import {
   Save,
   Loader2,
   Plus,
   Trash2,
   HelpCircle,
-  Upload,
-  ExternalLink,
   ImageIcon,
   FileText,
   Globe,
   Settings,
   Layers,
-  CheckCircle2,
   AlertCircle,
   Eye,
 } from "lucide-react";
 import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from "@/components/institutional/ui/tooltip";
 import { MarkdownEditor } from "@/components/institutional/markdown-editor";
 import { toast } from "sonner";
-import { useInstitutionalAsset } from "./site-context";
 import { directoryPath } from "@/lib/institutional/routes";
 import { cn } from "@/lib/utils";
 
@@ -136,12 +133,12 @@ export function DynamicForm({
   relationsData?: Record<string, any[]>;
 }) {
   const router = useRouter();
-  const assetUrl = useInstitutionalAsset();
   const [formData, setFormData] = useState<Record<string, any>>(() => {
     const values = initialData || Object.fromEntries(config.fields.filter(field => field.type === 'boolean').map(field => [field.name, false]));
     return config.table === 'member' ? { ...values, role: normalizeMemberRole(values.role || ''), teamId: values.teamId ?? '' } : values;
   });
-  const [filesToUpload, setFilesToUpload] = useState<Record<string, File>>({});
+  const [uploadingImages, setUploadingImages] = useState<Record<string, boolean>>({});
+  const imageBusy = Object.values(uploadingImages).some(Boolean);
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -189,25 +186,13 @@ export function DynamicForm({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (imageBusy || isSaving) return;
     setIsSaving(true);
     setError(null);
 
     const parsedData = Object.fromEntries(Object.entries(formData).filter(([key]) => config.fields.some(field => field.name === key) || (config.table === "member" && ["roleEn", "roleFr"].includes(key))));
 
     try {
-      // 1. Upload pending files first
-      for (const [fieldName, file] of Object.entries(filesToUpload)) {
-        const fileData = new FormData();
-        fileData.append("file", file);
-        const uploadResult = await uploadImageToSupabase(fileData);
-        if (!uploadResult?.success || !uploadResult?.url) {
-          throw new Error(
-            uploadResult?.error || `Falha ao fazer upload da imagem do campo ${fieldName}`
-          );
-        }
-        parsedData[fieldName] = uploadResult.url;
-      }
-
       // 2. Format and parse data
       for (const field of config.fields) {
         const val = parsedData[field.name];
@@ -576,109 +561,8 @@ export function DynamicForm({
       );
     }
 
-    // Image upload field
-    if (
-      field.type === "image" ||
-      ["photo", "coverImage", "logo", "url", "image", "avatar"].includes(field.name)
-    ) {
-      const currentUrl = val;
-      const pendingFile = filesToUpload[field.name];
-      const previewSrc = pendingFile ? URL.createObjectURL(pendingFile) : currentUrl;
-
-      return (
-        <div key={field.name} className="space-y-2 md:col-span-2">
-          <label className="flex items-center text-xs font-semibold text-foreground">
-            {field.label}
-            {field.required && <span className="text-red-700 dark:text-red-400 ml-1">*</span>}
-            {field.description && (
-              <span className="text-muted-foreground ml-2 font-normal text-[11px]">
-                ({field.description})
-              </span>
-            )}
-          </label>
-
-          <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 p-4 border border-border rounded-lg bg-card/40">
-            {/* Thumbnail Preview */}
-            <div className="relative flex h-24 w-28 shrink-0 items-center justify-center overflow-hidden rounded-md border border-border bg-muted">
-              {previewSrc ? (
-                <>
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img
-                    src={assetUrl(previewSrc)}
-                    alt="Prévia"
-                    className="h-full w-full object-cover"
-                  />
-                  {currentUrl && (
-                    <a
-                      href={assetUrl(currentUrl)}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="absolute inset-0 bg-black/50 opacity-0 hover:opacity-100 transition-opacity flex items-center justify-center text-white"
-                      title="Abrir em tamanho real"
-                    >
-                      <ExternalLink className="h-4 w-4" />
-                    </a>
-                  )}
-                </>
-              ) : (
-                <div className="flex flex-col items-center text-muted-foreground/60 text-[10px]">
-                  <ImageIcon className="h-6 w-6 mb-1" />
-                  <span>Sem imagem</span>
-                </div>
-              )}
-            </div>
-
-            {/* Inputs & Actions */}
-            <div className="flex-1 space-y-2 w-full">
-              <div className="flex items-center gap-2">
-                <input
-                  type="text"
-                  placeholder="URL pública da imagem (ou envie um arquivo abaixo)..."
-                  className="w-full rounded-md border border-input bg-background px-3 py-1.5 text-xs text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary font-mono"
-                  value={val || ""}
-                  onChange={(e) => handleChange(field, e.target.value)}
-                  required={field.required && !pendingFile}
-                />
-                {val && (
-                  <button
-                    type="button"
-                    onClick={() => handleChange(field, "")}
-                    className="p-1.5 rounded text-muted-foreground hover:text-red-400 hover:bg-red-500/10 transition-colors"
-                    title="Limpar URL"
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </button>
-                )}
-              </div>
-
-              <div className="flex flex-wrap items-center gap-3">
-                <label className="inline-flex items-center gap-1.5 rounded-md border border-primary/30 bg-primary/10 px-3 py-1.5 text-xs font-semibold text-primary hover:bg-primary/20 transition-colors cursor-pointer">
-                  <Upload className="h-3.5 w-3.5" />
-                  <span>{pendingFile ? "Trocar arquivo" : "Fazer Upload (Supabase)"}</span>
-                  <input
-                    type="file"
-                    accept="image/*"
-                    className="hidden"
-                    onChange={(e) => {
-                      const file = e.target.files?.[0];
-                      if (file) {
-                        setFilesToUpload((prev) => ({ ...prev, [field.name]: file }));
-                      }
-                    }}
-                  />
-                </label>
-
-                {pendingFile && (
-                  <span className="font-mono text-[11px] text-emerald-700 dark:text-emerald-400 flex items-center gap-1">
-                    <CheckCircle2 className="h-3 w-3" />
-                    {pendingFile.name} (será enviado ao salvar)
-                  </span>
-                )}
-              </div>
-            </div>
-          </div>
-        </div>
-      );
+    if (field.type === "image" || ["photo", "coverImage", "logo", "url", "image", "avatar"].includes(field.name)) {
+      return <ImageUploadField key={field.name} name={field.name} label={field.label} description={field.description} value={String(val || '')} required={field.required} kind={tableSlug} onChange={url => handleChange(field, url)} onBusy={busy => setUploadingImages(previous => ({ ...previous, [field.name]: busy }))} />;
     }
 
     // Default: string / number
@@ -856,14 +740,14 @@ export function DynamicForm({
             type="button"
             onClick={() => router.push(directoryPath(tableSlug))}
             className="flex-1 sm:flex-none rounded-lg border border-border px-4 py-2.5 text-xs font-medium text-foreground hover:bg-muted transition-colors"
-            disabled={isSaving}
+            disabled={isSaving || imageBusy}
           >
             Cancelar
           </button>
           <button
             type="submit"
             className="flex-1 sm:flex-none inline-flex items-center justify-center gap-2 rounded-lg bg-primary px-5 py-2.5 text-xs font-semibold text-primary-foreground shadow-sm hover:bg-primary/90 transition-colors disabled:opacity-50"
-            disabled={isSaving}
+            disabled={isSaving || imageBusy}
           >
             {isSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
             <span>{isSaving ? "Salvando no banco..." : isNew ? "Criar Registro" : "Salvar Alterações"}</span>

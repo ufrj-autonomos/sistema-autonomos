@@ -418,6 +418,9 @@ model AttendanceAudit {
 model ActivityLog {
   id            String   @id @default(cuid())
   clientEventId String?  @unique @db.VarChar(64)
+  summaryKey    String?  @unique @db.VarChar(64)
+  occurrences   Int      @default(1)
+  lastOccurredAt DateTime @default(now()) @db.Timestamptz(3)
   actorId       String?
   actor         Member?  @relation(fields: [actorId], references: [id], onDelete: SetNull)
   actorName     String?  @db.VarChar(200)
@@ -434,6 +437,7 @@ model ActivityLog {
   createdAt     DateTime @default(now()) @db.Timestamptz(3)
 
   @@index([createdAt, id])
+  @@index([lastOccurredAt, id])
   @@index([actorId, createdAt])
   @@index([kind, createdAt])
   @@index([outcome, createdAt])

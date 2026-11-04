@@ -8,7 +8,7 @@ import { db } from '@/lib/institutional/db';
 import { adminModels } from '@/lib/institutional/admin-config';
 import { directoryPath } from '@/lib/institutional/routes';
 import { memberPrivateDetails } from '@/lib/directory';
-import { DataTable } from '@/components/institutional/data-table';
+import { ProjectDirectory } from './project-directory';
 import { DirectoryEditor } from './directory-editor';
 import { SectionHeader } from './section-header';
 import { MemberListPage } from './member-list-page';
@@ -17,16 +17,19 @@ type DirectoryTable = 'member' | 'project';
 
 export async function DirectoryListPage({ table }: { table: DirectoryTable }) {
   if (table === 'member') return <MemberListPage />;
-  await requirePageUser(true);
+  const user = await requirePageUser(true);
   const config = adminModels.project;
   const records = await db.project.findMany({ include: { team: true }, orderBy: [{ year: 'desc' }, { name: 'asc' }] });
+  const details = await prisma.projectDetails.findMany({ where: { institutionalProjectId: { in: records.map(record => record.id) } }, select: { institutionalProjectId: true, notes: true } }).catch(() => null);
+  const byId = new Map(details?.map(detail => [detail.institutionalProjectId, detail.notes]) || []);
+  const rows = records.map(record => ({ id: record.id, name: record.name, coverImage: record.coverImage, teamName: record.team.name, teamSlug: record.team.slug, status: record.status, year: record.year, importance: record.importance, showOnSite: record.showOnSite, codename: record.codename, slug: record.slug, tagline: record.tagline, description: record.description, tags: record.tags, notes: byId.get(record.id) || null }));
   return <div className="space-y-6">
     <div className="flex flex-wrap items-start justify-between gap-4">
       <SectionHeader title={config.name} description="Projetos da equipe, informações internas e controle de exibição no site." />
       <Link href={`${directoryPath(table)}/new`} className="inline-flex min-h-11 items-center gap-2 rounded-lg bg-primary px-4 text-sm font-medium text-primary-foreground hover:bg-primary/90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"><Plus className="h-4 w-4" />Novo projeto</Link>
     </div>
     <p className="text-sm text-muted-foreground">{records.length} projetos cadastrados. Os dados públicos são compartilhados com o site institucional.</p>
-    <div className="overflow-hidden rounded-xl border border-border"><DataTable config={config} data={JSON.parse(JSON.stringify(records))} tableSlug={table} /></div>
+    <ProjectDirectory rows={rows} userId={user.id} detailsAvailable={details !== null} />
   </div>;
 }
 
