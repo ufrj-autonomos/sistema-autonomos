@@ -1,3 +1,4 @@
+import { traceApi } from '@/lib/activity/server';
 // ==============================================================================
 // GET /api/progress/ros2-jazzy
 // File: src/app/api/progress/ros2-jazzy/route.ts
@@ -12,6 +13,7 @@ import {
 } from '@/lib/progress';
 
 export async function GET(req: NextRequest) {
+  return traceApi(req, "GET /api/progress/ros2-jazzy", async () => {
   try {
     // 1. Autenticação obrigatória (cookie autonomos_session)
     const userId = await getAuthenticatedUserId(req);
@@ -138,4 +140,6 @@ export async function GET(req: NextRequest) {
       { status: 500 }
     );
   }
+
+  });
 }

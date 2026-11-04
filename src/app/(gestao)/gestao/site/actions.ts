@@ -1,4 +1,7 @@
 'use server';
+
+import { traceServerAction } from '@/lib/activity/server';
+import { activityTarget } from '@/lib/activity/context';
 import { randomUUID } from 'node:crypto';
 import sharp from 'sharp';
 import { createClient } from '@supabase/supabase-js';
@@ -21,13 +24,16 @@ async function changed(table: string) {
   return { success: true, warning: await publishInstitutionalSite() };
 }
 export async function createRecord(table: string, data: unknown): Promise<{ success: boolean; error?: string; warning?: string }> {
+  return traceServerAction("createRecord", async () => {
   await requirePageUser(true);
   try {
     const { model } = getInstitutionalModel(table);
+    activityTarget(directoryPath(table));
     const parsed = recordData(table, data, true);
     if (['member', 'project'].includes(table) && !('showOnSite' in parsed)) parsed.showOnSite = false;
     if (table === 'member' && typeof parsed.role === 'string') Object.assign(parsed, memberRoleTranslations(parsed.role));
     const created = await model.create({ data: parsed });
+    activityTarget(`${directoryPath(table)}/${created.id}`);
     if (table === 'member' && created?.id) {
       await prisma.member.upsert({
         where: { institutionalMemberId: created.id },
@@ -44,12 +50,16 @@ export async function createRecord(table: string, data: unknown): Promise<{ succ
     }
     return await changed(table);
   } catch (error) { return { success: false, error: institutionalFailure(error) }; }
+
+  });
 }
 export async function updateRecord(table: string, id: number, data: unknown): Promise<{ success: boolean; error?: string; warning?: string }> {
+  return traceServerAction("updateRecord", async () => {
   await requirePageUser(true);
   try {
     if (!Number.isSafeInteger(id) || id < 1) throw new InstitutionalError('Registro inválido.');
     const { model } = getInstitutionalModel(table);
+    activityTarget(`${directoryPath(table)}/${id}`);
     const parsed = recordData(table, data, false);
     if (table === 'member' && typeof parsed.role === 'string') {
       const previous = await model.findUnique({ where: { id } });
@@ -76,22 +86,30 @@ export async function updateRecord(table: string, id: number, data: unknown): Pr
     return await changed(table);
   }
   catch (error) { return { success: false, error: institutionalFailure(error) }; }
+
+  });
 }
 export async function deleteRecord(table: string, id: number): Promise<{ success: boolean; error?: string; warning?: string }> {
+  return traceServerAction("deleteRecord", async () => {
   await requirePageUser(true);
   try {
     if (!Number.isSafeInteger(id) || id < 1) throw new InstitutionalError('Registro inválido.');
     const { model } = getInstitutionalModel(table);
+    activityTarget(`${directoryPath(table)}/${id}`);
     await model.delete({ where: { id } });
     if (table === 'member') {
       await prisma.member.updateMany({ where: { institutionalMemberId: id }, data: { institutionalMemberId: null } });
     }
     return await changed(table);
   } catch (error) { return { success: false, error: institutionalFailure(error) }; }
+
+  });
 }
 export async function uploadImageToSupabase(formData: FormData): Promise<{ success: boolean; url?: string; error?: string }> {
+  return traceServerAction("uploadImageToSupabase", async () => {
   await requirePageUser(true);
   try {
+    activityTarget('/gestao/site', 'image');
     const file = formData.get('file');
     if (!(file instanceof File) || !file.type.startsWith('image/') || file.size < 1 || file.size > 4 * 1024 * 1024) throw new InstitutionalError('Envie uma imagem de até 4 MB.');
     const url = process.env.INSTITUTIONAL_SUPABASE_URL; const key = process.env.INSTITUTIONAL_SUPABASE_SECRET_KEY;
@@ -103,4 +121,6 @@ export async function uploadImageToSupabase(formData: FormData): Promise<{ succe
     if (error) throw new Error('Storage unavailable');
     return { success: true, url: storage.getPublicUrl(path).data.publicUrl };
   } catch (error) { return { success: false, error: institutionalFailure(error) }; }
+
+  });
 }

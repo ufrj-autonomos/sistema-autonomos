@@ -1,3 +1,4 @@
+import { traceApi } from '@/lib/activity/server';
 import { randomInt } from 'node:crypto';
 import { NextRequest, NextResponse } from 'next/server';
 import { readAuthPayload } from '@/lib/auth-request';
@@ -7,6 +8,7 @@ import { sendPasswordResetCodeEmail } from '@/lib/email';
 import { hashVerificationCode } from '@/lib/auth';
 
 export async function POST(req: NextRequest) {
+  return traceApi(req, "POST /api/auth/forgot-password", async () => {
   try {
     const blockedIp = await checkRateLimit(`forgot-ip:${clientAddress(req)}`, 20, 15 * 60);
     if (blockedIp) return blockedIp;
@@ -74,5 +76,7 @@ export async function POST(req: NextRequest) {
       { status: 500 }
     );
   }
+
+  });
 }
 

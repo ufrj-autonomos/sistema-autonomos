@@ -1,3 +1,4 @@
+import { traceApi } from '@/lib/activity/server';
 import { validateSiteProfileChanges } from '@/lib/site-profile-changes';
 import { normalizeMemberArea } from '@/lib/member-fields';
 import { NextRequest, NextResponse } from 'next/server';
@@ -9,6 +10,7 @@ import { calculateAgeFromBirthDate } from '@/lib/birthdays';
 import { publishInstitutionalSite } from '@/lib/institutional/publish';
 
 export async function GET(req: NextRequest) {
+  return traceApi(req, "GET /api/admin/profile-changes", async () => {
   try {
     const access = await authorizeApi(req, true);
     if (access.error) return access.error;
@@ -34,9 +36,12 @@ export async function GET(req: NextRequest) {
     console.error('Erro em GET /api/admin/profile-changes:', error);
     return NextResponse.json({ error: 'Não foi possível listar as alterações pendentes.' }, { status: 500 });
   }
+
+  });
 }
 
 export async function POST(req: NextRequest) {
+  return traceApi(req, "POST /api/admin/profile-changes", async () => {
   try {
     const access = await authorizeApi(req, true);
     if (access.error) return access.error;
@@ -169,5 +174,7 @@ export async function POST(req: NextRequest) {
     console.error('Erro em POST /api/admin/profile-changes:', error);
     return NextResponse.json({ error: 'Não foi possível processar a revisão das alterações.' }, { status: 500 });
   }
+
+  });
 }
 

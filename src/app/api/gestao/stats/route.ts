@@ -1,3 +1,4 @@
+import { traceApi } from '@/lib/activity/server';
 import { authorizeApi } from '@/lib/session';
 import { NextRequest, NextResponse } from "next/server";
 import { getGestaoStats } from "@/lib/gestao";
@@ -6,6 +7,7 @@ export const dynamic = "force-dynamic";
 export const revalidate = 0;
 
 export async function GET(_req: NextRequest) {
+  return traceApi(_req, "GET /api/gestao/stats", async () => {
   try {
     const access = await authorizeApi(_req, true);
     if (access.error) return access.error;
@@ -27,4 +29,6 @@ export async function GET(_req: NextRequest) {
       { status: 503 }
     );
   }
+
+  });
 }

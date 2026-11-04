@@ -1,3 +1,4 @@
+import { traceApi } from '@/lib/activity/server';
 import { timingSafeEqual } from 'node:crypto';
 import { NextRequest, NextResponse } from 'next/server';
 import { readAuthPayload } from '@/lib/auth-request';
@@ -8,6 +9,7 @@ import { checkRateLimit, clientAddress, resetRateLimit } from '@/lib/rate-limit'
 const MAX_CHALLENGE_ATTEMPTS = 5;
 
 export async function POST(req: NextRequest) {
+  return traceApi(req, "POST /api/auth/reset-password", async () => {
   try {
     const blockedIp = await checkRateLimit(`reset-ip:${clientAddress(req)}`, 30, 15 * 60);
     if (blockedIp) return blockedIp;
@@ -123,5 +125,7 @@ export async function POST(req: NextRequest) {
       { status: 500 }
     );
   }
+
+  });
 }
 

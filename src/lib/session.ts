@@ -1,3 +1,4 @@
+import { rememberActivityActor } from './activity/context';
 import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
 import { NextRequest, NextResponse } from 'next/server';
@@ -63,9 +64,10 @@ export async function getCurrentUser(req?: NextRequest): Promise<SafeUser | null
   const ownerId = sessionAny.memberId ?? sessionAny.userId;
   const member = sessionAny.member ?? sessionAny.user;
   if (!member || ownerId !== payload.sub) return null;
-  return member.status === 'APPROVED'
-    ? { ...member, email: member.email || '' }
-    : null;
+  if (member.status !== 'APPROVED') return null;
+  const user = { ...member, email: member.email || '' };
+  rememberActivityActor(user);
+  return user;
 }
 
 export async function getSession(): Promise<SessionPayload | null> {
@@ -102,4 +104,16 @@ export async function setSessionCookie(token: string): Promise<void> {
 
 export async function clearSessionCookie(): Promise<void> {
   (await cookies()).set(SESSION_COOKIE_NAME, '', { ...sessionCookieOptions, maxAge: 0 });
+}
+
+export async function requireAdminPageUser() {
+  const user = await requirePageUser();
+  if (user.role !== 'ADMIN') redirect('/gestao');
+  return user;
+}
+export async function authorizeAdminApi(req: NextRequest) {
+  const access = await authorizeApi(req);
+  if (access.error) return access;
+  if (access.user.role !== 'ADMIN') return { user: null, error: NextResponse.json({ error: 'Acesso exclusivo para Admin.' }, { status: 403 }) };
+  return access;
 }

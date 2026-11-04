@@ -1,8 +1,10 @@
+import { traceApi } from '@/lib/activity/server';
 import { NextRequest, NextResponse } from 'next/server';
 import { authorizeApi } from '@/lib/session';
 import { AccountUpdateError, updateAccount } from '@/lib/user-administration';
 
 export async function PATCH(req: NextRequest, context: { params: Promise<{ id: string }> }) {
+  return traceApi(req, "PATCH /api/admin/users/[id]", async () => {
   try {
     const access = await authorizeApi(req, true);
     if (access.error) return access.error;
@@ -16,4 +18,6 @@ export async function PATCH(req: NextRequest, context: { params: Promise<{ id: s
     console.error('Erro ao atualizar conta:', error);
     return NextResponse.json({ error: 'Não foi possível atualizar a conta. Tente novamente.' }, { status: 500 });
   }
+
+  });
 }

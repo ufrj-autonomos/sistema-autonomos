@@ -99,6 +99,7 @@ model Member {
   // Credentials stored in a dedicated table linked by the member ID
   credential         MemberCredential?
   sessions           Session[]
+  activityLogs       ActivityLog[]
   authChallenges     AuthChallenge[]
   profileChanges     MemberProfileChange[] @relation("MemberChanges")
   reviewedChanges    MemberProfileChange[] @relation("ReviewedChanges")
@@ -410,4 +411,30 @@ model AttendanceAudit {
   createdAt DateTime         @default(now()) @db.Timestamptz(3)
 
   @@index([memberId, createdAt])
+}
+
+// Immutable through the application: no update/delete endpoints. Account removal
+// detaches the FK but keeps the actor snapshot and the event history.
+model ActivityLog {
+  id            String   @id @default(cuid())
+  clientEventId String?  @unique @db.VarChar(64)
+  actorId       String?
+  actor         Member?  @relation(fields: [actorId], references: [id], onDelete: SetNull)
+  actorName     String?  @db.VarChar(200)
+  actorRole     String?  @db.VarChar(24)
+  kind          String   @db.VarChar(24)
+  action        String   @db.VarChar(100)
+  path          String   @db.VarChar(300)
+  targetPath    String?  @db.VarChar(300)
+  control       String?  @db.VarChar(60)
+  outcome       String   @db.VarChar(16)
+  method        String?  @db.VarChar(8)
+  statusCode    Int?
+  durationMs    Int?
+  createdAt     DateTime @default(now()) @db.Timestamptz(3)
+
+  @@index([createdAt, id])
+  @@index([actorId, createdAt])
+  @@index([kind, createdAt])
+  @@index([outcome, createdAt])
 }

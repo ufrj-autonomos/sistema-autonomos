@@ -1,9 +1,11 @@
+import { traceApi } from '@/lib/activity/server';
 import { NextRequest, NextResponse } from 'next/server';
 import { authorizeApi } from '@/lib/session';
 import { db as institutionalDb } from '@/lib/institutional/db';
 import { syncAllMissingTranslations, getGeminiApiKey } from '@/lib/translation';
 
 export async function GET(req: NextRequest) {
+  return traceApi(req, "GET /api/admin/translations/sync", async () => {
   try {
     const access = await authorizeApi(req, true);
     if (access.error) return access.error;
@@ -42,9 +44,12 @@ export async function GET(req: NextRequest) {
     console.error('Erro em GET /api/admin/translations/sync:', error);
     return NextResponse.json({ error: 'Não foi possível consultar pendências de tradução.' }, { status: 500 });
   }
+
+  });
 }
 
 export async function POST(req: NextRequest) {
+  return traceApi(req, "POST /api/admin/translations/sync", async () => {
   try {
     const access = await authorizeApi(req, true);
     if (access.error) return access.error;
@@ -60,5 +65,7 @@ export async function POST(req: NextRequest) {
     console.error('Erro em POST /api/admin/translations/sync:', error);
     return NextResponse.json({ error: 'Erro ao executar sincronização de traduções.' }, { status: 500 });
   }
+
+  });
 }
 

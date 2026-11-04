@@ -1,3 +1,4 @@
+import { traceApi } from '@/lib/activity/server';
 import QRCode from 'qrcode';
 import { NextRequest, NextResponse } from 'next/server';
 import { authorizeApi } from '@/lib/session';
@@ -6,6 +7,7 @@ import { getAppOrigin } from '@/lib/environment';
 import { AttendanceError } from '@/lib/attendance/service';
 import { attendanceFailure, attendanceHeaders } from '@/lib/attendance/http';
 export async function GET(req: NextRequest) {
+  return traceApi(req, "GET /api/admin/attendance/qr", async () => {
   try {
     const access = await authorizeApi(req, true);
     if (access.error) return access.error;
@@ -15,4 +17,6 @@ export async function GET(req: NextRequest) {
     const image = await QRCode.toDataURL(url, { width: 480, margin: 4, errorCorrectionLevel: 'M' });
     return NextResponse.json({ image, origin: getAppOrigin() }, { headers: attendanceHeaders });
   } catch (error) { return attendanceFailure(error); }
+
+  });
 }

@@ -1,3 +1,7 @@
+import { recordedActivity } from './helpers/activity-memory';
+import { GET as activityLogs } from '../src/app/api/admin/activity/route';
+import { POST as collectActivity } from '../src/app/api/activity/route';
+import { managementSectionsForRole } from '../src/lib/management-navigation';
 import { beforeEach, test } from 'node:test';
 import assert from 'node:assert/strict';
 import { NextRequest } from 'next/server';
@@ -110,6 +114,7 @@ stub(prisma, '$queryRaw', async () => [{ attempts: 1, expiresAt: new Date(Date.n
 stub(prisma.authRateLimit, 'deleteMany', async () => ({ count: 1 }));
 
 beforeEach(async () => {
+  recordedActivity.length = 0;
   passwordHash ||= await hashPassword('valid-password');
   users = [
     { id: 'admin', email: 'admin@test.local', name: 'Admin', role: 'ADMIN', status: 'APPROVED', passwordHash },
@@ -423,4 +428,43 @@ test('existing directory member with email cannot register a duplicate account a
 
   const wrongCode = await resetPassword(request('/api/auth/reset-password', undefined, { email: 'integrante@poli.ufrj.br', code: '000000', password: 'new-password' }));
   assert.equal(wrongCode.status, 400);
+});
+
+stub(prisma.activityLog, 'findMany', async () => []);
+stub(prisma.activityLog, 'count', async () => 0);
+stub(prisma.activityLog, 'aggregate', async () => ({ _min: { createdAt: null } }));
+test('only a live approved Admin may read logs; management and forged role claims cannot', async () => {
+  assert.equal((await activityLogs(request('/api/admin/activity'))).status, 401);
+  for (const role of ['MEMBER', 'TRAINEE', 'MANAGEMENT']) {
+    users[1].role = role;
+    assert.equal((await activityLogs(request('/api/admin/activity', await tokenFor('student', { role: 'ADMIN' })))).status, 403);
+    assert.ok(!managementSectionsForRole(role).some(item => item.href === '/gestao/logs'));
+  }
+  const token = await tokenFor('admin');
+  assert.equal((await activityLogs(request('/api/admin/activity', token))).status, 200);
+  assert.ok(managementSectionsForRole('ADMIN').some(item => item.href === '/gestao/logs'));
+  users[0].role = 'MANAGEMENT';
+  assert.equal((await activityLogs(request('/api/admin/activity', token))).status, 403);
+  users[0].status = 'SUSPENDED';
+  assert.equal((await activityLogs(request('/api/admin/activity', token))).status, 401);
+});
+test('activity ingestion binds the actor to the approved session and rejects identity spoofing', async () => {
+  const body = { events: [{ id: '7adf4b99-1aa1-42c5-815b-745d5d1e86cc', action: 'PAGE_VIEW', path: '/perfil?cpf=SECRET' }] };
+  assert.equal((await collectActivity(request('/api/activity', undefined, body))).status, 401);
+  const token = await tokenFor('student');
+  assert.equal((await collectActivity(request('/api/activity', token, body))).status, 204);
+  assert.equal(recordedActivity.at(-1).actorId, 'student');
+  assert.equal(recordedActivity.at(-1).actorRole, 'TRAINEE');
+  assert.equal(recordedActivity.at(-1).path, '/perfil');
+  assert.equal((await collectActivity(request('/api/activity', token, { events: [{ ...body.events[0], actorId: 'admin' }] }))).status, 400);
+  assert.equal((await collectActivity(request('/api/activity', token, { events: Array(21).fill(body.events[0]) }))).status, 400);
+});
+test('successful login and logout keep verified actor snapshots without request passwords', async () => {
+  const response = await login(request('/api/auth/login', undefined, { email: 'admin@test.local', password: 'valid-password' }));
+  assert.equal(response.status, 200);
+  assert.equal(recordedActivity.at(-1).actorId, 'admin');
+  const cookie = response.headers.get('set-cookie')!.split(';')[0].split('=').slice(1).join('=');
+  assert.equal((await logout(request('/api/auth/logout', cookie, undefined, 'POST'))).status, 200);
+  assert.equal(recordedActivity.at(-1).actorId, 'admin');
+  assert.ok(!JSON.stringify(recordedActivity).includes('valid-password'));
 });

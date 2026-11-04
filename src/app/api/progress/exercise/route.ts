@@ -1,3 +1,4 @@
+import { traceApi } from '@/lib/activity/server';
 // ==============================================================================
 // POST /api/progress/exercise
 // File: src/app/api/progress/exercise/route.ts
@@ -12,6 +13,7 @@ import {
 } from '@/lib/progress';
 
 export async function POST(req: NextRequest) {
+  return traceApi(req, "POST /api/progress/exercise", async () => {
   try {
     // 1. Autenticação obrigatória (cookie autonomos_session)
     const userId = await getAuthenticatedUserId(req);
@@ -223,4 +225,6 @@ export async function POST(req: NextRequest) {
       { status: 500 }
     );
   }
+
+  });
 }

@@ -1,4 +1,7 @@
 'use server';
+
+import { activityTarget } from '@/lib/activity/context';
+import { traceServerAction } from '@/lib/activity/server';
 import { requirePageUser } from '@/lib/session';
 import { revalidatePath } from 'next/cache';
 import { db } from '@/lib/institutional/db';
@@ -6,7 +9,9 @@ import { publishInstitutionalSite } from '@/lib/institutional/publish';
 import { institutionalFailure, InstitutionalError } from '@/lib/institutional/records';
 const keys = ['contactEmails','whatsappNumber','location','nautilusInstagram','nautilusLinkedin','nautilusEmail','nautilusFormLink','harpiaInstagram','harpiaLinkedin','harpiaEmail','harpiaFormLink'] as const;
 export async function updateSiteSettings(formData: FormData): Promise<{ success: boolean; error?: string; warning?: string }> {
+  return traceServerAction("updateSiteSettings", async () => {
   await requirePageUser(true);
+  activityTarget('/gestao/site/settings');
   try {
     if ([...formData.keys()].some(key => !keys.includes(key as typeof keys[number]) && !key.startsWith('$ACTION_'))) throw new InstitutionalError('Campo inválido.');
     const data = Object.fromEntries(keys.map(key => {
@@ -20,4 +25,6 @@ export async function updateSiteSettings(formData: FormData): Promise<{ success:
     revalidatePath('/gestao/site/settings');
     return { success: true, warning: await publishInstitutionalSite() };
   } catch (error) { return { success: false, error: institutionalFailure(error) }; }
+
+  });
 }

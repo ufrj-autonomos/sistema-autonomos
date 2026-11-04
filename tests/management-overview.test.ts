@@ -1,3 +1,4 @@
+import './helpers/activity-memory';
 import assert from 'node:assert/strict';
 import { beforeEach, test } from 'node:test';
 import { prisma } from '../src/lib/prisma';

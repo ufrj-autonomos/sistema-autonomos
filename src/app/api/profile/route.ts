@@ -1,3 +1,4 @@
+import { traceApi } from '@/lib/activity/server';
 import { NextRequest, NextResponse } from 'next/server';
 import { authorizeApi } from '@/lib/session';
 import { normalizeMemberArea, resolveMemberAreas } from '@/lib/member-fields';
@@ -9,6 +10,7 @@ import { syncMemberAgeToInstitutional } from '@/lib/birthdays';
 import { publishInstitutionalSite } from '@/lib/institutional/publish';
 
 export async function GET(req: NextRequest) {
+  return traceApi(req, "GET /api/profile", async () => {
   try {
     const access = await authorizeApi(req, false);
     if (access.error) return access.error;
@@ -89,9 +91,12 @@ export async function GET(req: NextRequest) {
     console.error('Erro em GET /api/profile:', error);
     return NextResponse.json({ error: 'Não foi possível carregar seu perfil.' }, { status: 500 });
   }
+
+  });
 }
 
 export async function PUT(req: NextRequest) {
+  return traceApi(req, "PUT /api/profile", async () => {
   try {
     const access = await authorizeApi(req, false);
     if (access.error) return access.error;
@@ -251,5 +256,7 @@ export async function PUT(req: NextRequest) {
     console.error('Erro em PUT /api/profile:', error);
     return NextResponse.json({ error: 'Não foi possível salvar seu perfil.' }, { status: 500 });
   }
+
+  });
 }
 

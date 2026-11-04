@@ -1,8 +1,10 @@
+import { traceApi } from '@/lib/activity/server';
 import { authorizeApi } from '@/lib/session';
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 
 export async function GET(_req: NextRequest) {
+  return traceApi(_req, "GET /api/courses/ros2-jazzy", async () => {
   try {
     const access = await authorizeApi(_req, false);
     if (access.error) return access.error;
@@ -85,4 +87,6 @@ export async function GET(_req: NextRequest) {
       { status: 500 }
     );
   }
+
+  });
 }

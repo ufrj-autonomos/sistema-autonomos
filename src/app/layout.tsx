@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { Space_Grotesk, Inter, JetBrains_Mono } from "next/font/google";
 import "./globals.css";
+import { ActivityTracker } from "@/components/activity/activity-tracker";
 import { PlatformShell } from "@/components/layout/platform-shell";
 import { AuthProvider } from "@/contexts/auth-context";
 import { ThemeProvider } from "@/contexts/theme-context";
@@ -73,7 +74,7 @@ export default function RootLayout({
       <body
         className={`${inter.variable} ${spaceGrotesk.variable} ${jetbrainsMono.variable} font-sans antialiased min-h-screen bg-background text-foreground flex flex-col`}
       >
-        <ThemeProvider><AuthProvider>
+        <ThemeProvider><AuthProvider><ActivityTracker />
           <PlatformShell>{children}</PlatformShell>
         </AuthProvider></ThemeProvider>
       </body>

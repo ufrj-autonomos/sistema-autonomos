@@ -1,3 +1,4 @@
+import { traceApi } from '@/lib/activity/server';
 import { readAuthPayload } from '@/lib/auth-request';
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
@@ -6,6 +7,7 @@ import { createUserSession, SESSION_COOKIE_NAME, sessionCookieOptions } from '@/
 import { checkRateLimit, clientAddress, resetRateLimit } from '@/lib/rate-limit';
 
 export async function POST(req: NextRequest) {
+  return traceApi(req, "POST /api/auth/login", async () => {
   try {
     const blockedAddress = await checkRateLimit(`login-ip:${clientAddress(req)}`, 50, 15 * 60);
     if (blockedAddress) return blockedAddress;
@@ -101,4 +103,6 @@ export async function POST(req: NextRequest) {
       { status: 500 }
     );
   }
+
+  });
 }

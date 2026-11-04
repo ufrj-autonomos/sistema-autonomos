@@ -1,3 +1,4 @@
+import { traceApi } from '@/lib/activity/server';
 import { randomUUID } from 'node:crypto';
 import sharp from 'sharp';
 import { createClient } from '@supabase/supabase-js';
@@ -5,6 +6,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { authorizeApi } from '@/lib/session';
 
 export async function POST(req: NextRequest) {
+  return traceApi(req, "POST /api/profile/photo", async () => {
   try {
     const access = await authorizeApi(req, false);
     if (access.error) return access.error;
@@ -45,5 +47,7 @@ export async function POST(req: NextRequest) {
     console.error('Erro em POST /api/profile/photo:', error);
     return NextResponse.json({ error: 'Falha ao enviar a foto de perfil.' }, { status: 500 });
   }
+
+  });
 }
 
