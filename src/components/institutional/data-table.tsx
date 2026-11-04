@@ -417,7 +417,7 @@ export function DataTable({
                               alt={field?.label || fieldKey}
                               className="h-full w-full object-cover"
                             />
-                            <div className="absolute inset-0 bg-black/40 opacity-0 group-hover/img:opacity-100 transition-opacity flex items-center justify-center text-white">
+                            <div className="absolute inset-0 bg-black/40 opacity-0 group-hover/img:opacity-100 transition-opacity flex items-center justify-center text-foreground">
                               <Eye className="h-3.5 w-3.5" />
                             </div>
                           </button>
@@ -429,14 +429,14 @@ export function DataTable({
                     if (fieldKey === "teamId" || fieldKey === "team") {
                       const tId = row.teamId;
                       let label = "Geral (Autônomos)";
-                      let color = "bg-amber-500/10 text-amber-400 border-amber-500/30";
+                      let color = "bg-amber-500/10 text-amber-700 dark:text-amber-400 border-amber-500/30";
 
                       if (tId === 1 || row.team?.slug === "nautilus" || row.teamSlug === "nautilus") {
                         label = "Nautilus";
-                        color = "bg-cyan-500/10 text-cyan-400 border-cyan-500/30";
+                        color = "bg-cyan-500/10 text-cyan-700 dark:text-cyan-400 border-cyan-500/30";
                       } else if (tId === 2 || row.team?.slug === "harpia" || row.teamSlug === "harpia") {
                         label = "Harpia";
-                        color = "bg-purple-500/10 text-purple-400 border-purple-500/30";
+                        color = "bg-purple-500/10 text-purple-700 dark:text-purple-400 border-purple-500/30";
                       }
 
                       return (
@@ -474,7 +474,7 @@ export function DataTable({
                             className={cn(
                               "inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-[11px] font-mono border cursor-pointer transition-all hover:scale-105",
                               isF
-                                ? "bg-rose-500/10 text-rose-400 border-rose-500/30 hover:bg-rose-500/20"
+                                ? "bg-rose-500/10 text-rose-700 dark:text-rose-400 border-rose-500/30 hover:bg-rose-500/20"
                                 : "bg-muted/50 text-muted-foreground border-hairline hover:bg-muted"
                             )}
                             title="Clique para alternar gênero"
@@ -510,16 +510,16 @@ export function DataTable({
                     // 5. Area field badge
                     if (fieldKey === "area" && rawVal) {
                       const areaColors: Record<string, string> = {
-                        gestão: "bg-amber-500/10 text-amber-400 border-amber-500/30",
-                        gestao: "bg-amber-500/10 text-amber-400 border-amber-500/30",
-                        marketing: "bg-rose-500/10 text-rose-400 border-rose-500/30",
-                        software: "bg-emerald-500/10 text-emerald-400 border-emerald-500/30",
-                        eletrônica: "bg-amber-500/10 text-amber-300 border-amber-500/30",
-                        eletronica: "bg-amber-500/10 text-amber-300 border-amber-500/30",
-                        mecânica: "bg-orange-500/10 text-orange-400 border-orange-500/30",
-                        mecanica: "bg-orange-500/10 text-orange-400 border-orange-500/30",
-                        orientação: "bg-orange-600/10 text-orange-400 border-orange-600/30",
-                        orientacao: "bg-orange-600/10 text-orange-400 border-orange-600/30",
+                        gestão: "bg-amber-500/10 text-amber-700 dark:text-amber-400 border-amber-500/30",
+                        gestao: "bg-amber-500/10 text-amber-700 dark:text-amber-400 border-amber-500/30",
+                        marketing: "bg-rose-500/10 text-rose-700 dark:text-rose-400 border-rose-500/30",
+                        software: "bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border-emerald-500/30",
+                        eletrônica: "bg-amber-500/10 text-amber-700 dark:text-amber-300 border-amber-500/30",
+                        eletronica: "bg-amber-500/10 text-amber-700 dark:text-amber-300 border-amber-500/30",
+                        mecânica: "bg-orange-500/10 text-orange-700 dark:text-orange-400 border-orange-500/30",
+                        mecanica: "bg-orange-500/10 text-orange-700 dark:text-orange-400 border-orange-500/30",
+                        orientação: "bg-orange-600/10 text-orange-700 dark:text-orange-400 border-orange-600/30",
+                        orientacao: "bg-orange-600/10 text-orange-700 dark:text-orange-400 border-orange-600/30",
                       };
                       const colorClass =
                         areaColors[String(rawVal).toLowerCase()] ||
@@ -576,7 +576,7 @@ export function DataTable({
                             className={cn(
                               "inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-[11px] font-mono border cursor-pointer transition-all hover:scale-105",
                               isActive
-                                ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/30 hover:bg-emerald-500/20"
+                                ? "bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border-emerald-500/30 hover:bg-emerald-500/20"
                                 : "bg-muted text-muted-foreground border-hairline hover:bg-muted/80"
                             )}
                             title="Clique para alternar"
@@ -597,10 +597,10 @@ export function DataTable({
                     if (fieldKey === "category") {
                       const cat = String(rawVal).toLowerCase();
                       const catColors: Record<string, string> = {
-                        marco: "bg-zinc-500/10 text-zinc-300 border-zinc-500/30",
-                        projeto: "bg-blue-500/10 text-blue-400 border-blue-500/30",
-                        premio: "bg-rose-500/10 text-rose-400 border-rose-500/30",
-                        competicao: "bg-amber-500/10 text-amber-400 border-amber-500/30",
+                        marco: "bg-muted-foreground/10 text-secondary-foreground border-input",
+                        projeto: "bg-blue-500/10 text-blue-700 dark:text-blue-400 border-blue-500/30",
+                        premio: "bg-rose-500/10 text-rose-700 dark:text-rose-400 border-rose-500/30",
+                        competicao: "bg-amber-500/10 text-amber-700 dark:text-amber-400 border-amber-500/30",
                       };
                       return (
                         <td key={fieldKey} className="px-5 py-3">
@@ -683,7 +683,7 @@ export function DataTable({
                       <button
                         onClick={() => setDeleteConfirmTarget(row)}
                         disabled={isDeleting === row.id}
-                        className="inline-flex items-center justify-center rounded-md border border-red-500/20 bg-red-500/5 p-1 text-red-400 hover:bg-red-500/20 hover:text-red-300 transition-colors disabled:opacity-50 cursor-pointer"
+                        className="inline-flex items-center justify-center rounded-md border border-red-500/20 bg-red-500/5 p-1 text-red-700 dark:text-red-400 hover:bg-red-500/20 hover:text-red-300 transition-colors disabled:opacity-50 cursor-pointer"
                         title="Excluir registro"
                       >
                         <Trash2 className="h-3.5 w-3.5" />
@@ -701,7 +701,7 @@ export function DataTable({
       <Dialog open={!!deleteConfirmTarget} onOpenChange={(open) => !open && setDeleteConfirmTarget(null)}>
         <DialogContent className="sm:max-w-md bg-card border-border">
           <DialogHeader className="space-y-2">
-            <div className="flex h-10 w-10 items-center justify-center rounded-full bg-red-500/10 text-red-400 border border-red-500/30">
+            <div className="flex h-10 w-10 items-center justify-center rounded-full bg-red-500/10 text-red-700 dark:text-red-400 border border-red-500/30">
               <AlertTriangle className="h-5 w-5" />
             </div>
             <DialogTitle className="font-display text-lg font-semibold text-foreground">
@@ -722,7 +722,7 @@ export function DataTable({
               </strong>
               ?
             </p>
-            <p className="text-red-400/90 bg-red-500/10 border border-red-500/20 p-2.5 rounded-md">
+            <p className="text-red-700 dark:text-red-400/90 bg-red-500/10 border border-red-500/20 p-2.5 rounded-md">
               Atenção: Esta ação é definitiva e removerá os dados imediatamente do banco.
             </p>
           </div>
@@ -756,7 +756,7 @@ export function DataTable({
             </DialogTitle>
           </DialogHeader>
           {previewImage && (
-            <div className="mt-2 relative aspect-video w-full rounded-md overflow-hidden border border-border bg-black/40 flex items-center justify-center">
+            <div className="mt-2 relative aspect-video w-full rounded-md overflow-hidden border border-border bg-muted/60 flex items-center justify-center">
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
                 src={assetUrl(previewImage.url)}
@@ -860,8 +860,8 @@ export function DataTable({
             <strong className="text-foreground">
               #{quickConfirm?.row?.id} ({quickConfirm?.row?.name || quickConfirm?.row?.title || config.name})
             </strong>{" "}
-            de <strong className="text-amber-400">{quickConfirm?.currentValLabel}</strong> para{" "}
-            <strong className="text-emerald-400">{quickConfirm?.newValLabel}</strong>?
+            de <strong className="text-amber-700 dark:text-amber-400">{quickConfirm?.currentValLabel}</strong> para{" "}
+            <strong className="text-emerald-700 dark:text-emerald-400">{quickConfirm?.newValLabel}</strong>?
           </DialogDescription>
           <div className="bg-muted/40 border border-border/60 rounded-md p-2.5 text-xs text-muted-foreground">
             A alteração será aplicada imediatamente ao banco de dados e refletida na listagem.

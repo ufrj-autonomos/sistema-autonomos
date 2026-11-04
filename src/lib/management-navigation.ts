@@ -2,10 +2,10 @@ import { isManagementPath } from './access-policy';
 
 // Add a system here to include it in the sidebar, overview and breadcrumbs.
 export const MANAGEMENT_SECTIONS = [
-  { href: '/gestao', label: 'Visão geral', group: 'Principal', icon: 'overview', description: 'Resumo da equipe e tarefas que precisam de atenção.' },
+  { href: '/gestao', label: 'Painel da gestão', group: 'Principal', icon: 'overview', description: 'Resumo da equipe e tarefas que precisam de atenção.' },
   { href: '/gestao/contas', label: 'Contas e permissões', group: 'Pessoas', icon: 'accounts', description: 'Aprovar cadastros e administrar o acesso à plataforma.' },
   { href: '/gestao/integrantes', label: 'Integrantes', group: 'Pessoas', icon: 'members', description: 'Administrar dados públicos, dados internos e vínculos com contas.' },
-  { href: '/gestao/presenca', label: 'Presença no laboratório', group: 'Operação', icon: 'attendance', description: 'Acompanhar horas semanais, pendências e registros.' },
+  { href: '/gestao/presenca', label: 'Presença', group: 'Operação', icon: 'attendance', description: 'Acompanhar horas semanais, pendências e registros.' },
   { href: '/gestao/projetos', label: 'Projetos', group: 'Operação', icon: 'divisions', description: 'Administrar projetos, informações internas e exibição no site.' },
   { href: '/gestao/divisoes', label: 'Divisões', group: 'Operação', icon: 'divisions', description: 'Consultar Harpia, Nautilus e seus projetos cadastrados.' },
   { href: '/gestao/site', label: 'Site institucional', group: 'Plataforma', icon: 'institutional', description: 'Administrar o conteúdo público, as imagens e as configurações do site.' },

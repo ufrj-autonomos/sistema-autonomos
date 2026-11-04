@@ -40,69 +40,62 @@
   --color-nautilus-accent: #387aef;
 }
 
-/* ============================================================
-   UFRJ AUTÔNOMOS — Design System "Engineering Studio"
-   Estética: Dark titânio, materiais reais, precisão técnica,
-   hairlines, sem glow neon.
-   ============================================================ */
-
-/* ---- TEMA MATRIZ: AUTÔNOMOS (Default Dark Titanium) ---- */
-:root {
+/* Workspace foundations: a quiet ledger for everyday team work. */
+:root, .light {
+  color-scheme: light;
   --radius: 0.5rem;
-
-  /* Autônomos Dark Titanium */
-  --background: #0A0A0B;
-  --foreground: #F4F4F5;
-  --card: #111113;
-  --card-foreground: #F4F4F5;
-  --popover: #111113;
-  --popover-foreground: #F4F4F5;
-  --primary: #F4F4F5;
-  --primary-foreground: #0A0A0B;
-  --secondary: #1A1A1D;
-  --secondary-foreground: #E4E4E7;
-  --muted: #18181B;
-  --muted-foreground: #8B8E96;
-  --accent: #1F1F23;
-  --accent-foreground: #F4F4F5;
-  --destructive: #B42318;
-  --border: rgba(255, 255, 255, 0.08);
-  --input: rgba(255, 255, 255, 0.10);
-  --ring: #52525B;
-
-  /* Destaque Matriz */
-  --team-primary: #8B8E96;
-  --team-secondary: #3A3F4A;
-  --team-glow: rgba(139, 142, 150, 0.15);
-
-  /* Tokens de Linha Fina (Hairlines) */
-  --hairline: rgba(255, 255, 255, 0.06);
-  --hairline-strong: rgba(255, 255, 255, 0.12);
-  --grain-opacity: 0.035;
+  --background: #f2f4f7;
+  --foreground: #171a20;
+  --card: #ffffff;
+  --card-foreground: #171a20;
+  --popover: #ffffff;
+  --popover-foreground: #171a20;
+  --primary: #20252e;
+  --primary-foreground: #ffffff;
+  --secondary: #edf0f4;
+  --secondary-foreground: #343c48;
+  --muted: #edf0f4;
+  --muted-foreground: #5e6877;
+  --accent: #e7ebf0;
+  --accent-foreground: #171a20;
+  --destructive: #b42318;
+  --border: #dce1e8;
+  --input: #8793a3;
+  --ring: #1d5fbf;
+  --data-accent: #1d5fbf;
+  --team-primary: #5e6877;
+  --team-secondary: #e7ebf0;
+  --team-glow: transparent;
+  --hairline: #e7ebf0;
+  --hairline-strong: #dce1e8;
+  --grain-opacity: 0;
 }
-
-/* ---- Modo Claro (.light) ---- */
-.light {
-  --background: #FAFAFA;
-  --foreground: #0A0A0B;
-  --card: #FFFFFF;
-  --card-foreground: #0A0A0B;
-  --popover: #FFFFFF;
-  --popover-foreground: #0A0A0B;
-  --primary: #0A0A0B;
-  --primary-foreground: #FAFAFA;
-  --secondary: #F4F4F5;
-  --secondary-foreground: #18181B;
-  --muted: #F4F4F5;
-  --muted-foreground: #52525B;
-  --accent: #E4E4E7;
-  --accent-foreground: #0A0A0B;
-  --border: rgba(10, 10, 11, 0.10);
-  --input: rgba(10, 10, 11, 0.12);
-  --ring: #A1A1AA;
-  --hairline: rgba(10, 10, 11, 0.08);
-  --hairline-strong: rgba(10, 10, 11, 0.16);
-  --grain-opacity: 0.02;
+.dark {
+  color-scheme: dark;
+  --background: #101114;
+  --foreground: #f1f3f5;
+  --card: #181a1f;
+  --card-foreground: #f1f3f5;
+  --popover: #1c1f25;
+  --popover-foreground: #f1f3f5;
+  --primary: #eef1f5;
+  --primary-foreground: #171a20;
+  --secondary: #252a33;
+  --secondary-foreground: #d4dae3;
+  --muted: #22262e;
+  --muted-foreground: #a2adbd;
+  --accent: #2b313c;
+  --accent-foreground: #f1f3f5;
+  --destructive: #f87171;
+  --border: #303641;
+  --input: #626e80;
+  --ring: #8db5ef;
+  --data-accent: #8db5ef;
+  --team-primary: #a2adbd;
+  --team-secondary: #303641;
+  --team-glow: transparent;
+  --hairline: #252a33;
+  --hairline-strong: #303641;
 }
 
 /* ---- TEMA DA DIVISÃO HARPIA (Aeronaves Autônomas) ---- */
@@ -176,12 +169,12 @@
     font-family: var(--font-sans);
     min-height: 100vh;
     margin: 0;
-    overflow-x: hidden;
+    overflow-x: clip;
   }
 
   ::selection {
-    background: var(--team-primary);
-    color: var(--background);
+    background: var(--primary);
+    color: var(--primary-foreground);
   }
 
   /* Barra de rolagem técnica e discreta */
@@ -314,3 +307,45 @@
   body:has([data-lab-qr]) nav { display: none !important; }
   [data-lab-qr] { break-inside: avoid; border: 0; }
 }
+
+/* Shared application chrome. Course content keeps its existing composition. */
+.brand-dark { display: none; }
+.dark .brand-light { display: none; }
+.dark .brand-dark { display: block; }
+.workspace :is(a, button, input, select, textarea):focus-visible,
+.course-workspace :is(a, button, input, select, textarea):focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: 3px;
+}
+.workspace-icon-button { display: inline-flex; min-width: 44px; min-height: 44px; align-items: center; justify-content: center; flex-shrink: 0; border-radius: 8px; color: var(--muted-foreground); cursor: pointer; }
+.workspace-icon-button:hover { background: var(--accent); color: var(--foreground); }
+.workspace-nav-link { display: flex; min-height: 44px; align-items: center; gap: 12px; border-radius: 7px; padding: 10px 12px; font-size: 14px; color: var(--muted-foreground); }
+.workspace-nav-link:hover { background: var(--accent); color: var(--foreground); }
+.workspace-nav-active { background: var(--accent); color: var(--foreground); font-weight: 600; }
+.workspace-primary, .workspace-secondary { display: inline-flex; min-height: 44px; align-items: center; gap: 10px; border: 1px solid transparent; border-radius: 7px; padding: 10px 16px; font-size: 14px; font-weight: 500; cursor: pointer; }
+.workspace-primary { background: var(--primary); color: var(--primary-foreground); }
+.workspace-primary:hover { opacity: .88; }
+.workspace-secondary { background: var(--card); border-color: var(--border); color: var(--foreground); }
+.workspace-secondary:hover { background: var(--accent); border-color: var(--input); }
+.workspace-primary:disabled { opacity: .5; cursor: wait; }
+.workspace-input { min-height: 48px; border: 1px solid var(--input); border-radius: 7px; background: var(--background); color: var(--foreground); padding: 10px 12px; font-size: 16px; }
+.workspace-input::placeholder { color: var(--muted-foreground); }
+.workspace-progress { appearance: none; overflow: hidden; border: 0; border-radius: 999px; background: var(--muted); color: var(--data-accent); accent-color: var(--data-accent); }
+.workspace-progress::-webkit-progress-bar { background: var(--muted); border-radius: 999px; }
+.workspace-progress::-webkit-progress-value { background: var(--data-accent); border-radius: 999px; }
+.workspace-progress::-moz-progress-bar { background: var(--data-accent); border-radius: 999px; }
+.workspace-bottom-nav { padding-bottom: env(safe-area-inset-bottom); }
+.workspace-content { padding-bottom: calc(6.5rem + env(safe-area-inset-bottom)); }
+.workspace-menu { padding-bottom: env(safe-area-inset-bottom); }
+.workspace-skip { position: fixed; left: 16px; top: 12px; z-index: 100; transform: translateY(-200%); border-radius: 7px; background: var(--primary); color: var(--primary-foreground); padding: 12px 16px; }
+.workspace-skip:focus { transform: translateY(0); }
+.workspace-content > :is(div, section) { min-width: 0; }
+@media (min-width: 1024px) { .workspace-content { padding-bottom: 40px; } }
+@media (max-width: 639px) {
+  .workspace :is(input, select, textarea) { font-size: 16px; }
+  .course-workspace > .h-screen { height: calc(100dvh - 4rem); }
+}
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { scroll-behavior: auto !important; animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; }
+}
+@media print { .workspace-content { padding: 0; } }

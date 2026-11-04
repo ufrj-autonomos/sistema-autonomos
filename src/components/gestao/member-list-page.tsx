@@ -115,8 +115,8 @@ export async function MemberListPage() {
 
   return <div className="min-w-0 space-y-6">
     <header className="flex flex-wrap items-start justify-between gap-4">
-      <div><h1 className="font-display text-3xl font-semibold text-zinc-100">Integrantes <span className="ml-2 align-middle text-base font-normal tabular-nums text-zinc-400">{rows.length}</span></h1><p className="mt-2 max-w-prose text-sm leading-relaxed text-zinc-400">Consulte os dados do site, aprove edições enviadas pelos integrantes, organize o cadastro interno ou monte sua própria visualização.</p></div>
-      <Link href="/gestao/integrantes/new" className="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg bg-zinc-100 px-4 text-sm font-medium text-zinc-950 hover:bg-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-zinc-300"><Plus className="h-4 w-4" />Novo integrante</Link>
+      <div><h1 className="font-display text-3xl font-semibold text-foreground">Integrantes <span className="ml-2 align-middle text-base font-normal tabular-nums text-muted-foreground">{rows.length}</span></h1><p className="mt-2 max-w-prose text-sm leading-relaxed text-muted-foreground">Consulte os dados do site, aprove edições enviadas pelos integrantes, organize o cadastro interno ou monte sua própria visualização.</p></div>
+      <Link href="/gestao/integrantes/new" className="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg bg-primary px-4 text-sm font-medium text-primary-foreground hover:bg-primary/90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-border"><Plus className="h-4 w-4" />Novo integrante</Link>
     </header>
     <MemberDirectory rows={rows} initialPreferences={initialMemberPreferences(preferences?.memberDirectoryPreferences)} />
   </div>;

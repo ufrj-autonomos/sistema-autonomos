@@ -42,11 +42,11 @@ export const AuthContext = createContext<AuthContextType | undefined>(undefined)
 
 const AUTH_CHANGE_EVENT = "autonomos:auth-change";
 
-export function AuthProvider({ children }: { children: ReactNode }) {
+export function AuthProvider({ children, initialUser = null }: { children: ReactNode; initialUser?: SafeUser | null }) {
   const router = useRouter();
   const pathname = usePathname();
-  const [user, setUser] = useState<SafeUser | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
+  const [user, setUser] = useState<SafeUser | null>(initialUser);
+  const [isLoading, setIsLoading] = useState(!initialUser);
 
   // Consulta sessão atual via /api/auth/me
   const refreshSession = useCallback(async (): Promise<SafeUser | null> => {
@@ -82,12 +82,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     };
 
     window.addEventListener(AUTH_CHANGE_EVENT, handleAuthChange);
-    window.addEventListener("storage", handleAuthChange);
+    const handleStorage = (event: StorageEvent) => { if (event.key === AUTH_CHANGE_EVENT || event.key === null) handleAuthChange(); };
+    window.addEventListener("storage", handleStorage);
     window.addEventListener("focus", handleAuthChange);
 
     return () => {
       window.removeEventListener(AUTH_CHANGE_EVENT, handleAuthChange);
-      window.removeEventListener("storage", handleAuthChange);
+      window.removeEventListener("storage", handleStorage);
       window.removeEventListener("focus", handleAuthChange);
     };
   }, [refreshSession]);

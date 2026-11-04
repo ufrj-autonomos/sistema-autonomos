@@ -3,6 +3,8 @@ import { Space_Grotesk, Inter, JetBrains_Mono } from "next/font/google";
 import "./globals.css";
 import { PlatformShell } from "@/components/layout/platform-shell";
 import { AuthProvider } from "@/contexts/auth-context";
+import { ThemeProvider, themeBootstrap } from "@/contexts/theme-context";
+import { getCurrentUser } from "@/lib/session";
 import { getAppOrigin } from "@/lib/environment";
 
 const spaceGrotesk = Space_Grotesk({
@@ -27,7 +29,7 @@ const jetbrainsMono = JetBrains_Mono({
 });
 
 export const viewport: Viewport = {
-  themeColor: "#0A0A0B",
+  themeColor: [{ media: "(prefers-color-scheme: light)", color: "#f2f4f7" }, { media: "(prefers-color-scheme: dark)", color: "#101114" }],
   width: "device-width",
   initialScale: 1,
 };
@@ -60,19 +62,21 @@ export const metadata: Metadata = {
   },
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
+  const user = await getCurrentUser();
   return (
-    <html lang="pt-BR" className="dark" suppressHydrationWarning>
+    <html lang="pt-BR" className="light" suppressHydrationWarning>
+      <head><script dangerouslySetInnerHTML={{ __html: themeBootstrap }} /></head>
       <body
-        className={`${inter.variable} ${spaceGrotesk.variable} ${jetbrainsMono.variable} font-sans antialiased min-h-screen bg-[#0A0A0B] text-[#F4F4F5] flex flex-col selection:bg-zinc-800 selection:text-white`}
+        className={`${inter.variable} ${spaceGrotesk.variable} ${jetbrainsMono.variable} font-sans antialiased min-h-screen bg-background text-foreground flex flex-col`}
       >
-        <AuthProvider>
+        <ThemeProvider><AuthProvider initialUser={user}>
           <PlatformShell>{children}</PlatformShell>
-        </AuthProvider>
+        </AuthProvider></ThemeProvider>
       </body>
     </html>
   );
