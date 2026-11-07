@@ -20,7 +20,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
       return NextResponse.json({ error: 'memberId e status são obrigatórios.' }, { status: 400 });
     }
 
-    const validStatuses: MeetingAttendanceStatus[] = ['PRESENT', 'ABSENT', 'JUSTIFIED', 'LATE', 'NO_MEETING'];
+    const validStatuses: MeetingAttendanceStatus[] = ['PRESENT', 'ABSENT', 'JUSTIFIED', 'LATE', 'NO_MEETING', 'NOT_A_MEMBER'];
     if (!validStatuses.includes(status)) {
       return NextResponse.json({ error: 'Status de presença inválido.' }, { status: 400 });
     }

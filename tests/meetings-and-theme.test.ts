@@ -105,6 +105,12 @@ test('Attendance score calculation rules (Spreadsheet 26.2 matching)', () => {
   // [S] Sem reunião = desconsiderado
   const s = calculateAttendanceScore('NO_MEETING');
   assert.equal(s.counted, false);
+
+  // [N] Não era membro = desconsiderado (nulo, não afeta cálculo)
+  const n = calculateAttendanceScore('NOT_A_MEMBER');
+  assert.equal(n.counted, false);
+  assert.equal(n.presence, 0);
+  assert.equal(n.absence, 0);
 });
 
 test('Frequency status thresholds', () => {
@@ -169,5 +175,40 @@ test('Database imported meeting data matches Google Sheets Painel 26.2', async (
     }
   }
   assert.ok(perfectCount >= 14, `perfectCount should be around 15, got ${perfectCount}`);
+});
+
+test('Mural dos mais presentes and team comparison data structure', async () => {
+  const adminUser: SafeUser = {
+    id: 'u-admin',
+    name: 'Admin Tester',
+    email: 'admin@ufrj.br',
+    role: 'ADMIN',
+    status: 'APPROVED',
+    teamId: null,
+    teamSlug: 'autonomos',
+    area: 'Gestão',
+  };
+
+  const { getMeetingsDashboardData } = await import('../src/lib/meetings/service');
+  const dashboard = await getMeetingsDashboardData(adminUser, '26.2');
+
+  // Comparativo de reuniões por equipe
+  assert.ok(Array.isArray(dashboard.overview.teamComparison));
+  assert.equal(dashboard.overview.teamComparison.length, 3);
+  const harpia = dashboard.overview.teamComparison.find((t) => t.slug === 'harpia');
+  const nautilus = dashboard.overview.teamComparison.find((t) => t.slug === 'nautilus');
+  const autonomos = dashboard.overview.teamComparison.find((t) => t.slug === 'autonomos');
+  assert.ok(harpia && harpia.meetingsCount >= 15);
+  assert.ok(nautilus && nautilus.meetingsCount >= 0);
+  assert.ok(autonomos && autonomos.meetingsCount >= 4);
+
+  // Mural dos mais presentes
+  assert.ok(Array.isArray(dashboard.overview.topPresentMembers));
+  assert.ok(dashboard.overview.topPresentMembers.length >= 5);
+  // Se houver mais de 5 membros com 100%, todos com 100% devem estar presentes
+  const members100 = dashboard.overview.topPresentMembers.filter((m) => m.pct >= 99.9);
+  if (members100.length > 5) {
+    assert.equal(dashboard.overview.topPresentMembers.length, members100.length);
+  }
 });
 

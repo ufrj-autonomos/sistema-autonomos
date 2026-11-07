@@ -11,6 +11,19 @@ export interface AreaDefinition {
   coordinator?: string;
 }
 
+export interface TeamComparisonSummary {
+  teamId: number | null;
+  slug: 'harpia' | 'nautilus' | 'autonomos';
+  name: string;
+  color: string;
+  icon: string;
+  meetingsCount: number;
+  membersCount: number;
+  presences: number;
+  absences: number;
+  pct: number;
+}
+
 export const KNOWN_AREAS: AreaDefinition[] = [
   { area: 'Software', teamId: 2, label: 'Software', teamSlug: 'harpia', icon: '🖥️', coordinator: 'Gabriel Gaspar' },
   { area: 'Mecânica', teamId: 2, label: 'Mecânica', teamSlug: 'harpia', icon: '⚙️', coordinator: 'Gabriel Facundo' },
@@ -54,6 +67,7 @@ export function calculateAttendanceScore(status: MeetingAttendanceStatus | strin
       return { presence: 0.5, absence: 0.5, counted: true };
     case 'ABSENT':
       return { presence: 0, absence: 1.0, counted: true };
+    case 'NOT_A_MEMBER':
     case 'NO_MEETING':
     default:
       return { presence: 0, absence: 0, counted: false };
@@ -77,7 +91,7 @@ export async function getMeetingsDashboardData(user: SafeUser, period = '26.2') 
       attendances: {
         include: {
           member: {
-            select: { id: true, name: true, avatar: true, area: true, teamId: true },
+            select: { id: true, name: true, avatar: true, area: true, teamId: true, active: true, status: true },
           },
         },
       },
@@ -85,13 +99,18 @@ export async function getMeetingsDashboardData(user: SafeUser, period = '26.2') 
     orderBy: [{ date: 'asc' }, { createdAt: 'asc' }],
   });
 
-  // Buscar todos os membros ativos que podem ter reuniões
+  // Buscar todos os membros ativos que pertencem a equipes
   const allMembers = await prisma.member.findMany({
-    where: { active: true },
-    select: { id: true, name: true, avatar: true, area: true, teamId: true },
+    where: {
+      active: true,
+      status: { notIn: ['SUSPENDED', 'REJECTED'] },
+    },
+    select: { id: true, name: true, avatar: true, area: true, teamId: true, active: true, status: true },
   });
 
-  // Estatísticas por Membro em todo o período
+  const activeMemberIds = new Set(allMembers.map((m) => m.id));
+
+  // Estatísticas por Membro em todo o período (apenas membros ativos)
   const memberStatsMap = new Map<
     string,
     {
@@ -109,6 +128,8 @@ export async function getMeetingsDashboardData(user: SafeUser, period = '26.2') 
 
   for (const m of allMeetings) {
     for (const a of m.attendances) {
+      if (!activeMemberIds.has(a.memberId)) continue;
+
       if (!memberStatsMap.has(a.memberId)) {
         memberStatsMap.set(a.memberId, {
           id: a.memberId,
@@ -150,6 +171,7 @@ export async function getMeetingsDashboardData(user: SafeUser, period = '26.2') 
 
     for (const m of areaMeetings) {
       for (const att of m.attendances) {
+        if (!activeMemberIds.has(att.memberId)) continue;
         memberIds.add(att.memberId);
         const score = calculateAttendanceScore(att.status);
         if (score.counted) {
@@ -179,6 +201,67 @@ export async function getMeetingsDashboardData(user: SafeUser, period = '26.2') 
     };
   });
 
+  // Comparação de Reuniões por Equipe (Harpia, Nautilus, Autônomos Geral)
+  const teamComparison: TeamComparisonSummary[] = [
+    {
+      teamId: 2,
+      slug: 'harpia' as const,
+      name: 'Harpia',
+      color: '#A346CC',
+      icon: '☁️',
+      meetingsCount: allMeetings.filter((m) => m.teamId === 2).length,
+      membersCount: allMembers.filter((m) => m.teamId === 2).length,
+      presences: 0,
+      absences: 0,
+      pct: 0,
+    },
+    {
+      teamId: 1,
+      slug: 'nautilus' as const,
+      name: 'Nautilus',
+      color: '#387aef',
+      icon: '🌊',
+      meetingsCount: allMeetings.filter((m) => m.teamId === 1).length,
+      membersCount: allMembers.filter((m) => m.teamId === 1).length,
+      presences: 0,
+      absences: 0,
+      pct: 0,
+    },
+    {
+      teamId: null,
+      slug: 'autonomos' as const,
+      name: 'Autônomos Geral',
+      color: '#10b981',
+      icon: '🤖',
+      meetingsCount: allMeetings.filter((m) => m.teamId === null).length,
+      membersCount: allMembers.filter((m) => m.teamId === null).length,
+      presences: 0,
+      absences: 0,
+      pct: 0,
+    },
+  ].map((team) => {
+    const teamMeetings = allMeetings.filter((m) => m.teamId === team.teamId);
+    let p = 0;
+    let a = 0;
+    for (const m of teamMeetings) {
+      for (const att of m.attendances) {
+        if (!activeMemberIds.has(att.memberId)) continue;
+        const score = calculateAttendanceScore(att.status);
+        if (score.counted) {
+          p += score.presence;
+          a += score.absence;
+        }
+      }
+    }
+    const tot = p + a;
+    return {
+      ...team,
+      presences: p,
+      absences: a,
+      pct: tot > 0 ? Number(((p / tot) * 100).toFixed(1)) : 0,
+    };
+  });
+
   // Métricas Gerais do Painel Executivo
   let totalPresences = 0;
   let totalAbsences = 0;
@@ -200,10 +283,16 @@ export async function getMeetingsDashboardData(user: SafeUser, period = '26.2') 
     .sort((a, b) => a.pct - b.pct || b.absences - a.absences)
     .slice(0, 5);
 
-  // Top Membros com 100% de Presença
-  const perfectFrequencyMembers = memberStatsList
-    .filter((s) => s.meetings > 0 && s.pct >= 99.9)
-    .sort((a, b) => b.meetings - a.meetings || a.name.localeCompare(b.name, 'pt-BR'));
+  // Mural dos Mais Presentes:
+  // Os 5 membros com melhor presença, e se houver mais de 5 com 100%, mostra todos os de 100%
+  const sortedActiveMembers = memberStatsList
+    .filter((s) => s.meetings > 0)
+    .sort((a, b) => b.pct - a.pct || b.meetings - a.meetings || b.presences - a.presences || a.name.localeCompare(b.name, 'pt-BR'));
+
+  const membersWith100 = sortedActiveMembers.filter((s) => s.pct >= 99.9);
+  const topPresentMembers = membersWith100.length > 5
+    ? membersWith100
+    : sortedActiveMembers.slice(0, 5);
 
   // Detalhamento por Área permitida para o usuário (Matriz de Reuniões)
   const detailedAreas = visibleAreas.map((def) => {
@@ -211,7 +300,7 @@ export async function getMeetingsDashboardData(user: SafeUser, period = '26.2') 
       (m) => m.area === def.area && m.teamId === def.teamId
     );
 
-    // Membros presentes nas reuniões desta área ou cadastrados nesta área
+    // Membros ativos da equipe cadastrados nesta área
     const memberMap = new Map<
       string,
       {
@@ -226,7 +315,7 @@ export async function getMeetingsDashboardData(user: SafeUser, period = '26.2') 
       }
     >();
 
-    // Inicializar membros cadastrados na área
+    // Inicializar membros ativos cadastrados na área
     allMembers
       .filter((m) => {
         if (def.teamId !== null && m.teamId !== def.teamId) return false;
@@ -246,21 +335,29 @@ export async function getMeetingsDashboardData(user: SafeUser, period = '26.2') 
         });
       });
 
-    // Alimentar com os registros reais
+    // Alimentar com os registros reais apenas para membros ativos da equipe
     for (const meeting of areaMeetings) {
       for (const att of meeting.attendances) {
+        if (!activeMemberIds.has(att.memberId)) continue;
+
         if (!memberMap.has(att.memberId)) {
-          memberMap.set(att.memberId, {
-            id: att.memberId,
-            name: att.member.name,
-            avatar: att.member.avatar,
-            attendances: {},
-            presences: 0,
-            absences: 0,
-            total: 0,
-            pct: 0,
-          });
+          const activeMem = allMembers.find((m) => m.id === att.memberId);
+          if (activeMem && (activeMem.teamId === def.teamId || (def.teamId === null && activeMem.teamId === null))) {
+            memberMap.set(att.memberId, {
+              id: att.memberId,
+              name: att.member.name,
+              avatar: att.member.avatar,
+              attendances: {},
+              presences: 0,
+              absences: 0,
+              total: 0,
+              pct: 0,
+            });
+          } else {
+            continue;
+          }
         }
+
         const mObj = memberMap.get(att.memberId)!;
         mObj.attendances[meeting.id] = {
           status: att.status,
@@ -308,9 +405,11 @@ export async function getMeetingsDashboardData(user: SafeUser, period = '26.2') 
       overallRate: Number(overallRate.toFixed(1)),
       overallStatus,
       perfectCount,
+      teamComparison,
       areaSummaries,
       lowFrequencyMembers,
-      perfectFrequencyMembers,
+      perfectFrequencyMembers: topPresentMembers,
+      topPresentMembers,
     },
     detailedAreas,
   };

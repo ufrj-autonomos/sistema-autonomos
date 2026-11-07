@@ -18,9 +18,24 @@ import {
   X,
   Edit2,
   Filter,
+  BarChart3,
+  Layers,
+  Sparkles,
 } from 'lucide-react';
+import {
+  ResponsiveContainer,
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  Tooltip,
+  Cell,
+  Legend,
+} from 'recharts';
 import { cn } from '@/lib/utils';
 import type { SafeUser } from '@/contexts/auth-context';
+
+export type MeetingStatus = 'PRESENT' | 'ABSENT' | 'JUSTIFIED' | 'LATE' | 'NO_MEETING' | 'NOT_A_MEMBER';
 
 export interface AreaSummary {
   area: string;
@@ -35,6 +50,19 @@ export interface AreaSummary {
   absences: number;
   pct: number;
   status: { label: string; tone: 'green' | 'yellow' | 'red' | 'gray' };
+}
+
+export interface TeamMeetingsComparison {
+  teamId: number | null;
+  slug: 'harpia' | 'nautilus' | 'autonomos';
+  name: string;
+  color: string;
+  icon: string;
+  meetingsCount: number;
+  membersCount: number;
+  presences: number;
+  absences: number;
+  pct: number;
 }
 
 export interface DetailedArea {
@@ -59,7 +87,7 @@ export interface DetailedArea {
     attendances: Record<
       string,
       {
-        status: 'PRESENT' | 'ABSENT' | 'JUSTIFIED' | 'LATE' | 'NO_MEETING';
+        status: MeetingStatus;
         notes: string | null;
         attendanceId: string;
       }
@@ -91,6 +119,7 @@ export interface MeetingsData {
     overallRate: number;
     overallStatus: { label: string; tone: 'green' | 'yellow' | 'red' | 'gray' };
     perfectCount: number;
+    teamComparison?: TeamMeetingsComparison[];
     areaSummaries: AreaSummary[];
     lowFrequencyMembers: {
       id: string;
@@ -114,11 +143,30 @@ export interface MeetingsData {
       meetings: number;
       pct: number;
     }[];
+    topPresentMembers?: {
+      id: string;
+      name: string;
+      avatar: string | null;
+      area: string;
+      teamId: number | null;
+      presences: number;
+      absences: number;
+      meetings: number;
+      pct: number;
+    }[];
   };
   detailedAreas: DetailedArea[];
 }
 
-const STATUS_CONFIG = {
+const STATUS_CONFIG: Record<
+  MeetingStatus,
+  {
+    code: string;
+    label: string;
+    desc: string;
+    badge: string;
+  }
+> = {
   PRESENT: {
     code: 'P',
     label: 'Presente',
@@ -143,6 +191,12 @@ const STATUS_CONFIG = {
     desc: '1.0 ponto de falta',
     badge: 'bg-red-500/15 text-red-600 dark:text-red-400 border-red-500/30 hover:bg-red-500/25',
   },
+  NOT_A_MEMBER: {
+    code: 'N',
+    label: 'Não era membro',
+    desc: 'Nulo (não afeta cálculo)',
+    badge: 'bg-zinc-500/15 text-zinc-600 dark:text-zinc-400 border-zinc-500/30 hover:bg-zinc-500/25',
+  },
   NO_MEETING: {
     code: 'S',
     label: 'Sem Reunião',
@@ -150,6 +204,22 @@ const STATUS_CONFIG = {
     badge: 'bg-zinc-500/15 text-zinc-500 border-zinc-500/30 hover:bg-zinc-500/25',
   },
 };
+
+function ChartTooltip({ active, payload, label }: any) {
+  if (active && payload && payload.length) {
+    return (
+      <div className="rounded-lg border border-border bg-card p-2.5 shadow-md text-xs">
+        <p className="font-semibold text-foreground mb-1">{label}</p>
+        {payload.map((item: any, idx: number) => (
+          <p key={idx} style={{ color: item.color }} className="font-mono text-[11px]">
+            {item.name}: {item.value}
+          </p>
+        ))}
+      </div>
+    );
+  }
+  return null;
+}
 
 export function MeetingsView({
   initialData,
@@ -177,8 +247,8 @@ export function MeetingsView({
     meetingTitle: string;
     memberId: string;
     memberName: string;
-    currentStatus: 'PRESENT' | 'ABSENT' | 'JUSTIFIED' | 'LATE' | 'NO_MEETING';
-    newStatus: 'PRESENT' | 'ABSENT' | 'JUSTIFIED' | 'LATE' | 'NO_MEETING';
+    currentStatus: MeetingStatus;
+    newStatus: MeetingStatus;
     notes: string;
   } | null>(null);
 
@@ -256,8 +326,8 @@ export function MeetingsView({
     meetingTitle: string,
     memberId: string,
     memberName: string,
-    currentStatus: 'PRESENT' | 'ABSENT' | 'JUSTIFIED' | 'LATE' | 'NO_MEETING',
-    newStatus: 'PRESENT' | 'ABSENT' | 'JUSTIFIED' | 'LATE' | 'NO_MEETING'
+    currentStatus: MeetingStatus,
+    newStatus: MeetingStatus
   ) => {
     if (!data.isAdmin) return;
     setAttendanceModal({
@@ -469,6 +539,144 @@ export function MeetingsView({
             </div>
           </div>
 
+          {/* Gráficos Comparativos: Reuniões por Equipe e Desempenho por Área */}
+          <div className="grid gap-6 lg:grid-cols-2">
+            {/* Gráfico 1: Comparação de Reuniões por Equipe */}
+            <div className="rounded-xl border border-border bg-card p-5 space-y-4 shadow-xs">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <div className="p-2 rounded-lg bg-primary/10 text-primary">
+                    <BarChart3 className="h-4 w-4" />
+                  </div>
+                  <div>
+                    <h3 className="text-base font-semibold text-foreground">
+                      Reuniões por Equipe
+                    </h3>
+                    <p className="text-xs text-muted-foreground">
+                      Comparativo de reuniões realizadas entre Harpia, Nautilus e Geral.
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="h-56 w-full pt-2">
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart
+                    data={data.overview.teamComparison || []}
+                    margin={{ top: 10, right: 10, left: -20, bottom: 0 }}
+                  >
+                    <XAxis
+                      dataKey="name"
+                      stroke="#888888"
+                      fontSize={11}
+                      tickLine={false}
+                      axisLine={false}
+                    />
+                    <YAxis
+                      stroke="#888888"
+                      fontSize={11}
+                      tickLine={false}
+                      axisLine={false}
+                      allowDecimals={false}
+                    />
+                    <Tooltip content={<ChartTooltip />} />
+                    <Bar
+                      dataKey="meetingsCount"
+                      name="Qtd. Reuniões"
+                      radius={[6, 6, 0, 0]}
+                    >
+                      {(data.overview.teamComparison || []).map((entry, index) => (
+                        <Cell key={`cell-${index}`} fill={entry.color || '#3b82f6'} />
+                      ))}
+                    </Bar>
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+
+              {/* Cards Resumo das Equipes */}
+              <div className="grid grid-cols-3 gap-2 pt-2 border-t border-border/60">
+                {(data.overview.teamComparison || []).map((team) => (
+                  <div
+                    key={team.name}
+                    className="p-2.5 rounded-lg border border-border/60 bg-muted/30 text-center"
+                  >
+                    <div className="flex items-center justify-center gap-1 text-xs font-semibold text-foreground">
+                      <span>{team.icon}</span>
+                      <span className="truncate">{team.name}</span>
+                    </div>
+                    <div className="text-lg font-bold font-mono text-foreground mt-1">
+                      {team.meetingsCount} <span className="text-xs font-normal text-muted-foreground">reuniões</span>
+                    </div>
+                    <div className="text-[11px] font-mono text-muted-foreground mt-0.5">
+                      {team.pct}% presença
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Gráfico 2: Presenças vs Faltas por Área Técnica */}
+            <div className="rounded-xl border border-border bg-card p-5 space-y-4 shadow-xs">
+              <div className="flex items-center gap-2">
+                <div className="p-2 rounded-lg bg-emerald-500/10 text-emerald-500">
+                  <Layers className="h-4 w-4" />
+                </div>
+                <div>
+                  <h3 className="text-base font-semibold text-foreground">
+                    Assiduidade por Área Operacional
+                  </h3>
+                  <p className="text-xs text-muted-foreground">
+                    Comparativo de presenças computadas e faltas por coordenação.
+                  </p>
+                </div>
+              </div>
+
+              <div className="h-56 w-full pt-2">
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart
+                    data={data.overview.areaSummaries.map((s) => ({
+                      name: s.label.replace(' (Nautilus)', ' (N)'),
+                      Presenças: s.presences,
+                      Faltas: s.absences,
+                      Taxa: `${s.pct}%`,
+                    }))}
+                    margin={{ top: 10, right: 10, left: -20, bottom: 0 }}
+                  >
+                    <XAxis
+                      dataKey="name"
+                      stroke="#888888"
+                      fontSize={10}
+                      tickLine={false}
+                      axisLine={false}
+                      interval={0}
+                      angle={-20}
+                      textAnchor="end"
+                      height={40}
+                    />
+                    <YAxis
+                      stroke="#888888"
+                      fontSize={11}
+                      tickLine={false}
+                      axisLine={false}
+                    />
+                    <Tooltip content={<ChartTooltip />} />
+                    <Legend
+                      verticalAlign="top"
+                      height={32}
+                      wrapperStyle={{ fontSize: '11px' }}
+                    />
+                    <Bar dataKey="Presenças" fill="#10b981" radius={[4, 4, 0, 0]} />
+                    <Bar dataKey="Faltas" fill="#ef4444" radius={[4, 4, 0, 0]} />
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+
+              <div className="text-xs text-center text-muted-foreground pt-1 border-t border-border/60">
+                Passe o cursor sobre as barras para inspecionar métricas detalhadas.
+              </div>
+            </div>
+          </div>
+
           {/* Tabela Consolidada das Áreas */}
           <div className="rounded-xl border border-border bg-card shadow-xs overflow-hidden">
             <div className="p-5 border-b border-border flex items-center justify-between">
@@ -595,40 +803,73 @@ export function MeetingsView({
 
           {/* Duas Colunas: Ranking Top 100% e Alertas de Frequência */}
           <div className="grid gap-6 md:grid-cols-2">
-            {/* Membros com 100% de Presença */}
+            {/* Mural dos Mais Presentes (Top Frequência) */}
             <div className="rounded-xl border border-border bg-card p-5 space-y-4 shadow-xs">
-              <div className="flex items-center gap-2">
-                <span className="text-xl">⭐</span>
-                <div>
-                  <h3 className="text-base font-semibold text-foreground">
-                    Frequência Perfeita (100% de Presença)
-                  </h3>
-                  <p className="text-xs text-muted-foreground">
-                    Integrantes exemplares que compareceram a todas as reuniões.
-                  </p>
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <div className="p-2 rounded-lg bg-amber-500/10 text-amber-500">
+                    <Award className="h-5 w-5" />
+                  </div>
+                  <div>
+                    <h3 className="text-base font-semibold text-foreground flex items-center gap-1.5">
+                      <span>Mural dos Mais Presentes</span>
+                      <Sparkles className="h-4 w-4 text-amber-500" />
+                    </h3>
+                    <p className="text-xs text-muted-foreground">
+                      Os 5 integrantes com melhor assiduidade (e todos com 100% caso haja mais de 5).
+                    </p>
+                  </div>
                 </div>
+                <span className="text-xs font-mono font-medium px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-600 dark:text-emerald-400">
+                  {(data.overview.topPresentMembers || data.overview.perfectFrequencyMembers).length} destaques
+                </span>
               </div>
 
-              <div className="divide-y divide-border/60">
-                {data.overview.perfectFrequencyMembers.map((member, idx) => (
+              <div className="divide-y divide-border/60 max-h-96 overflow-y-auto pr-1">
+                {(data.overview.topPresentMembers || data.overview.perfectFrequencyMembers).map((member, idx) => (
                   <div
                     key={member.id}
-                    className="py-2.5 flex items-center justify-between text-sm"
+                    className="py-2.5 flex items-center justify-between text-sm hover:bg-muted/30 px-2 rounded-lg transition-colors"
                   >
                     <div className="flex items-center gap-3">
-                      <span className="w-5 text-center font-mono text-xs text-muted-foreground">
-                        #{idx + 1}
+                      <span
+                        className={cn(
+                          'w-6 h-6 rounded-full flex items-center justify-center font-mono text-xs font-bold shrink-0',
+                          idx === 0
+                            ? 'bg-amber-500/20 text-amber-500 border border-amber-500/40'
+                            : idx === 1
+                            ? 'bg-slate-300/20 text-slate-400 border border-slate-300/40'
+                            : idx === 2
+                            ? 'bg-amber-700/20 text-amber-700 dark:text-amber-600 border border-amber-700/40'
+                            : 'text-muted-foreground bg-muted font-normal'
+                        )}
+                      >
+                        {idx + 1}
                       </span>
                       <div>
-                        <span className="font-medium text-foreground">{member.name}</span>
+                        <div className="flex items-center gap-1.5">
+                          <span className="font-medium text-foreground">{member.name}</span>
+                          {member.pct >= 99.9 && (
+                            <span title="Presença Perfeita (100%)" className="text-xs">
+                              ⭐
+                            </span>
+                          )}
+                        </div>
                         <span className="block text-xs text-muted-foreground">
                           {member.area}
                         </span>
                       </div>
                     </div>
                     <div className="text-right">
-                      <span className="text-xs font-mono font-semibold text-emerald-600 dark:text-emerald-400">
-                        {member.meetings} reuniões (100%)
+                      <span
+                        className={cn(
+                          'text-xs font-mono font-semibold px-2 py-0.5 rounded-md',
+                          member.pct >= 99.9
+                            ? 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400'
+                            : 'bg-blue-500/15 text-blue-600 dark:text-blue-400'
+                        )}
+                      >
+                        {member.pct.toFixed(1)}% ({member.presences}/{member.meetings})
                       </span>
                     </div>
                   </div>
@@ -1039,7 +1280,7 @@ export function MeetingsView({
       {/* POP-UP / MODAL: CONFIRMAÇÃO DE MUDANÇA DE PRESENÇA */}
       {attendanceModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4 animate-in fade-in duration-150">
-          <div className="bg-card border border-border rounded-xl max-w-sm w-full p-5 shadow-2xl space-y-4">
+          <div className="bg-card border border-border rounded-xl max-w-md w-full p-5 shadow-2xl space-y-4">
             <div className="flex items-center justify-between border-b border-border pb-3">
               <h3 className="text-sm font-bold text-foreground">
                 Alterar Presença
@@ -1062,7 +1303,7 @@ export function MeetingsView({
               <label className="block text-xs font-semibold text-muted-foreground uppercase">
                 Selecione o novo status:
               </label>
-              <div className="grid grid-cols-2 gap-2">
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
                 {Object.entries(STATUS_CONFIG).map(([key, config]) => (
                   <button
                     key={key}
@@ -1073,21 +1314,24 @@ export function MeetingsView({
                       )
                     }
                     className={cn(
-                      'flex items-center gap-2 p-2 rounded-lg border text-xs font-medium transition cursor-pointer text-left',
+                      'flex flex-col gap-1 p-2.5 rounded-lg border text-xs font-medium transition cursor-pointer text-left',
                       attendanceModal.newStatus === key
                         ? 'ring-2 ring-primary border-primary bg-primary/10 text-foreground'
                         : 'border-border text-muted-foreground hover:bg-muted'
                     )}
                   >
-                    <span
-                      className={cn(
-                        'h-5 w-5 rounded flex items-center justify-center font-mono font-bold text-[10px] border',
-                        config.badge
-                      )}
-                    >
-                      {config.code}
-                    </span>
-                    <span>{config.label}</span>
+                    <div className="flex items-center gap-1.5">
+                      <span
+                        className={cn(
+                          'h-5 w-5 rounded flex items-center justify-center font-mono font-bold text-[10px] border',
+                          config.badge
+                        )}
+                      >
+                        {config.code}
+                      </span>
+                      <span className="font-semibold truncate">{config.label}</span>
+                    </div>
+                    <span className="text-[10px] opacity-75">{config.desc}</span>
                   </button>
                 ))}
               </div>
