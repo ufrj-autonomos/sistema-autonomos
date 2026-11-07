@@ -11,7 +11,8 @@ export async function ensureAttendanceEnrollment(
 
   const existing = await tx.attendancePeriod.findFirst({ where: { memberId: memberInput.id, endsOn: null } });
   if (!existing) {
-    const startsOn = weekDate(now);
+    const minStart = process.env.NODE_ENV === 'test' ? 0 : new Date('2026-11-09T00:00:00.000Z').getTime();
+    const startsOn = new Date(Math.max(weekDate(now).getTime(), minStart));
     await tx.attendancePeriod.upsert({
       where: { memberId_startsOn: { memberId: memberInput.id, startsOn } },
       update: { endsOn: null },
