@@ -146,12 +146,12 @@ export function Navbar({ className }: NavbarProps) {
         className
       )}
     >
-      <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8">
+      <div className="flex h-16 w-full items-center justify-between px-2 sm:px-4 lg:px-6">
         {/* Identidade Visual / Logo da Iniciativa */}
-        <div className="flex items-center gap-8">
+        <div className="flex items-center gap-3 xl:gap-6 min-w-0">
           <Link
             href="/"
-            className="flex items-center gap-2 group transition-opacity hover:opacity-90 focus:outline-hidden focus-visible:ring-2 focus-visible:ring-ring rounded-lg p-0.5"
+            className="flex items-center gap-2 group transition-opacity hover:opacity-90 focus:outline-hidden focus-visible:ring-2 focus-visible:ring-ring rounded-lg p-0.5 shrink-0"
             aria-label="UFRJ Autônomos — Página Inicial"
           >
             <Logo size="sm" priority />
@@ -159,7 +159,7 @@ export function Navbar({ className }: NavbarProps) {
 
           {/* Navegação Primária Desktop */}
           <nav
-            className="hidden lg:flex items-center gap-1.5"
+            className="hidden lg:flex items-center gap-1 xl:gap-1.5 shrink-0"
             aria-label="Navegação Principal"
           >
             {NAV_LINKS.map((item) => {
@@ -170,7 +170,7 @@ export function Navbar({ className }: NavbarProps) {
                   key={item.href}
                   href={item.href}
                   className={cn(
-                    "flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-sm font-medium transition-all duration-150",
+                    "flex items-center gap-1.5 px-2.5 xl:px-3 py-1.5 rounded-lg text-sm font-medium transition-all duration-150 whitespace-nowrap",
                     active
                       ? "bg-foreground/10 text-foreground border border-border shadow-xs"
                       : "text-muted-foreground hover:text-foreground hover:bg-foreground/5 border border-transparent"
@@ -178,7 +178,7 @@ export function Navbar({ className }: NavbarProps) {
                 >
                   <Icon
                     className={cn(
-                      "w-4 h-4",
+                      "w-4 h-4 shrink-0",
                       active ? "text-foreground" : "text-muted-foreground"
                     )}
                   />
@@ -190,7 +190,7 @@ export function Navbar({ className }: NavbarProps) {
         </div>
 
         {/* Lado Direito: Portais das Divisões + Widget de Autenticação + Menu Mobile */}
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
           {/* Portais Rápidos das Divisões (Harpia & Nautilus) em Desktop */}
           {canAccessManagement && (
           <div className="hidden xl:flex items-center gap-1.5 pr-2 border-r border-border">
