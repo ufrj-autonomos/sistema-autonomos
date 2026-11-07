@@ -247,7 +247,7 @@ function ProfileFormContent() {
   const pendingKeys = pendingChange ? Object.keys(pendingChange.changes || {}) : [];
 
   return (
-    <div className="mx-auto w-full max-w-4xl px-4 py-10 sm:px-6">
+    <div className="mx-auto w-full max-w-4xl px-2.5 sm:px-4 md:px-6 py-6 sm:py-8">
       <div className="mb-6 flex items-center justify-between">
         <Link
           href="/"

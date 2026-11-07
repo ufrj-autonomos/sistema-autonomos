@@ -25,7 +25,7 @@ export function MemberDirectory({ rows, initialPreferences }: { rows: MemberDire
   const [search, setSearch] = useState('');
   const [team, setTeam] = useState('all');
   const [area, setArea] = useState('all');
-  const [status, setStatus] = useState('all');
+  const [status, setStatus] = useState('active');
   const [sort, setSort] = useState<{ key: MemberColumnKey; direction: 'asc' | 'desc' }>({ key: 'name', direction: 'asc' });
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');

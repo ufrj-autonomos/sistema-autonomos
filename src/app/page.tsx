@@ -14,7 +14,7 @@ export const dynamic = 'force-dynamic';
 export default async function HomePage() {
   const user = await requirePageUser();
   const disciplinary = await getMemberDisciplinarySummary(user.id);
-  if (hasManagementAccess(user.role)) return <div className="mx-auto w-full max-w-7xl px-4 py-8 sm:px-6 sm:py-10"><ManagementOverview name={user.name} userId={user.id} /></div>;
+  if (hasManagementAccess(user.role)) return <div className="mx-auto w-full max-w-7xl px-2.5 sm:px-4 md:px-6 py-6 sm:py-8"><ManagementOverview name={user.name} userId={user.id} /></div>;
   const courses = await prisma.course.findMany({ where: { published: true }, orderBy: { orderIndex: 'asc' }, select: {
       id: true, title: true, subtitle: true, level: true, durationHours: true,
       courseProgress: { where: { memberId: user.id }, select: { percentage: true } },
@@ -24,7 +24,7 @@ export default async function HomePage() {
   const attendance = await attendanceReport(undefined, user.id).catch(() => null);
 
   return (
-    <div className="mx-auto w-full max-w-6xl px-4 py-10 sm:px-6 sm:py-14 space-y-6">
+    <div className="mx-auto w-full max-w-6xl px-2.5 sm:px-4 md:px-6 py-6 sm:py-10 space-y-6">
       <header className="flex flex-wrap items-start justify-between gap-6 border-b border-border pb-8">
         <div>
           <div className="flex items-center gap-2 mb-2">

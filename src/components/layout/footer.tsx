@@ -34,7 +34,7 @@ export function Footer({ className }: FooterProps) {
       {/* Linha de reflexo metálico no topo */}
       <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-foreground/15 to-transparent" />
 
-      <div className="mx-auto w-full max-w-7xl px-4 py-14 sm:px-6 lg:px-8">
+      <div className="mx-auto w-full max-w-7xl px-2.5 sm:px-4 md:px-6 py-10 sm:py-12">
         <div className="grid grid-cols-1 gap-10 md:grid-cols-2 lg:grid-cols-5">
           {/* Coluna 1 & 2: Identidade Institucional e Apresentação */}
           <div className="md:col-span-2 space-y-4">

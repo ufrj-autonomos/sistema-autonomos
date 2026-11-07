@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useTransition } from 'react';
+import { useMemo, useState, useTransition } from 'react';
 import { toast } from 'sonner';
 import {
   CalendarCheck,
@@ -10,6 +10,7 @@ import {
   AlertCircle,
   HelpCircle,
   Clock,
+  ChevronLeft,
   ChevronRight,
   TrendingUp,
   Award,
@@ -21,6 +22,8 @@ import {
   BarChart3,
   Layers,
   Sparkles,
+  Smartphone,
+  Table,
 } from 'lucide-react';
 import {
   ResponsiveContainer,
@@ -234,6 +237,10 @@ export function MeetingsView({
   const [activeTab, setActiveTab] = useState<string>('painel');
   const [isPending, startTransition] = useTransition();
 
+  // Alternador de visualização para áreas detalhadas: 'matrix' (planilha) ou 'cards' (chamada por reunião / mobile)
+  const [areaViewMode, setAreaViewMode] = useState<'matrix' | 'cards'>('matrix');
+  const [selectedMeetingIndex, setSelectedMeetingIndex] = useState<number>(0);
+
   // Modal para Nova Reunião
   const [isNewMeetingModalOpen, setIsNewMeetingModalOpen] = useState(false);
   const [newMeetingArea, setNewMeetingArea] = useState<{ area: string; teamId: number | null } | null>(null);
@@ -383,8 +390,40 @@ export function MeetingsView({
     (da) => `${da.def.area}-${da.def.teamId}` === activeTab
   );
 
+  const currentMeetingIdx = activeDetailedArea && activeDetailedArea.meetings.length > 0
+    ? Math.min(selectedMeetingIndex, activeDetailedArea.meetings.length - 1)
+    : 0;
+  const currentMeeting = activeDetailedArea?.meetings[currentMeetingIdx];
+
+  const meetingStats = useMemo(() => {
+    if (!currentMeeting || !activeDetailedArea) {
+      return { present: 0, late: 0, absent: 0, justified: 0, noMeeting: 0, total: 0 };
+    }
+    let present = 0;
+    let late = 0;
+    let absent = 0;
+    let justified = 0;
+    let noMeeting = 0;
+    for (const m of activeDetailedArea.members) {
+      const st = m.attendances[currentMeeting.id]?.status || 'PRESENT';
+      if (st === 'PRESENT') present++;
+      else if (st === 'LATE') late++;
+      else if (st === 'ABSENT') absent++;
+      else if (st === 'JUSTIFIED') justified++;
+      else if (st === 'NO_MEETING') noMeeting++;
+    }
+    return {
+      present,
+      late,
+      absent,
+      justified,
+      noMeeting,
+      total: activeDetailedArea.members.length,
+    };
+  }, [currentMeeting, activeDetailedArea]);
+
   return (
-    <div className="container max-w-7xl mx-auto px-4 py-8 space-y-8 animate-in fade-in duration-300">
+    <div className="w-full max-w-[1720px] mx-auto px-2.5 sm:px-4 md:px-6 py-6 space-y-6 animate-in fade-in duration-300">
       {/* Top Header */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-border pb-6">
         <div>
@@ -983,18 +1022,18 @@ export function MeetingsView({
         </div>
       )}
 
-      {/* ABA: ÁREA INDIVIDUAL (MATRIZ DE REUNIÕES) */}
+      {/* ABA: ÁREA INDIVIDUAL (MATRIZ OU CHAMADA POR REUNIÃO) */}
       {activeDetailedArea && (
         <div className="space-y-6 animate-in fade-in duration-200">
           {/* Header da Área */}
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-5 rounded-xl border border-border bg-card">
+          <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 p-4 sm:p-5 rounded-xl border border-border bg-card">
             <div className="flex items-center gap-3.5">
-              <div className="text-3xl p-2 rounded-xl bg-muted border border-border">
+              <div className="text-3xl p-2 rounded-xl bg-muted border border-border shrink-0">
                 {activeDetailedArea.def.icon}
               </div>
-              <div>
-                <div className="flex items-center gap-2">
-                  <h2 className="text-xl font-bold text-foreground">
+              <div className="min-w-0">
+                <div className="flex flex-wrap items-center gap-2">
+                  <h2 className="text-lg sm:text-xl font-bold text-foreground truncate">
                     Controle de Presença — {activeDetailedArea.def.label}
                   </h2>
                   {data.isAdmin && activeDetailedArea.def.teamSlug === 'harpia' && (
@@ -1015,203 +1054,455 @@ export function MeetingsView({
               </div>
             </div>
 
-            {/* Ação de Gerenciamento: Adicionar Reunião */}
-            {canEdit && (
-              <button
-                type="button"
-                onClick={() =>
-                  openNewMeetingModal(activeDetailedArea.def.area, activeDetailedArea.def.teamId)
-                }
-                className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 transition shadow-xs cursor-pointer"
-              >
-                <Plus className="h-4 w-4" />
-                <span>Nova Reunião</span>
-              </button>
-            )}
-          </div>
+            {/* Alternador de Modo e Ação Adicionar Reunião */}
+            <div className="flex flex-wrap items-center gap-2.5">
+              {activeDetailedArea.meetings.length > 0 && (
+                <div className="flex items-center rounded-lg bg-muted p-1 text-xs font-medium border border-border">
+                  <button
+                    type="button"
+                    onClick={() => setAreaViewMode('matrix')}
+                    className={cn(
+                      'flex items-center gap-1.5 px-3 py-1.5 rounded-md transition cursor-pointer',
+                      areaViewMode === 'matrix'
+                        ? 'bg-card text-foreground font-semibold shadow-xs'
+                        : 'text-muted-foreground hover:text-foreground'
+                    )}
+                    title="Ver todas as reuniões em formato planilha / matriz"
+                  >
+                    <Table className="h-3.5 w-3.5" />
+                    <span>Planilha / Matriz</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setAreaViewMode('cards')}
+                    className={cn(
+                      'flex items-center gap-1.5 px-3 py-1.5 rounded-md transition cursor-pointer',
+                      areaViewMode === 'cards'
+                        ? 'bg-card text-foreground font-semibold shadow-xs'
+                        : 'text-muted-foreground hover:text-foreground'
+                    )}
+                    title="Modo ideal para celular: faça a chamada reunião por reunião com toque rápido"
+                  >
+                    <Smartphone className="h-3.5 w-3.5" />
+                    <span>Chamada por Reunião</span>
+                  </button>
+                </div>
+              )}
 
-          {/* Legenda de Marcações */}
-          <div className="flex flex-wrap items-center gap-3 p-3 rounded-lg bg-muted/30 border border-border text-xs">
-            <span className="font-semibold text-foreground">Legenda:</span>
-            {Object.entries(STATUS_CONFIG).map(([key, config]) => (
-              <div key={key} className="flex items-center gap-1.5">
-                <span
-                  className={cn(
-                    'h-5 w-5 rounded flex items-center justify-center font-mono font-bold text-[11px] border',
-                    config.badge
-                  )}
+              {canEdit && (
+                <button
+                  type="button"
+                  onClick={() =>
+                    openNewMeetingModal(activeDetailedArea.def.area, activeDetailedArea.def.teamId)
+                  }
+                  className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-lg bg-primary text-primary-foreground text-xs sm:text-sm font-medium hover:bg-primary/90 transition shadow-xs cursor-pointer ml-auto sm:ml-0"
                 >
-                  {config.code}
-                </span>
-                <span className="text-muted-foreground">{config.label}</span>
-              </div>
-            ))}
-            {canEdit && (
-              <span className="ml-auto text-amber-600 dark:text-amber-400 font-medium">
-                💡 Clique em uma célula para alterar a presença
-              </span>
-            )}
-          </div>
-
-          {/* Matriz de Presença */}
-          <div className="rounded-xl border border-border bg-card shadow-xs overflow-hidden">
-            <div className="overflow-x-auto">
-              <table className="w-full text-left text-sm border-collapse">
-                <thead className="bg-muted/60 text-muted-foreground text-xs font-semibold uppercase tracking-wider border-b border-border">
-                  <tr>
-                    <th className="px-4 py-3.5 w-12 text-center border-r border-border">#</th>
-                    <th className="px-4 py-3.5 min-w-[200px] border-r border-border">Nome do Integrante</th>
-
-                    {/* Colunas das Reuniões */}
-                    {activeDetailedArea.meetings.map((meeting, mIdx) => (
-                      <th
-                        key={meeting.id}
-                        className="px-3 py-3 text-center border-r border-border min-w-[70px] relative group"
-                        title={meeting.description || `Data: ${new Date(meeting.date).toLocaleDateString('pt-BR')}`}
-                      >
-                        <div className="flex flex-col items-center">
-                          <span className="text-foreground">{mIdx + 1}</span>
-                          <span className="text-[10px] text-muted-foreground font-normal">
-                            {new Date(meeting.date).toLocaleDateString('pt-BR', {
-                              day: '2-digit',
-                              month: '2-digit',
-                              timeZone: 'UTC',
-                            })}
-                          </span>
-                        </div>
-                        {canEdit && (
-                          <button
-                            type="button"
-                            onClick={() => handleDeleteMeeting(meeting.id, meeting.title)}
-                            className="hidden group-hover:flex absolute top-1 right-1 h-4 w-4 rounded items-center justify-center text-red-500 hover:bg-red-500/20 cursor-pointer"
-                            title="Excluir reunião"
-                          >
-                            <Trash2 className="h-3 w-3" />
-                          </button>
-                        )}
-                      </th>
-                    ))}
-
-                    <th className="px-3 py-3.5 text-center border-r border-border min-w-[70px]">Presenças</th>
-                    <th className="px-3 py-3.5 text-center border-r border-border min-w-[70px]">Faltas</th>
-                    <th className="px-4 py-3.5 text-center border-r border-border min-w-[90px]">% Presença</th>
-                    <th className="px-4 py-3.5 text-center min-w-[120px]">Status</th>
-                  </tr>
-                </thead>
-
-                <tbody className="divide-y divide-border/60">
-                  {activeDetailedArea.members.length === 0 ? (
-                    <tr>
-                      <td
-                        colSpan={activeDetailedArea.meetings.length + 6}
-                        className="p-8 text-center text-muted-foreground"
-                      >
-                        Nenhum integrante cadastrado nesta área no momento.
-                      </td>
-                    </tr>
-                  ) : (
-                    activeDetailedArea.members.map((member, rowIdx) => (
-                      <tr
-                        key={member.id}
-                        className="hover:bg-muted/30 transition-colors"
-                      >
-                        <td className="px-4 py-3 text-center font-mono text-xs text-muted-foreground border-r border-border">
-                          {rowIdx + 1}
-                        </td>
-                        <td className="px-4 py-3 font-medium text-foreground border-r border-border flex items-center gap-2.5">
-                          <div className="h-7 w-7 rounded-full bg-accent border border-border flex items-center justify-center text-xs font-semibold shrink-0">
-                            {member.name.slice(0, 1)}
-                          </div>
-                          <span className="truncate">{member.name}</span>
-                        </td>
-
-                        {/* Células de Presença das Reuniões */}
-                        {activeDetailedArea.meetings.map((meeting) => {
-                          const att = member.attendances[meeting.id];
-                          const status = att?.status || 'PRESENT';
-                          const config = STATUS_CONFIG[status] || STATUS_CONFIG.PRESENT;
-
-                          return (
-                            <td
-                              key={meeting.id}
-                              className="px-2 py-2 text-center border-r border-border"
-                            >
-                              {canEdit ? (
-                                <div className="relative inline-block group">
-                                  <button
-                                    type="button"
-                                    onClick={() => {
-                                      // Ciclo rápido ao clicar: P -> A -> F -> J -> S -> P
-                                      const cycle: Record<string, 'PRESENT' | 'LATE' | 'ABSENT' | 'JUSTIFIED' | 'NO_MEETING'> = {
-                                        PRESENT: 'LATE',
-                                        LATE: 'ABSENT',
-                                        ABSENT: 'JUSTIFIED',
-                                        JUSTIFIED: 'NO_MEETING',
-                                        NO_MEETING: 'PRESENT',
-                                      };
-                                      const next = cycle[status] || 'PRESENT';
-                                      triggerChangeAttendance(
-                                        meeting.id,
-                                        meeting.title,
-                                        member.id,
-                                        member.name,
-                                        status,
-                                        next
-                                      );
-                                    }}
-                                    className={cn(
-                                      'h-7 w-7 rounded-md flex items-center justify-center font-mono font-bold text-xs border transition shadow-xs cursor-pointer',
-                                      config.badge
-                                    )}
-                                    title={`Status: ${config.label}. Clique para alterar.`}
-                                  >
-                                    {config.code}
-                                  </button>
-                                </div>
-                              ) : (
-                                <div
-                                  className={cn(
-                                    'h-7 w-7 mx-auto rounded-md flex items-center justify-center font-mono font-bold text-xs border select-none',
-                                    config.badge
-                                  )}
-                                  title={`Status: ${config.label}`}
-                                >
-                                  {config.code}
-                                </div>
-                              )}
-                            </td>
-                          );
-                        })}
-
-                        <td className="px-3 py-3 text-center font-mono font-semibold text-emerald-600 dark:text-emerald-400 border-r border-border">
-                          {member.presences}
-                        </td>
-                        <td className="px-3 py-3 text-center font-mono font-semibold text-red-600 dark:text-red-400 border-r border-border">
-                          {member.absences}
-                        </td>
-                        <td className="px-4 py-3 text-center font-mono font-bold text-foreground border-r border-border">
-                          {member.pct.toFixed(1)}%
-                        </td>
-                        <td className="px-4 py-3 text-center">
-                          <span
-                            className={cn(
-                              'inline-flex items-center text-xs px-2.5 py-0.5 rounded-full font-medium',
-                              member.status.tone === 'green' && 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400',
-                              member.status.tone === 'yellow' && 'bg-amber-500/15 text-amber-600 dark:text-amber-400',
-                              member.status.tone === 'red' && 'bg-red-500/15 text-red-600 dark:text-red-400',
-                              member.status.tone === 'gray' && 'bg-muted text-muted-foreground'
-                            )}
-                          >
-                            {member.status.label}
-                          </span>
-                        </td>
-                      </tr>
-                    ))
-                  )}
-                </tbody>
-              </table>
+                  <Plus className="h-4 w-4" />
+                  <span>Nova Reunião</span>
+                </button>
+              )}
             </div>
           </div>
+
+          {/* MODO 1: CHAMADA POR REUNIÃO (OTIMIZADO PARA CELULAR E TOQUE RÁPIDO) */}
+          {areaViewMode === 'cards' && (
+            <div className="space-y-4 animate-in fade-in duration-200">
+              {activeDetailedArea.meetings.length === 0 ? (
+                <div className="p-12 text-center rounded-xl border border-border bg-card">
+                  <Calendar className="h-8 w-8 mx-auto text-muted-foreground mb-2" />
+                  <p className="text-sm text-muted-foreground">Nenhuma reunião registrada nesta área.</p>
+                </div>
+              ) : currentMeeting ? (
+                <>
+                  {/* NAVEGADOR DE REUNIÃO */}
+                  <div className="rounded-xl border border-border bg-card p-4 space-y-3 shadow-xs">
+                    <div className="flex items-center justify-between gap-3">
+                      <button
+                        type="button"
+                        disabled={currentMeetingIdx === 0}
+                        onClick={() => setSelectedMeetingIndex(Math.max(0, currentMeetingIdx - 1))}
+                        className="p-2.5 rounded-lg border border-border text-foreground hover:bg-muted disabled:opacity-30 disabled:cursor-not-allowed transition cursor-pointer shrink-0"
+                        title="Reunião anterior"
+                        aria-label="Reunião anterior"
+                      >
+                        <ChevronLeft className="h-5 w-5" />
+                      </button>
+
+                      <div className="text-center min-w-0 flex-1">
+                        <div className="flex items-center justify-center gap-2">
+                          <span className="text-xs font-mono font-semibold px-2 py-0.5 rounded-md bg-accent border border-border text-foreground">
+                            #{currentMeetingIdx + 1} de {activeDetailedArea.meetings.length}
+                          </span>
+                          <span className="text-xs font-medium text-muted-foreground truncate">
+                            {currentMeeting.title}
+                          </span>
+                        </div>
+                        <h3 className="text-lg sm:text-xl font-bold text-foreground mt-0.5 capitalize">
+                          {new Date(currentMeeting.date).toLocaleDateString('pt-BR', {
+                            weekday: 'long',
+                            day: '2-digit',
+                            month: 'long',
+                            year: 'numeric',
+                            timeZone: 'UTC',
+                          })}
+                        </h3>
+                        {currentMeeting.description && (
+                          <p className="text-xs text-muted-foreground mt-0.5 max-w-md mx-auto truncate">
+                            {currentMeeting.description}
+                          </p>
+                        )}
+                      </div>
+
+                      <button
+                        type="button"
+                        disabled={currentMeetingIdx === activeDetailedArea.meetings.length - 1}
+                        onClick={() =>
+                          setSelectedMeetingIndex(
+                            Math.min(activeDetailedArea.meetings.length - 1, currentMeetingIdx + 1)
+                          )
+                        }
+                        className="p-2.5 rounded-lg border border-border text-foreground hover:bg-muted disabled:opacity-30 disabled:cursor-not-allowed transition cursor-pointer shrink-0"
+                        title="Próxima reunião"
+                        aria-label="Próxima reunião"
+                      >
+                        <ChevronRight className="h-5 w-5" />
+                      </button>
+                    </div>
+
+                    {/* Resumo da frequência desta reunião */}
+                    <div className="flex flex-wrap items-center justify-center gap-2 pt-3 border-t border-border/60 text-xs">
+                      <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 font-medium border border-emerald-500/20">
+                        <span className="h-2 w-2 rounded-full bg-emerald-500" />
+                        {meetingStats.present} Presente{meetingStats.present === 1 ? '' : 's'}
+                      </span>
+                      <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-amber-500/10 text-amber-700 dark:text-amber-300 font-medium border border-amber-500/20">
+                        <span className="h-2 w-2 rounded-full bg-amber-500" />
+                        {meetingStats.late} Atraso{meetingStats.late === 1 ? '' : 's'}
+                      </span>
+                      <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-red-500/10 text-red-700 dark:text-red-300 font-medium border border-red-500/20">
+                        <span className="h-2 w-2 rounded-full bg-red-500" />
+                        {meetingStats.absent} Falta{meetingStats.absent === 1 ? '' : 's'}
+                      </span>
+                      {meetingStats.justified > 0 && (
+                        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-blue-500/10 text-blue-700 dark:text-blue-300 font-medium border border-blue-500/20">
+                          <span className="h-2 w-2 rounded-full bg-blue-500" />
+                          {meetingStats.justified} Justificada{meetingStats.justified === 1 ? '' : 's'}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* CARDS DOS INTEGRANTES PARA CHAMADA RÁPIDA */}
+                  <div className="space-y-2.5">
+                    {activeDetailedArea.members.length === 0 ? (
+                      <p className="p-8 text-center text-sm text-muted-foreground">
+                        Nenhum integrante cadastrado nesta área.
+                      </p>
+                    ) : (
+                      activeDetailedArea.members.map((member, idx) => {
+                        const att = member.attendances[currentMeeting.id];
+                        const currentStatus = att?.status || 'PRESENT';
+                        const cfg = STATUS_CONFIG[currentStatus] || STATUS_CONFIG.PRESENT;
+
+                        return (
+                          <div
+                            key={member.id}
+                            className="rounded-xl border border-border bg-card p-3.5 space-y-3 shadow-xs hover:border-foreground/20 transition"
+                          >
+                            <div className="flex items-center justify-between gap-3">
+                              <div className="flex items-center gap-3 min-w-0">
+                                <span className="text-xs font-mono text-muted-foreground w-4 text-center shrink-0">
+                                  {idx + 1}
+                                </span>
+                                <div className="h-9 w-9 rounded-full bg-accent border border-border flex items-center justify-center text-sm font-semibold shrink-0 text-foreground">
+                                  {member.name.slice(0, 1)}
+                                </div>
+                                <div className="min-w-0">
+                                  <p className="font-semibold text-sm text-foreground truncate">
+                                    {member.name}
+                                  </p>
+                                  <p className="text-xs text-muted-foreground">
+                                    Freq. do período:{' '}
+                                    <span className="font-semibold text-foreground">
+                                      {member.pct.toFixed(0)}%
+                                    </span>{' '}
+                                    ({member.presences}P / {member.absences}F)
+                                  </p>
+                                </div>
+                              </div>
+
+                              <span
+                                className={cn(
+                                  'text-xs px-2.5 py-1 rounded-md font-semibold border shrink-0',
+                                  cfg.badge
+                                )}
+                              >
+                                {cfg.code} — {cfg.label}
+                              </span>
+                            </div>
+
+                            {/* Botões de toque rápido para coordenadores e admins */}
+                            {canEdit && (
+                              <div className="grid grid-cols-5 gap-1.5 pt-1 border-t border-border/50">
+                                {(
+                                  [
+                                    { status: 'PRESENT', label: 'Presente', code: 'P' },
+                                    { status: 'LATE', label: 'Atraso', code: 'A' },
+                                    { status: 'ABSENT', label: 'Falta', code: 'F' },
+                                    { status: 'JUSTIFIED', label: 'Justif.', code: 'J' },
+                                    { status: 'NO_MEETING', label: 'Sem Reu.', code: 'S' },
+                                  ] as const
+                                ).map((opt) => {
+                                  const isSelected = currentStatus === opt.status;
+                                  return (
+                                    <button
+                                      key={opt.status}
+                                      type="button"
+                                      onClick={() =>
+                                        triggerChangeAttendance(
+                                          currentMeeting.id,
+                                          currentMeeting.title,
+                                          member.id,
+                                          member.name,
+                                          currentStatus,
+                                          opt.status
+                                        )
+                                      }
+                                      className={cn(
+                                        'min-h-[44px] flex flex-col items-center justify-center rounded-lg border text-xs font-semibold transition cursor-pointer',
+                                        isSelected
+                                          ? cn(
+                                              'ring-2 ring-foreground/20 font-bold shadow-xs',
+                                              STATUS_CONFIG[opt.status].badge
+                                            )
+                                          : 'border-border/60 bg-muted/30 text-muted-foreground hover:bg-muted'
+                                      )}
+                                      title={`Marcar ${opt.label}`}
+                                    >
+                                      <span className="text-sm font-mono">{opt.code}</span>
+                                      <span className="text-[10px] opacity-80">{opt.label}</span>
+                                    </button>
+                                  );
+                                })}
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })
+                    )}
+                  </div>
+                </>
+              ) : null}
+            </div>
+          )}
+
+          {/* MODO 2: MATRIZ COMPLETA / PLANILHA (COM ROLAGEM SEPARADA E CABEÇALHO REORGANIZADO) */}
+          {areaViewMode === 'matrix' && (
+            <div className="space-y-4 animate-in fade-in duration-200">
+              {/* Legenda de Marcações */}
+              <div className="flex flex-wrap items-center gap-3 p-3 rounded-lg bg-muted/30 border border-border text-xs">
+                <span className="font-semibold text-foreground">Legenda:</span>
+                {Object.entries(STATUS_CONFIG).map(([key, config]) => (
+                  <div key={key} className="flex items-center gap-1.5">
+                    <span
+                      className={cn(
+                        'h-5 w-5 rounded flex items-center justify-center font-mono font-bold text-[11px] border',
+                        config.badge
+                      )}
+                    >
+                      {config.code}
+                    </span>
+                    <span className="text-muted-foreground">{config.label}</span>
+                  </div>
+                ))}
+                {canEdit && (
+                  <span className="ml-auto text-amber-600 dark:text-amber-400 font-medium">
+                    💡 Clique em uma célula para alterar a presença
+                  </span>
+                )}
+              </div>
+
+              {/* Matriz de Presença */}
+              <div className="rounded-xl border border-border bg-card shadow-xs overflow-hidden">
+                {/* Dica para dispositivos móveis */}
+                <div className="md:hidden px-3.5 py-2 bg-muted/40 border-b border-border text-[11px] text-muted-foreground flex items-center justify-between">
+                  <span>👉 Deslize horizontalmente para ver reuniões</span>
+                  <span className="font-semibold text-foreground">Integrante fixo à esquerda</span>
+                </div>
+
+                <div className="overflow-x-auto overscroll-x-contain">
+                  <table className="w-full text-left text-sm border-collapse">
+                    <thead className="bg-muted text-muted-foreground text-xs font-semibold uppercase tracking-wider border-b border-border">
+                      <tr>
+                        {/* Coluna Integrante Fixa / Sticky à Esquerda */}
+                        <th className="sticky left-0 z-30 bg-muted px-4 py-3.5 min-w-[190px] sm:min-w-[220px] border-r-2 border-border shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)]">
+                          <div className="flex items-center gap-2">
+                            <span className="w-5 text-center font-mono">#</span>
+                            <span>Integrante</span>
+                          </div>
+                        </th>
+
+                        {/* Colunas das Reuniões (Data em destaque, número menor) */}
+                        {activeDetailedArea.meetings.map((meeting, mIdx) => (
+                          <th
+                            key={meeting.id}
+                            className="px-3 py-2.5 text-center border-r border-border min-w-[76px] relative group bg-muted"
+                            title={meeting.description || `Data: ${new Date(meeting.date).toLocaleDateString('pt-BR')}`}
+                          >
+                            <div className="flex flex-col items-center gap-0.5">
+                              {/* Data em destaque */}
+                              <span className="text-xs font-bold text-foreground tracking-tight">
+                                {new Date(meeting.date).toLocaleDateString('pt-BR', {
+                                  day: '2-digit',
+                                  month: '2-digit',
+                                  timeZone: 'UTC',
+                                })}
+                              </span>
+                              {/* Número da reunião menor */}
+                              <span className="text-[10px] font-mono text-muted-foreground font-normal">
+                                #{mIdx + 1}
+                              </span>
+                            </div>
+                            {canEdit && (
+                              <button
+                                type="button"
+                                onClick={() => handleDeleteMeeting(meeting.id, meeting.title)}
+                                className="hidden group-hover:flex absolute top-1 right-1 h-4 w-4 rounded items-center justify-center text-red-500 hover:bg-red-500/20 cursor-pointer"
+                                title="Excluir reunião"
+                              >
+                                <Trash2 className="h-3 w-3" />
+                              </button>
+                            )}
+                          </th>
+                        ))}
+
+                        <th className="px-3 py-3.5 text-center border-r border-border min-w-[70px]">Presenças</th>
+                        <th className="px-3 py-3.5 text-center border-r border-border min-w-[70px]">Faltas</th>
+                        <th className="px-4 py-3.5 text-center border-r border-border min-w-[90px]">% Presença</th>
+                        <th className="px-4 py-3.5 text-center min-w-[120px]">Status</th>
+                      </tr>
+                    </thead>
+
+                    <tbody className="divide-y divide-border/60">
+                      {activeDetailedArea.members.length === 0 ? (
+                        <tr>
+                          <td
+                            colSpan={activeDetailedArea.meetings.length + 5}
+                            className="p-8 text-center text-muted-foreground"
+                          >
+                            Nenhum integrante cadastrado nesta área no momento.
+                          </td>
+                        </tr>
+                      ) : (
+                        activeDetailedArea.members.map((member, rowIdx) => (
+                          <tr
+                            key={member.id}
+                            className="hover:bg-muted/30 transition-colors group"
+                          >
+                            {/* Integrante Sticky Cell */}
+                            <td className="sticky left-0 z-20 bg-card group-hover:bg-muted px-4 py-3 font-medium text-foreground border-r-2 border-border shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)]">
+                              <div className="flex items-center gap-2.5">
+                                <span className="font-mono text-xs text-muted-foreground w-5 text-center shrink-0">
+                                  {rowIdx + 1}
+                                </span>
+                                <div className="h-7 w-7 rounded-full bg-accent border border-border flex items-center justify-center text-xs font-semibold shrink-0">
+                                  {member.name.slice(0, 1)}
+                                </div>
+                                <span className="truncate max-w-[120px] sm:max-w-[160px]" title={member.name}>
+                                  {member.name}
+                                </span>
+                              </div>
+                            </td>
+
+                            {/* Células de Presença das Reuniões */}
+                            {activeDetailedArea.meetings.map((meeting) => {
+                              const att = member.attendances[meeting.id];
+                              const status = att?.status || 'PRESENT';
+                              const config = STATUS_CONFIG[status] || STATUS_CONFIG.PRESENT;
+
+                              return (
+                                <td
+                                  key={meeting.id}
+                                  className="px-2 py-2 text-center border-r border-border"
+                                >
+                                  {canEdit ? (
+                                    <div className="relative inline-block group">
+                                      <button
+                                        type="button"
+                                        onClick={() => {
+                                          // Ciclo rápido ao clicar: P -> A -> F -> J -> S -> P
+                                          const cycle: Record<string, 'PRESENT' | 'LATE' | 'ABSENT' | 'JUSTIFIED' | 'NO_MEETING'> = {
+                                            PRESENT: 'LATE',
+                                            LATE: 'ABSENT',
+                                            ABSENT: 'JUSTIFIED',
+                                            JUSTIFIED: 'NO_MEETING',
+                                            NO_MEETING: 'PRESENT',
+                                          };
+                                          const next = cycle[status] || 'PRESENT';
+                                          triggerChangeAttendance(
+                                            meeting.id,
+                                            meeting.title,
+                                            member.id,
+                                            member.name,
+                                            status,
+                                            next
+                                          );
+                                        }}
+                                        className={cn(
+                                          'h-7 w-7 rounded-md flex items-center justify-center font-mono font-bold text-xs border transition shadow-xs cursor-pointer',
+                                          config.badge
+                                        )}
+                                        title={`Status: ${config.label}. Clique para alterar.`}
+                                      >
+                                        {config.code}
+                                      </button>
+                                    </div>
+                                  ) : (
+                                    <div
+                                      className={cn(
+                                        'h-7 w-7 mx-auto rounded-md flex items-center justify-center font-mono font-bold text-xs border select-none',
+                                        config.badge
+                                      )}
+                                      title={`Status: ${config.label}`}
+                                    >
+                                      {config.code}
+                                    </div>
+                                  )}
+                                </td>
+                              );
+                            })}
+
+                            <td className="px-3 py-3 text-center font-mono font-semibold text-emerald-600 dark:text-emerald-400 border-r border-border">
+                              {member.presences}
+                            </td>
+                            <td className="px-3 py-3 text-center font-mono font-semibold text-red-600 dark:text-red-400 border-r border-border">
+                              {member.absences}
+                            </td>
+                            <td className="px-4 py-3 text-center font-mono font-bold text-foreground border-r border-border">
+                              {member.pct.toFixed(1)}%
+                            </td>
+                            <td className="px-4 py-3 text-center">
+                              <span
+                                className={cn(
+                                  'inline-flex items-center text-xs px-2.5 py-0.5 rounded-full font-medium',
+                                  member.status.tone === 'green' && 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400',
+                                  member.status.tone === 'yellow' && 'bg-amber-500/15 text-amber-600 dark:text-amber-400',
+                                  member.status.tone === 'red' && 'bg-red-500/15 text-red-600 dark:text-red-400',
+                                  member.status.tone === 'gray' && 'bg-muted text-muted-foreground'
+                                )}
+                              >
+                                {member.status.label}
+                              </span>
+                            </td>
+                          </tr>
+                        ))
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       )}
 

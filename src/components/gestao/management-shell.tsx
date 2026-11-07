@@ -71,12 +71,12 @@ export function ManagementShell({ children, initialUser }: { children: ReactNode
       {navigation(true)}
     </dialog>
     <div className="min-w-0 lg:pl-64 print:pl-0">
-      <header className="sticky top-0 z-30 flex min-h-16 items-center gap-3 border-b border-border bg-background px-4 sm:px-8 print:hidden">
+      <header className="sticky top-0 z-30 flex min-h-16 items-center gap-3 border-b border-border bg-background px-3 sm:px-5 lg:px-6 print:hidden">
         <button ref={menuTrigger} type="button" onClick={() => mobileMenu.current?.showModal()} aria-label="Abrir menu da gestão" aria-haspopup="dialog" className={`-ml-2 flex h-11 w-11 shrink-0 items-center justify-center rounded-lg text-secondary-foreground hover:bg-accent lg:hidden ${focus}`}><Menu className="h-5 w-5" /></button>
         <nav aria-label="Localização" className="min-w-0 flex-1"><ol className="flex items-center gap-2 text-sm"><li><Link href="/gestao" className={`rounded-sm text-muted-foreground hover:text-foreground ${focus}`}>Gestão</Link></li><li aria-hidden="true"><ChevronRight className="h-3.5 w-3.5 text-muted-foreground" /></li><li className="truncate text-foreground">{isQr ? <Link href="/gestao/presenca" className={`rounded-sm hover:text-foreground ${focus}`}>{section?.label}</Link> : <span aria-current="page">{section?.label || 'Página não encontrada'}</span>}</li>{isQr && <><li aria-hidden="true"><ChevronRight className="h-3.5 w-3.5 text-muted-foreground" /></li><li aria-current="page" className="truncate text-foreground">QR code</li></>}</ol></nav>
         <ThemeToggle /><span className="hidden items-center gap-2 text-xs text-muted-foreground sm:inline-flex"><ShieldCheck className="h-4 w-4" />Acesso à gestão</span>
       </header>
-      <main id="management-content" tabIndex={-1} className="mx-auto w-full max-w-[1600px] px-4 py-7 outline-none sm:px-8 sm:py-9 print:p-0">{children}</main>
+      <main id="management-content" tabIndex={-1} className="mx-auto w-full max-w-[1720px] px-2.5 sm:px-4 lg:px-6 py-5 sm:py-7 outline-none print:p-0">{children}</main>
     </div>
   </div>;
 }

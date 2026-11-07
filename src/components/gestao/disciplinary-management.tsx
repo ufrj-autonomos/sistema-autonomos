@@ -39,6 +39,7 @@ export function DisciplinaryManagement({
   // Modal de Criação de Ocorrência
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [targetMemberId, setTargetMemberId] = useState('');
+  const [memberSearchQuery, setMemberSearchQuery] = useState('');
   const [warningType, setWarningType] = useState<'AVISO' | 'ADVERTENCIA_DIRETA'>('AVISO');
   const [reason, setReason] = useState('');
   const [notes, setNotes] = useState('');
@@ -144,6 +145,17 @@ export function DisciplinaryManagement({
     return matchSearch && matchArea && matchStatus;
   });
 
+  const selectedTargetMember = data.members.find((m) => m.memberId === targetMemberId);
+  const modalFilteredMembers = data.members.filter((m) => {
+    if (!memberSearchQuery.trim()) return true;
+    const q = memberSearchQuery.toLowerCase();
+    return (
+      m.name.toLowerCase().includes(q) ||
+      m.area.toLowerCase().includes(q) ||
+      (m.email && m.email.toLowerCase().includes(q))
+    );
+  });
+
   return (
     <div className="space-y-6">
       {/* Cabeçalho Principal */}
@@ -170,6 +182,7 @@ export function DisciplinaryManagement({
             type="button"
             onClick={() => {
               setTargetMemberId('');
+              setMemberSearchQuery('');
               setWarningType('AVISO');
               setReason('');
               setNotes('');
@@ -472,6 +485,7 @@ export function DisciplinaryManagement({
                                 type="button"
                                 onClick={() => {
                                   setTargetMemberId(member.memberId);
+                                  setMemberSearchQuery('');
                                   setWarningType('AVISO');
                                   setReason('');
                                   setNotes('');
@@ -615,19 +629,97 @@ export function DisciplinaryManagement({
                 <label className="block text-xs font-semibold uppercase text-muted-foreground mb-1.5">
                   Integrante
                 </label>
-                <select
-                  required
-                  value={targetMemberId}
-                  onChange={(e) => setTargetMemberId(e.target.value)}
-                  className="w-full px-3 py-2 rounded-lg bg-background border border-border text-foreground text-sm focus:outline-hidden focus:ring-2 focus:ring-ring"
-                >
-                  <option value="">Selecione o integrante...</option>
-                  {data.members.map((m) => (
-                    <option key={m.memberId} value={m.memberId}>
-                      {m.name} — {m.area} ({m.totalWarnings} adv, {m.avisosCount} avisos)
-                    </option>
-                  ))}
-                </select>
+                {selectedTargetMember ? (
+                  <div className="flex items-center justify-between p-3 rounded-xl border border-border bg-muted/40">
+                    <div className="flex items-center gap-3 min-w-0">
+                      <div className="h-9 w-9 rounded-full bg-accent border border-border flex items-center justify-center text-sm font-semibold text-foreground shrink-0">
+                        {selectedTargetMember.name.slice(0, 1)}
+                      </div>
+                      <div className="min-w-0">
+                        <p className="text-sm font-semibold text-foreground truncate">{selectedTargetMember.name}</p>
+                        <p className="text-xs text-muted-foreground">
+                          {selectedTargetMember.area} ·{' '}
+                          <span className={selectedTargetMember.totalWarnings > 0 ? 'text-red-600 dark:text-red-400 font-medium' : ''}>
+                            {selectedTargetMember.totalWarnings} advertência{selectedTargetMember.totalWarnings === 1 ? '' : 's'}
+                          </span>{' '}
+                          ({selectedTargetMember.avisosCount} avisos)
+                        </p>
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setTargetMemberId('');
+                        setMemberSearchQuery('');
+                      }}
+                      className="px-2.5 py-1 text-xs font-medium rounded-md text-muted-foreground hover:text-foreground hover:bg-muted border border-border transition cursor-pointer shrink-0 ml-2"
+                    >
+                      Alterar
+                    </button>
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    <div className="relative">
+                      <Search className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground pointer-events-none" />
+                      <input
+                        type="text"
+                        autoFocus
+                        placeholder="Pesquisar integrante por nome ou área..."
+                        value={memberSearchQuery}
+                        onChange={(e) => setMemberSearchQuery(e.target.value)}
+                        className="w-full pl-9 pr-8 py-2 rounded-lg bg-background border border-border text-foreground text-sm focus:outline-hidden focus:ring-2 focus:ring-ring placeholder:text-muted-foreground"
+                      />
+                      {memberSearchQuery && (
+                        <button
+                          type="button"
+                          onClick={() => setMemberSearchQuery('')}
+                          className="absolute right-2.5 top-2.5 text-muted-foreground hover:text-foreground cursor-pointer"
+                        >
+                          <X className="h-4 w-4" />
+                        </button>
+                      )}
+                    </div>
+
+                    <div className="max-h-48 overflow-y-auto rounded-lg border border-border bg-background divide-y divide-border shadow-xs">
+                      {modalFilteredMembers.length > 0 ? (
+                        modalFilteredMembers.map((m) => (
+                          <button
+                            key={m.memberId}
+                            type="button"
+                            onClick={() => {
+                              setTargetMemberId(m.memberId);
+                              setMemberSearchQuery('');
+                            }}
+                            className="w-full flex items-center justify-between p-2.5 text-left text-sm hover:bg-muted/70 transition cursor-pointer group"
+                          >
+                            <div className="flex items-center gap-2.5 min-w-0">
+                              <div className="h-7 w-7 rounded-full bg-accent border border-border flex items-center justify-center text-xs font-semibold shrink-0">
+                                {m.name.slice(0, 1)}
+                              </div>
+                              <div className="truncate">
+                                <span className="font-medium text-foreground group-hover:text-primary transition">{m.name}</span>
+                                <span className="ml-2 text-xs text-muted-foreground">({m.area})</span>
+                              </div>
+                            </div>
+                            <span className="text-xs text-muted-foreground font-mono shrink-0 ml-2">
+                              {m.totalWarnings > 0 || m.avisosCount > 0 ? (
+                                <span className="text-amber-600 dark:text-amber-400 font-semibold">
+                                  {m.totalWarnings} adv, {m.avisosCount} av
+                                </span>
+                              ) : (
+                                <span className="text-emerald-600 dark:text-emerald-400">Regular</span>
+                              )}
+                            </span>
+                          </button>
+                        ))
+                      ) : (
+                        <p className="p-4 text-center text-xs text-muted-foreground">
+                          Nenhum integrante encontrado com &ldquo;{memberSearchQuery}&rdquo;.
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                )}
               </div>
 
               {/* Tipo de Ocorrência */}
