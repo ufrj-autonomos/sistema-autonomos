@@ -48,6 +48,7 @@ export async function GET(req: NextRequest) {
           email: member.email || '',
           role: member.role,
           area: resolveMemberAreas(siteProfile?.area, member.area).internal || '',
+          teamId: member.teamId,
           phone: member.phone || '',
           dre: member.dre || '',
           cpf: member.cpf || '',
@@ -62,6 +63,7 @@ export async function GET(req: NextRequest) {
         siteProfile: siteProfile
           ? {
               id: siteProfile.id,
+              teamId: siteProfile.teamId,
               name: siteProfile.name,
               role: siteProfile.role,
               area: siteProfile.area,
@@ -178,6 +180,10 @@ export async function PUT(req: NextRequest) {
     const now = new Date();
     const { userId: _unusedUserId, notes: _unusedNotes, ...internalFields } = validatedInternal;
 
+    const parsedTeamId = 'teamId' in input
+      ? (input.teamId === 1 || input.teamId === '1' ? 1 : input.teamId === 2 || input.teamId === '2' ? 2 : null)
+      : member.teamId;
+
     const { updatedMember, diffForApproval } = await prisma.$transaction(async (tx) => {
       await tx.$queryRaw`SELECT id FROM "Member" WHERE id = ${member.id} FOR UPDATE`;
       const latest = await tx.member.findUniqueOrThrow({ where: { id: member.id } });
@@ -192,6 +198,7 @@ export async function PUT(req: NextRequest) {
         where: { id: member.id },
         data: {
           ...internalFields,
+          teamId: parsedTeamId,
           name: internalFields.name || member.name,
           area: normalizeMemberArea(internalFields.area) || normalizeMemberArea(member.area) || 'Não informada',
           avatar: typeof siteChanges.photo === 'string' ? siteChanges.photo : member.avatar,
@@ -221,6 +228,18 @@ export async function PUT(req: NextRequest) {
 
       return { updatedMember: saved, diffForApproval };
     }, { maxWait: 10000, timeout: 15000 });
+
+    // Sync teamId directly to institutionalMember if present
+    if (updatedMember.institutionalMemberId && process.env.INSTITUTIONAL_DATABASE_URL && 'teamId' in input) {
+      try {
+        await institutionalDb.institutionalMember.update({
+          where: { id: updatedMember.institutionalMemberId },
+          data: { teamId: parsedTeamId },
+        });
+      } catch (err) {
+        console.warn('Falha ao sincronizar teamId no banco institucional:', err);
+      }
+    }
 
     // Derive and update age from birthDate if birthDate is set
     if (updatedMember.institutionalMemberId && updatedMember.birthDate) {

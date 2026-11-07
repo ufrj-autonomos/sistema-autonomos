@@ -25,6 +25,7 @@ type ProfileData = {
   email: string;
   role: string;
   area: string;
+  teamId?: number | null;
   phone: string;
   dre: string;
   cpf: string;
@@ -39,6 +40,7 @@ type ProfileData = {
 
 type SiteProfileData = {
   id: number;
+  teamId?: number | null;
   name: string;
   role: string;
   area: string;
@@ -82,6 +84,7 @@ function ProfileFormContent() {
   // Form states
   const [name, setName] = useState("");
   const [area, setArea] = useState("");
+  const [teamId, setTeamId] = useState<number | null>(null);
   const [phone, setPhone] = useState("");
   const [dre, setDre] = useState("");
   const [cpf, setCpf] = useState("");
@@ -118,6 +121,8 @@ function ProfileFormContent() {
 
       setName(typeof pendingFields.name === "string" ? pendingFields.name : p.name || sp?.name || "");
       setArea(normalizeMemberArea(p.area) || normalizeMemberArea(sp?.area) || "");
+      const pTeamId = p.teamId !== undefined && p.teamId !== null ? p.teamId : (sp?.teamId !== undefined && sp?.teamId !== null ? sp.teamId : null);
+      setTeamId(pTeamId);
       setPhone(p.phone || "");
       setDre(p.dre || "");
       setCpf(p.cpf || "");
@@ -201,6 +206,7 @@ function ProfileFormContent() {
         body: JSON.stringify({
           name,
           area,
+          teamId,
           phone,
           dre,
           cpf,
@@ -411,6 +417,19 @@ function ProfileFormContent() {
                 <option value="" disabled>Selecione sua área</option>
                 {area && !MEMBER_AREAS.some(value => value === area) && <option value={area}>{area} (área atual)</option>}
                 {MEMBER_AREAS.map(value => <option key={value} value={value}>{value}</option>)}
+              </select>
+            </label>
+
+            <label className="block text-sm font-medium text-foreground">
+              Divisão / Equipe
+              <select
+                value={teamId === null ? "" : String(teamId)}
+                onChange={(e) => setTeamId(e.target.value === "" ? null : Number(e.target.value))}
+                className={inputClass}
+              >
+                <option value="">Autônomos Geral (Liderança / Gestão)</option>
+                <option value="2">☁️ Harpia (Aeronaves Autônomas)</option>
+                <option value="1">🌊 Nautilus (Veículos Subaquáticos)</option>
               </select>
             </label>
 
