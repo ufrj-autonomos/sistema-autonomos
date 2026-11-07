@@ -6,6 +6,7 @@ import {
   getVisibleAreasForUser,
   canUserManageMeetings,
 } from '../src/lib/meetings/service';
+import { getEffectiveTeamTheme } from '../src/lib/theme';
 import { prisma } from '../src/lib/prisma';
 import type { SafeUser } from '../src/lib/session';
 
@@ -75,6 +76,12 @@ test('Theme and team mapping logic', () => {
 
   const adminAreas = getVisibleAreasForUser(adminUser);
   assert.equal(adminAreas.length, 8);
+
+  // Tema do site: Admin deve ser automaticamente Autônomos (null para sobrescritas de divisão)
+  assert.equal(getEffectiveTeamTheme(harpiaUser), 'harpia');
+  assert.equal(getEffectiveTeamTheme(nautilusUser), 'nautilus');
+  assert.equal(getEffectiveTeamTheme(autonomosUser), null);
+  assert.equal(getEffectiveTeamTheme(adminUser), null);
 });
 
 test('Attendance score calculation rules (Spreadsheet 26.2 matching)', () => {

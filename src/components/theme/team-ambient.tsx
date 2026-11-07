@@ -1,12 +1,13 @@
 'use client';
 
 import { useSession } from '@/contexts/auth-context';
+import { getEffectiveTeamTheme } from '@/lib/theme';
 
 export function TeamAmbient() {
   const { user } = useSession();
-  const team = user?.teamSlug;
+  const team = getEffectiveTeamTheme(user);
 
-  if (!team || team === 'autonomos') return null;
+  if (!team) return null;
 
   if (team === 'harpia') {
     return (

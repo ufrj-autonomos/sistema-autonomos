@@ -245,14 +245,19 @@ export function Navbar({ className }: NavbarProps) {
                 <span className="text-sm font-medium text-foreground hidden sm:inline max-w-[120px] truncate">
                   {user.name.split(" ")[0]}
                 </span>
-                {user.teamSlug === 'harpia' && (
+                {user.role !== 'ADMIN' && user.teamSlug === 'harpia' && (
                   <span className="hidden md:inline-flex items-center text-[10px] font-medium px-1.5 py-0.5 rounded-full bg-purple-100 text-purple-800 border border-purple-200 dark:bg-purple-900/40 dark:text-purple-200 dark:border-purple-500/30">
                     ☁️ Harpia
                   </span>
                 )}
-                {user.teamSlug === 'nautilus' && (
+                {user.role !== 'ADMIN' && user.teamSlug === 'nautilus' && (
                   <span className="hidden md:inline-flex items-center text-[10px] font-medium px-1.5 py-0.5 rounded-full bg-sky-100 text-sky-800 border border-sky-200 dark:bg-sky-900/40 dark:text-sky-200 dark:border-sky-500/30">
                     🌊 Nautilus
+                  </span>
+                )}
+                {user.role === 'ADMIN' && (
+                  <span className="hidden md:inline-flex items-center text-[10px] font-medium px-1.5 py-0.5 rounded-full bg-amber-500/15 text-amber-600 dark:text-amber-400 border border-amber-500/30">
+                    🤖 Autônomos
                   </span>
                 )}
                 <ChevronDown
@@ -286,17 +291,17 @@ export function Navbar({ className }: NavbarProps) {
                       >
                         {roleDisplay.label}
                       </span>
-                      {user.teamSlug === 'harpia' && (
+                      {user.role !== 'ADMIN' && user.teamSlug === 'harpia' && (
                         <span className="text-[10px] font-medium px-2 py-0.5 rounded-full bg-purple-100 text-purple-800 border border-purple-200 dark:bg-purple-900/40 dark:text-purple-200 dark:border-purple-500/30 flex items-center gap-1">
                           <span>☁️</span> Divisão Harpia
                         </span>
                       )}
-                      {user.teamSlug === 'nautilus' && (
+                      {user.role !== 'ADMIN' && user.teamSlug === 'nautilus' && (
                         <span className="text-[10px] font-medium px-2 py-0.5 rounded-full bg-sky-100 text-sky-800 border border-sky-200 dark:bg-sky-900/40 dark:text-sky-200 dark:border-sky-500/30 flex items-center gap-1">
                           <span>🌊</span> Divisão Nautilus
                         </span>
                       )}
-                      {(!user.teamSlug || user.teamSlug === 'autonomos') && (
+                      {(user.role === 'ADMIN' || !user.teamSlug || user.teamSlug === 'autonomos') && (
                         <span className="text-[10px] font-medium px-2 py-0.5 rounded-full bg-zinc-100 text-zinc-800 border border-zinc-200 dark:bg-zinc-800 dark:text-zinc-300 dark:border-zinc-700">
                           Autônomos Geral
                         </span>
@@ -518,14 +523,19 @@ export function Navbar({ className }: NavbarProps) {
                   {user.email}
                 </p>
                 <div className="mt-1 flex items-center gap-1.5 flex-wrap">
-                  {user.teamSlug === 'harpia' && (
+                  {user.role !== 'ADMIN' && user.teamSlug === 'harpia' && (
                     <span className="text-[10px] font-medium px-2 py-0.5 rounded-full bg-purple-100 text-purple-800 border border-purple-200 dark:bg-purple-900/40 dark:text-purple-200 dark:border-purple-500/30">
                       ☁️ Divisão Harpia
                     </span>
                   )}
-                  {user.teamSlug === 'nautilus' && (
+                  {user.role !== 'ADMIN' && user.teamSlug === 'nautilus' && (
                     <span className="text-[10px] font-medium px-2 py-0.5 rounded-full bg-sky-100 text-sky-800 border border-sky-200 dark:bg-sky-900/40 dark:text-sky-200 dark:border-sky-500/30">
                       🌊 Divisão Nautilus
+                    </span>
+                  )}
+                  {(user.role === 'ADMIN' || !user.teamSlug || user.teamSlug === 'autonomos') && (
+                    <span className="text-[10px] font-medium px-2 py-0.5 rounded-full bg-zinc-100 text-zinc-800 border border-zinc-200 dark:bg-zinc-800 dark:text-zinc-300 dark:border-zinc-700">
+                      Autônomos Geral
                     </span>
                   )}
                 </div>

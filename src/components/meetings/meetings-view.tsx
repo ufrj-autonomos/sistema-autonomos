@@ -406,13 +406,13 @@ export function MeetingsView({
 
         {/* Team Indicator */}
         <div className="flex items-center gap-2">
-          {user.teamSlug === 'harpia' && (
+          {!data.isAdmin && user.teamSlug === 'harpia' && (
             <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-purple-100 text-purple-800 border border-purple-200 dark:bg-purple-950/40 dark:text-purple-200 dark:border-purple-500/30 text-xs">
               <span className="text-base">☁️</span>
               <span>Divisão Harpia</span>
             </div>
           )}
-          {user.teamSlug === 'nautilus' && (
+          {!data.isAdmin && user.teamSlug === 'nautilus' && (
             <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-sky-100 text-sky-800 border border-sky-200 dark:bg-sky-950/40 dark:text-sky-200 dark:border-sky-500/30 text-xs">
               <span className="text-base">🌊</span>
               <span>Divisão Nautilus</span>

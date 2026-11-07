@@ -9,7 +9,7 @@ import React, {
   ReactNode,
 } from "react";
 import { usePathname, useRouter } from "next/navigation";
-import { applyTeamTheme, TEAM_THEME_STORAGE_KEY } from "@/lib/theme";
+import { applyTeamTheme, getEffectiveTeamTheme, TEAM_THEME_STORAGE_KEY } from "@/lib/theme";
 
 export type TeamSlug = 'nautilus' | 'harpia' | 'autonomos';
 
@@ -102,14 +102,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   useEffect(() => { refreshSession(); }, [pathname, refreshSession]);
 
   useEffect(() => {
-    if (user?.teamSlug && user.teamSlug !== 'autonomos') {
-      try { localStorage.setItem(TEAM_THEME_STORAGE_KEY, user.teamSlug); } catch {}
-      applyTeamTheme(user.teamSlug);
+    const effectiveTeam = getEffectiveTeamTheme(user);
+    if (effectiveTeam) {
+      try { localStorage.setItem(TEAM_THEME_STORAGE_KEY, effectiveTeam); } catch {}
+      applyTeamTheme(effectiveTeam);
     } else {
       try { localStorage.removeItem(TEAM_THEME_STORAGE_KEY); } catch {}
       applyTeamTheme(null);
     }
-  }, [user?.teamSlug]);
+  }, [user?.role, user?.teamSlug]);
 
   useEffect(() => {
     if (!isLoading && !user && !['/login', '/register', '/forgot-password', '/reset-password'].includes(pathname)) {
@@ -145,6 +146,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
 
       setUser(data.user);
+      const effectiveTeam = getEffectiveTeamTheme(data.user);
+      if (effectiveTeam) {
+        try { localStorage.setItem(TEAM_THEME_STORAGE_KEY, effectiveTeam); } catch {}
+        applyTeamTheme(effectiveTeam);
+      } else {
+        try { localStorage.removeItem(TEAM_THEME_STORAGE_KEY); } catch {}
+        applyTeamTheme(null);
+      }
       setIsLoading(false);
 
       // Dispara evento global para sincronizar navbar e outros componentes
@@ -215,6 +224,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const response = await fetch('/api/auth/logout', { method: 'POST' });
       if (!response.ok) throw new Error('Falha ao encerrar sessão');
       setUser(null);
+      try { localStorage.removeItem(TEAM_THEME_STORAGE_KEY); } catch {}
+      applyTeamTheme(null);
       window.localStorage.setItem(AUTH_CHANGE_EVENT, String(Date.now()));
       window.dispatchEvent(new Event(AUTH_CHANGE_EVENT));
       router.replace('/login');
