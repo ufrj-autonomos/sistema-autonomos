@@ -169,13 +169,13 @@ export default async function EnsinoCatalogPage() {
             </span>
 
             {/* Divisão Harpia Badge */}
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-mono font-medium bg-[#1D062B]/80 text-[#C49ED9] border border-[#702191]/60">
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-mono font-medium bg-purple-100 text-purple-800 border border-purple-200 dark:bg-[#1D062B]/80 dark:text-[#C49ED9] dark:border-[#702191]/60">
               <HarpiaMark size={14} symbolType="eagle" />
               <span>Divisão Harpia (UAV)</span>
             </div>
 
             {/* Divisão Nautilus Badge */}
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-mono font-medium bg-[#0A1A2F]/80 text-[#93C5FD] border border-[#1E40AF]/60">
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-mono font-medium bg-sky-100 text-sky-800 border border-sky-200 dark:bg-[#0A1A2F]/80 dark:text-[#93C5FD] dark:border-[#1E40AF]/60">
               <NautilusMark size={14} symbolType="auv" />
               <span>Divisão Nautilus (AUV)</span>
             </div>

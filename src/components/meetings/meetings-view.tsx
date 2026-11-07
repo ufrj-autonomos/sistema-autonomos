@@ -407,13 +407,13 @@ export function MeetingsView({
         {/* Team Indicator */}
         <div className="flex items-center gap-2">
           {user.teamSlug === 'harpia' && (
-            <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-purple-950/40 text-purple-200 border border-purple-500/30 text-xs">
+            <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-purple-100 text-purple-800 border border-purple-200 dark:bg-purple-950/40 dark:text-purple-200 dark:border-purple-500/30 text-xs">
               <span className="text-base">☁️</span>
               <span>Divisão Harpia</span>
             </div>
           )}
           {user.teamSlug === 'nautilus' && (
-            <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-sky-950/40 text-sky-200 border border-sky-500/30 text-xs">
+            <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-sky-100 text-sky-800 border border-sky-200 dark:bg-sky-950/40 dark:text-sky-200 dark:border-sky-500/30 text-xs">
               <span className="text-base">🌊</span>
               <span>Divisão Nautilus</span>
             </div>
@@ -539,9 +539,9 @@ export function MeetingsView({
             </div>
           </div>
 
-          {/* Gráficos Comparativos: Reuniões por Equipe e Desempenho por Área */}
+          {/* Gráficos Comparativos: Reuniões por Área e Desempenho por Área */}
           <div className="grid gap-6 lg:grid-cols-2">
-            {/* Gráfico 1: Comparação de Reuniões por Equipe */}
+            {/* Gráfico 1: Comparação de Reuniões por Área */}
             <div className="rounded-xl border border-border bg-card p-5 space-y-4 shadow-xs">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
@@ -550,10 +550,12 @@ export function MeetingsView({
                   </div>
                   <div>
                     <h3 className="text-base font-semibold text-foreground">
-                      Reuniões por Equipe
+                      Reuniões por Área
                     </h3>
                     <p className="text-xs text-muted-foreground">
-                      Comparativo de reuniões realizadas entre Harpia, Nautilus e Geral.
+                      {data.isAdmin
+                        ? 'Comparativo de reuniões realizadas por coordenação técnica e operacional.'
+                        : 'Comparativo de reuniões realizadas por área da sua equipe.'}
                     </p>
                   </div>
                 </div>
@@ -562,8 +564,12 @@ export function MeetingsView({
               <div className="h-56 w-full pt-2">
                 <ResponsiveContainer width="100%" height="100%">
                   <BarChart
-                    data={data.overview.teamComparison || []}
-                    margin={{ top: 10, right: 10, left: -20, bottom: 0 }}
+                    data={data.overview.areaSummaries.map((s) => ({
+                      name: s.label,
+                      meetingsCount: s.meetingsCount,
+                      icon: s.icon,
+                    }))}
+                    margin={{ top: 10, right: 10, left: -20, bottom: 20 }}
                   >
                     <XAxis
                       dataKey="name"
@@ -571,6 +577,9 @@ export function MeetingsView({
                       fontSize={11}
                       tickLine={false}
                       axisLine={false}
+                      interval={0}
+                      angle={data.overview.areaSummaries.length > 4 ? -25 : 0}
+                      textAnchor={data.overview.areaSummaries.length > 4 ? 'end' : 'middle'}
                     />
                     <YAxis
                       stroke="#888888"
@@ -585,30 +594,31 @@ export function MeetingsView({
                       name="Qtd. Reuniões"
                       radius={[6, 6, 0, 0]}
                     >
-                      {(data.overview.teamComparison || []).map((entry, index) => (
-                        <Cell key={`cell-${index}`} fill={entry.color || '#3b82f6'} />
-                      ))}
+                      {data.overview.areaSummaries.map((entry, index) => {
+                        const colors = ['#387aef', '#8b5cf6', '#10b981', '#f59e0b', '#ec4899', '#06b6d4'];
+                        return <Cell key={`cell-${index}`} fill={colors[index % colors.length]} />;
+                      })}
                     </Bar>
                   </BarChart>
                 </ResponsiveContainer>
               </div>
 
-              {/* Cards Resumo das Equipes */}
-              <div className="grid grid-cols-3 gap-2 pt-2 border-t border-border/60">
-                {(data.overview.teamComparison || []).map((team) => (
+              {/* Cards Resumo das Áreas */}
+              <div className={`grid gap-2 pt-2 border-t border-border/60 ${data.overview.areaSummaries.length > 3 ? 'grid-cols-2 sm:grid-cols-3' : 'grid-cols-3'}`}>
+                {data.overview.areaSummaries.map((area) => (
                   <div
-                    key={team.name}
+                    key={area.label}
                     className="p-2.5 rounded-lg border border-border/60 bg-muted/30 text-center"
                   >
                     <div className="flex items-center justify-center gap-1 text-xs font-semibold text-foreground">
-                      <span>{team.icon}</span>
-                      <span className="truncate">{team.name}</span>
+                      <span>{area.icon}</span>
+                      <span className="truncate" title={area.label}>{area.label}</span>
                     </div>
                     <div className="text-lg font-bold font-mono text-foreground mt-1">
-                      {team.meetingsCount} <span className="text-xs font-normal text-muted-foreground">reuniões</span>
+                      {area.meetingsCount} <span className="text-xs font-normal text-muted-foreground">reuniões</span>
                     </div>
                     <div className="text-[11px] font-mono text-muted-foreground mt-0.5">
-                      {team.pct}% presença
+                      {area.pct}% presença
                     </div>
                   </div>
                 ))}
@@ -635,7 +645,7 @@ export function MeetingsView({
                 <ResponsiveContainer width="100%" height="100%">
                   <BarChart
                     data={data.overview.areaSummaries.map((s) => ({
-                      name: s.label.replace(' (Nautilus)', ' (N)'),
+                      name: s.label,
                       Presenças: s.presences,
                       Faltas: s.absences,
                       Taxa: `${s.pct}%`,
@@ -718,13 +728,13 @@ export function MeetingsView({
                         <span className="text-lg">{summary.icon}</span>
                         <div>
                           <span>{summary.label}</span>
-                          {summary.teamSlug === 'harpia' && (
-                            <span className="ml-2 text-[10px] px-1.5 py-0.5 rounded bg-purple-900/30 text-purple-300 border border-purple-500/20">
+                          {data.isAdmin && summary.teamSlug === 'harpia' && (
+                            <span className="ml-2 text-[10px] px-1.5 py-0.5 rounded bg-purple-100 text-purple-800 border border-purple-200 dark:bg-purple-900/30 dark:text-purple-300 dark:border-purple-500/20">
                               Harpia
                             </span>
                           )}
-                          {summary.teamSlug === 'nautilus' && (
-                            <span className="ml-2 text-[10px] px-1.5 py-0.5 rounded bg-sky-900/30 text-sky-300 border border-sky-500/20">
+                          {data.isAdmin && summary.teamSlug === 'nautilus' && (
+                            <span className="ml-2 text-[10px] px-1.5 py-0.5 rounded bg-sky-100 text-sky-800 border border-sky-200 dark:bg-sky-900/30 dark:text-sky-300 dark:border-sky-500/20">
                               Nautilus
                             </span>
                           )}
@@ -980,13 +990,13 @@ export function MeetingsView({
                   <h2 className="text-xl font-bold text-foreground">
                     Controle de Presença — {activeDetailedArea.def.label}
                   </h2>
-                  {activeDetailedArea.def.teamSlug === 'harpia' && (
-                    <span className="text-xs px-2 py-0.5 rounded-full bg-purple-900/30 text-purple-300 border border-purple-500/20">
+                  {data.isAdmin && activeDetailedArea.def.teamSlug === 'harpia' && (
+                    <span className="text-xs px-2 py-0.5 rounded-full bg-purple-100 text-purple-800 border border-purple-200 dark:bg-purple-900/30 dark:text-purple-300 dark:border-purple-500/20">
                       ☁️ Harpia
                     </span>
                   )}
-                  {activeDetailedArea.def.teamSlug === 'nautilus' && (
-                    <span className="text-xs px-2 py-0.5 rounded-full bg-sky-900/30 text-sky-300 border border-sky-500/20">
+                  {data.isAdmin && activeDetailedArea.def.teamSlug === 'nautilus' && (
+                    <span className="text-xs px-2 py-0.5 rounded-full bg-sky-100 text-sky-800 border border-sky-200 dark:bg-sky-900/30 dark:text-sky-300 dark:border-sky-500/20">
                       🌊 Nautilus
                     </span>
                   )}

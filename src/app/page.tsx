@@ -26,17 +26,17 @@ export default async function HomePage() {
         <div>
           <div className="flex items-center gap-2 mb-2">
             {user.teamSlug === 'harpia' && (
-              <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-purple-900/30 text-purple-300 border border-purple-500/30">
+              <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-purple-100 text-purple-800 border border-purple-200 dark:bg-purple-900/30 dark:text-purple-300 dark:border-purple-500/30">
                 ☁️ Divisão Harpia · Aeronaves Autônomas
               </span>
             )}
             {user.teamSlug === 'nautilus' && (
-              <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-sky-900/30 text-sky-300 border border-sky-500/30">
+              <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-sky-100 text-sky-800 border border-sky-200 dark:bg-sky-900/30 dark:text-sky-300 dark:border-sky-500/30">
                 🌊 Divisão Nautilus · Veículos Subaquáticos
               </span>
             )}
             {(!user.teamSlug || user.teamSlug === 'autonomos') && (
-              <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-zinc-800 text-zinc-300 border border-zinc-700">
+              <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-zinc-100 text-zinc-800 border border-zinc-200 dark:bg-zinc-800 dark:text-zinc-300 dark:border-zinc-700">
                 🤖 UFRJ Autônomos Geral
               </span>
             )}

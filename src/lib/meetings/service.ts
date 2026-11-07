@@ -28,9 +28,9 @@ export const KNOWN_AREAS: AreaDefinition[] = [
   { area: 'Software', teamId: 2, label: 'Software', teamSlug: 'harpia', icon: '🖥️', coordinator: 'Gabriel Gaspar' },
   { area: 'Mecânica', teamId: 2, label: 'Mecânica', teamSlug: 'harpia', icon: '⚙️', coordinator: 'Gabriel Facundo' },
   { area: 'Eletrônica', teamId: 2, label: 'Eletrônica', teamSlug: 'harpia', icon: '🔌', coordinator: 'Derek Werneck' },
-  { area: 'Software', teamId: 1, label: 'Software (Nautilus)', teamSlug: 'nautilus', icon: '🖥️' },
-  { area: 'Mecânica', teamId: 1, label: 'Mecânica (Nautilus)', teamSlug: 'nautilus', icon: '⚙️' },
-  { area: 'Eletrônica', teamId: 1, label: 'Eletrônica (Nautilus)', teamSlug: 'nautilus', icon: '🔌' },
+  { area: 'Software', teamId: 1, label: 'Software', teamSlug: 'nautilus', icon: '🖥️' },
+  { area: 'Mecânica', teamId: 1, label: 'Mecânica', teamSlug: 'nautilus', icon: '⚙️' },
+  { area: 'Eletrônica', teamId: 1, label: 'Eletrônica', teamSlug: 'nautilus', icon: '🔌' },
   { area: 'Gestão', teamId: null, label: 'Gente e Gestão', teamSlug: 'autonomos', icon: '👥', coordinator: 'Henrique' },
   { area: 'Marketing', teamId: null, label: 'Marketing', teamSlug: 'autonomos', icon: '📲', coordinator: 'Thiago' },
 ];
@@ -40,22 +40,37 @@ export function canUserManageMeetings(user: SafeUser): boolean {
 }
 
 export function getVisibleAreasForUser(user: SafeUser): AreaDefinition[] {
-  if (user.role === 'ADMIN') {
-    return KNOWN_AREAS;
+  const isAdmin = user.role === 'ADMIN';
+
+  let list: AreaDefinition[] = [];
+  if (isAdmin) {
+    list = KNOWN_AREAS;
+  } else if (user.teamId === 2) {
+    list = KNOWN_AREAS.filter((a) => a.teamId === 2);
+  } else if (user.teamId === 1) {
+    list = KNOWN_AREAS.filter((a) => a.teamId === 1);
+  } else {
+    list = KNOWN_AREAS.filter((a) => a.teamId === null);
   }
 
-  // Se o usuário for Harpia (teamId === 2)
-  if (user.teamId === 2) {
-    return KNOWN_AREAS.filter((a) => a.teamId === 2);
-  }
-
-  // Se o usuário for Nautilus (teamId === 1)
-  if (user.teamId === 1) {
-    return KNOWN_AREAS.filter((a) => a.teamId === 1);
-  }
-
-  // Se for Autônomos Geral (sem ser de área técnica)
-  return KNOWN_AREAS.filter((a) => a.teamId === null);
+  return list.map((a) => {
+    let label = a.label;
+    if (isAdmin) {
+      if (a.teamSlug === 'harpia') {
+        label = `${a.area} (Harpia)`;
+      } else if (a.teamSlug === 'nautilus') {
+        label = `${a.area} (Nautilus)`;
+      } else if (a.teamSlug === 'autonomos') {
+        label = a.area === 'Gestão' ? 'Gente e Gestão (Geral)' : `${a.area} (Geral)`;
+      }
+    } else {
+      label = a.area === 'Gestão' ? 'Gente e Gestão' : a.area;
+    }
+    return {
+      ...a,
+      label,
+    };
+  });
 }
 
 export function calculateAttendanceScore(status: MeetingAttendanceStatus | string): { presence: number; absence: number; counted: boolean } {
@@ -160,7 +175,7 @@ export async function getMeetingsDashboardData(user: SafeUser, period = '26.2') 
   }));
 
   // Consolidado por Área (apenas áreas visíveis ao usuário; Admin vê todas)
-  const targetAreas = user.role === 'ADMIN' ? KNOWN_AREAS : visibleAreas;
+  const targetAreas = visibleAreas;
   const areaSummaries = targetAreas.map((def) => {
     const areaMeetings = allMeetings.filter(
       (m) => m.area === def.area && m.teamId === def.teamId

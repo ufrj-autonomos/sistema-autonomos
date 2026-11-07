@@ -246,12 +246,12 @@ export function Navbar({ className }: NavbarProps) {
                   {user.name.split(" ")[0]}
                 </span>
                 {user.teamSlug === 'harpia' && (
-                  <span className="hidden md:inline-flex items-center text-[10px] font-medium px-1.5 py-0.5 rounded-full bg-purple-900/40 text-purple-200 border border-purple-500/30">
+                  <span className="hidden md:inline-flex items-center text-[10px] font-medium px-1.5 py-0.5 rounded-full bg-purple-100 text-purple-800 border border-purple-200 dark:bg-purple-900/40 dark:text-purple-200 dark:border-purple-500/30">
                     ☁️ Harpia
                   </span>
                 )}
                 {user.teamSlug === 'nautilus' && (
-                  <span className="hidden md:inline-flex items-center text-[10px] font-medium px-1.5 py-0.5 rounded-full bg-sky-900/40 text-sky-200 border border-sky-500/30">
+                  <span className="hidden md:inline-flex items-center text-[10px] font-medium px-1.5 py-0.5 rounded-full bg-sky-100 text-sky-800 border border-sky-200 dark:bg-sky-900/40 dark:text-sky-200 dark:border-sky-500/30">
                     🌊 Nautilus
                   </span>
                 )}
@@ -287,17 +287,17 @@ export function Navbar({ className }: NavbarProps) {
                         {roleDisplay.label}
                       </span>
                       {user.teamSlug === 'harpia' && (
-                        <span className="text-[10px] font-medium px-2 py-0.5 rounded-full bg-purple-900/40 text-purple-200 border border-purple-500/30 flex items-center gap-1">
+                        <span className="text-[10px] font-medium px-2 py-0.5 rounded-full bg-purple-100 text-purple-800 border border-purple-200 dark:bg-purple-900/40 dark:text-purple-200 dark:border-purple-500/30 flex items-center gap-1">
                           <span>☁️</span> Divisão Harpia
                         </span>
                       )}
                       {user.teamSlug === 'nautilus' && (
-                        <span className="text-[10px] font-medium px-2 py-0.5 rounded-full bg-sky-900/40 text-sky-200 border border-sky-500/30 flex items-center gap-1">
+                        <span className="text-[10px] font-medium px-2 py-0.5 rounded-full bg-sky-100 text-sky-800 border border-sky-200 dark:bg-sky-900/40 dark:text-sky-200 dark:border-sky-500/30 flex items-center gap-1">
                           <span>🌊</span> Divisão Nautilus
                         </span>
                       )}
                       {(!user.teamSlug || user.teamSlug === 'autonomos') && (
-                        <span className="text-[10px] font-medium px-2 py-0.5 rounded-full bg-zinc-800 text-zinc-300 border border-zinc-700">
+                        <span className="text-[10px] font-medium px-2 py-0.5 rounded-full bg-zinc-100 text-zinc-800 border border-zinc-200 dark:bg-zinc-800 dark:text-zinc-300 dark:border-zinc-700">
                           Autônomos Geral
                         </span>
                       )}
@@ -341,7 +341,7 @@ export function Navbar({ className }: NavbarProps) {
                   <button
                     type="button"
                     onClick={() => handleLogout()}
-                    className="w-full flex items-center gap-2.5 px-3 py-2 text-sm text-red-700 dark:text-red-400 hover:text-red-300 hover:bg-red-500/10 rounded-lg transition-colors text-left cursor-pointer"
+                    className="w-full flex items-center gap-2.5 px-3 py-2 text-sm text-red-600 dark:text-red-400 hover:text-red-700 dark:hover:text-red-300 hover:bg-red-500/10 rounded-lg transition-colors text-left cursor-pointer"
                     role="menuitem"
                   >
                     <LogOut className="w-4 h-4" />
@@ -519,12 +519,12 @@ export function Navbar({ className }: NavbarProps) {
                 </p>
                 <div className="mt-1 flex items-center gap-1.5 flex-wrap">
                   {user.teamSlug === 'harpia' && (
-                    <span className="text-[10px] font-medium px-2 py-0.5 rounded-full bg-purple-900/40 text-purple-200 border border-purple-500/30">
+                    <span className="text-[10px] font-medium px-2 py-0.5 rounded-full bg-purple-100 text-purple-800 border border-purple-200 dark:bg-purple-900/40 dark:text-purple-200 dark:border-purple-500/30">
                       ☁️ Divisão Harpia
                     </span>
                   )}
                   {user.teamSlug === 'nautilus' && (
-                    <span className="text-[10px] font-medium px-2 py-0.5 rounded-full bg-sky-900/40 text-sky-200 border border-sky-500/30">
+                    <span className="text-[10px] font-medium px-2 py-0.5 rounded-full bg-sky-100 text-sky-800 border border-sky-200 dark:bg-sky-900/40 dark:text-sky-200 dark:border-sky-500/30">
                       🌊 Divisão Nautilus
                     </span>
                   )}
