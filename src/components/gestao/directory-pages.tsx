@@ -64,7 +64,7 @@ export async function DirectoryFormPage({ table, id, initialView }: { table: Dir
       id: account.id,
       label: `${account.name}${account.email ? ` — ${account.email}` : ' (sem email)'}${account.status !== 'APPROVED' ? ' (acesso suspenso)' : ''}`,
     }));
-  const initialData = record && table === 'member' ? { ...record, role: normalizeMemberRole('role' in record ? record.role : ''), area: resolveMemberAreas('area' in record ? record.area : null, details && 'area' in details ? details.area : null).site || '', teamId: record.teamId ?? '' } : record || { showOnSite: false, ...(table === 'member' ? { active: true } : { importance: 5 }) };
+  const initialData = record && table === 'member' ? { ...record, role: normalizeMemberRole('role' in record ? record.role : ''), area: resolveMemberAreas('area' in record ? record.area : null, details && 'area' in details ? details.area : null).site || '', teamId: record.teamId ?? '' } : record || { showOnSite: false, ...(table === 'member' ? { active: true, role: 'Trainee' } : { importance: 5 }) };
   return <div className="max-w-5xl space-y-6">
     <Link href={directoryPath(table)} className="inline-flex min-h-11 items-center gap-2 text-sm text-muted-foreground hover:text-foreground"><ArrowLeft className="h-4 w-4" />Voltar para {config.name.toLowerCase()}</Link>
     <SectionHeader title={isNew ? (table === 'member' ? 'Novo integrante' : 'Novo projeto') : record!.name} description="Edite os dados compartilhados com o site e as informações exclusivas da gestão." />

@@ -136,7 +136,7 @@ export async function POST(req: NextRequest) {
           const createdInst = await institutionalDb.institutionalMember.create({
             data: {
               name: typeof allowedUpdate.name === 'string' && allowedUpdate.name ? allowedUpdate.name : pending.member.name,
-              role: 'Membro',
+              role: 'Trainee',
               area: normalizeMemberArea(pending.member.area) || 'Não informada',
               active: true,
               showOnSite: false,

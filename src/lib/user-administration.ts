@@ -94,7 +94,7 @@ export async function updateAccount(actorId: string, targetId: string, input: un
         const instMember = await institutionalDb.institutionalMember.create({
           data: {
             name: toCreate.name,
-            role: 'Integrante',
+            role: 'Trainee',
             area: toCreate.area || 'Software',
             course: toCreate.course || null,
             active: true,

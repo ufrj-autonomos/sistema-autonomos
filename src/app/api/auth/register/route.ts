@@ -2,6 +2,7 @@ import { traceApi } from '@/lib/activity/server';
 import { readAuthPayload } from '@/lib/auth-request';
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { db as institutionalDb } from '@/lib/institutional/db';
 import { hashPassword } from '@/lib/auth';
 import { Prisma } from '@prisma/client';
 import { checkRateLimit, clientAddress } from '@/lib/rate-limit';
@@ -50,31 +51,57 @@ export async function POST(req: NextRequest) {
     }
 
     const passwordHash = await hashPassword(password);
-    const user = await prisma.member.create({
-      data: {
-        email: normalizedEmail,
-        name: name.trim(),
-        role: 'TRAINEE',
-        status: 'PENDING',
-        credential: {
-          create: {
-            passwordHash,
+    let institutionalMemberId: number | null = null;
+    if (process.env.INSTITUTIONAL_DATABASE_URL) {
+      try {
+        const instMember = await institutionalDb.institutionalMember.create({
+          data: {
+            name: name.trim(),
+            role: 'Trainee',
+            area: 'Software',
+            active: true,
+            showOnSite: false,
+          },
+        });
+        institutionalMemberId = instMember.id;
+      } catch (err) {
+        console.warn('Aviso: não foi possível criar registro institucional preliminar no cadastro:', err);
+      }
+    }
+
+    try {
+      const user = await prisma.member.create({
+        data: {
+          email: normalizedEmail,
+          name: name.trim(),
+          role: 'TRAINEE',
+          status: 'PENDING',
+          institutionalMemberId,
+          credential: {
+            create: {
+              passwordHash,
+            },
           },
         },
-      },
-      select: {
-        id: true,
-        email: true,
-        name: true,
-        role: true,
-        status: true,
-      },
-    });
+        select: {
+          id: true,
+          email: true,
+          name: true,
+          role: true,
+          status: true,
+        },
+      });
 
-    return NextResponse.json(
-      { success: true, pendingApproval: true, user, message: 'Cadastro recebido. Aguarde a aprovação de um administrador para entrar.' },
-      { status: 201 }
-    );
+      return NextResponse.json(
+        { success: true, pendingApproval: true, user, message: 'Cadastro recebido. Aguarde a aprovação de um administrador para entrar.' },
+        { status: 201 }
+      );
+    } catch (createErr) {
+      if (institutionalMemberId && process.env.INSTITUTIONAL_DATABASE_URL) {
+        await institutionalDb.institutionalMember.delete({ where: { id: institutionalMemberId } }).catch(() => {});
+      }
+      throw createErr;
+    }
   } catch (error) {
     if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') {
       return NextResponse.json(
