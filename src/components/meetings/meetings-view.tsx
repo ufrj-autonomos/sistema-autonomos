@@ -362,8 +362,12 @@ export function MeetingsView({
       const next = structuredClone(prev);
       for (const da of next.detailedAreas) {
         for (const m of da.members) {
-          if (m.id === memberId && m.attendances[meetingId]) {
-            m.attendances[meetingId].status = newStatus;
+          if (m.id === memberId) {
+            m.attendances[meetingId] = {
+              status: newStatus,
+              notes: notes || null,
+              attendanceId: m.attendances[meetingId]?.attendanceId || '',
+            };
           }
         }
       }
@@ -405,7 +409,7 @@ export function MeetingsView({
     let justified = 0;
     let noMeeting = 0;
     for (const m of activeDetailedArea.members) {
-      const st = m.attendances[currentMeeting.id]?.status || 'PRESENT';
+      const st = m.attendances[currentMeeting.id]?.status || 'NOT_A_MEMBER';
       if (st === 'PRESENT') present++;
       else if (st === 'LATE') late++;
       else if (st === 'ABSENT') absent++;
@@ -1201,8 +1205,8 @@ export function MeetingsView({
                     ) : (
                       activeDetailedArea.members.map((member, idx) => {
                         const att = member.attendances[currentMeeting.id];
-                        const currentStatus = att?.status || 'PRESENT';
-                        const cfg = STATUS_CONFIG[currentStatus] || STATUS_CONFIG.PRESENT;
+                        const currentStatus = att?.status || 'NOT_A_MEMBER';
+                        const cfg = STATUS_CONFIG[currentStatus] || STATUS_CONFIG.NOT_A_MEMBER;
 
                         return (
                           <div
@@ -1243,13 +1247,14 @@ export function MeetingsView({
 
                             {/* Botões de toque rápido para coordenadores e admins */}
                             {canEdit && (
-                              <div className="grid grid-cols-5 gap-1.5 pt-1 border-t border-border/50">
+                              <div className="grid grid-cols-6 gap-1.5 pt-1 border-t border-border/50">
                                 {(
                                   [
                                     { status: 'PRESENT', label: 'Presente', code: 'P' },
                                     { status: 'LATE', label: 'Atraso', code: 'A' },
                                     { status: 'ABSENT', label: 'Falta', code: 'F' },
                                     { status: 'JUSTIFIED', label: 'Justif.', code: 'J' },
+                                    { status: 'NOT_A_MEMBER', label: 'Não Memb.', code: 'N' },
                                     { status: 'NO_MEETING', label: 'Sem Reu.', code: 'S' },
                                   ] as const
                                 ).map((opt) => {
@@ -1417,8 +1422,8 @@ export function MeetingsView({
                             {/* Células de Presença das Reuniões */}
                             {activeDetailedArea.meetings.map((meeting) => {
                               const att = member.attendances[meeting.id];
-                              const status = att?.status || 'PRESENT';
-                              const config = STATUS_CONFIG[status] || STATUS_CONFIG.PRESENT;
+                              const status = att?.status || 'NOT_A_MEMBER';
+                              const config = STATUS_CONFIG[status] || STATUS_CONFIG.NOT_A_MEMBER;
 
                               return (
                                 <td
@@ -1430,12 +1435,13 @@ export function MeetingsView({
                                       <button
                                         type="button"
                                         onClick={() => {
-                                          // Ciclo rápido ao clicar: P -> A -> F -> J -> S -> P
-                                          const cycle: Record<string, 'PRESENT' | 'LATE' | 'ABSENT' | 'JUSTIFIED' | 'NO_MEETING'> = {
+                                          // Ciclo rápido ao clicar: P -> A -> F -> J -> N -> S -> P
+                                          const cycle: Record<string, MeetingStatus> = {
                                             PRESENT: 'LATE',
                                             LATE: 'ABSENT',
                                             ABSENT: 'JUSTIFIED',
-                                            JUSTIFIED: 'NO_MEETING',
+                                            JUSTIFIED: 'NOT_A_MEMBER',
+                                            NOT_A_MEMBER: 'NO_MEETING',
                                             NO_MEETING: 'PRESENT',
                                           };
                                           const next = cycle[status] || 'PRESENT';

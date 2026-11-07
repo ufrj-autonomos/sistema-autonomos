@@ -407,6 +407,19 @@ export async function getMeetingsDashboardData(user: SafeUser, period = '26.2') 
       }
     }
 
+    // Para membros ativos da área que não tinham registro na tabela daquela reunião, definir como NOT_A_MEMBER ('N')
+    for (const mObj of memberMap.values()) {
+      for (const meeting of areaMeetings) {
+        if (!mObj.attendances[meeting.id]) {
+          mObj.attendances[meeting.id] = {
+            status: 'NOT_A_MEMBER',
+            notes: null,
+            attendanceId: '',
+          };
+        }
+      }
+    }
+
     const membersList = Array.from(memberMap.values())
       .map((m) => ({
         ...m,
