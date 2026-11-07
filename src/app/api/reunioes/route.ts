@@ -28,10 +28,6 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Não autenticado' }, { status: 401 });
     }
 
-    if (!canUserManageMeetings(user)) {
-      return NextResponse.json({ error: 'Acesso negado. Apenas ADMIN pode criar reuniões.' }, { status: 403 });
-    }
-
     const body = await req.json();
     const { title, date, area, teamId, period = '26.2', description } = body;
 
@@ -45,6 +41,10 @@ export async function POST(req: NextRequest) {
     }
 
     const normalizedTeamId = teamId === null || teamId === undefined || teamId === '' ? null : Number(teamId);
+
+    if (!canUserManageMeetings(user, normalizedTeamId)) {
+      return NextResponse.json({ error: 'Acesso negado. Você não tem permissão para gerenciar reuniões nesta equipe.' }, { status: 403 });
+    }
 
     // 1. Criar a reunião
     const meeting = await prisma.meeting.create({

@@ -7,11 +7,14 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
   try {
     const user = await getCurrentUser(req);
     if (!user) return NextResponse.json({ error: 'Não autenticado' }, { status: 401 });
-    if (!canUserManageMeetings(user)) {
-      return NextResponse.json({ error: 'Apenas ADMIN pode editar reuniões.' }, { status: 403 });
+    const { id } = await params;
+    const meeting = await prisma.meeting.findUnique({ where: { id } });
+    if (!meeting) return NextResponse.json({ error: 'Reunião não encontrada.' }, { status: 404 });
+
+    if (!canUserManageMeetings(user, meeting.teamId)) {
+      return NextResponse.json({ error: 'Acesso negado para editar reuniões desta equipe.' }, { status: 403 });
     }
 
-    const { id } = await params;
     const body = await req.json();
     const { title, date, description } = body;
 
@@ -36,11 +39,14 @@ export async function DELETE(req: NextRequest, { params }: { params: Promise<{ i
   try {
     const user = await getCurrentUser(req);
     if (!user) return NextResponse.json({ error: 'Não autenticado' }, { status: 401 });
-    if (!canUserManageMeetings(user)) {
-      return NextResponse.json({ error: 'Apenas ADMIN pode excluir reuniões.' }, { status: 403 });
+    const { id } = await params;
+    const meeting = await prisma.meeting.findUnique({ where: { id } });
+    if (!meeting) return NextResponse.json({ error: 'Reunião não encontrada.' }, { status: 404 });
+
+    if (!canUserManageMeetings(user, meeting.teamId)) {
+      return NextResponse.json({ error: 'Acesso negado para excluir reuniões desta equipe.' }, { status: 403 });
     }
 
-    const { id } = await params;
     await prisma.meeting.delete({
       where: { id },
     });

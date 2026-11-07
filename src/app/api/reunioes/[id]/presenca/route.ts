@@ -8,11 +8,14 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
   try {
     const user = await getCurrentUser(req);
     if (!user) return NextResponse.json({ error: 'Não autenticado' }, { status: 401 });
-    if (!canUserManageMeetings(user)) {
-      return NextResponse.json({ error: 'Apenas ADMIN pode alterar presenças em reuniões.' }, { status: 403 });
+    const { id: meetingId } = await params;
+    const meeting = await prisma.meeting.findUnique({ where: { id: meetingId } });
+    if (!meeting) return NextResponse.json({ error: 'Reunião não encontrada.' }, { status: 404 });
+
+    if (!canUserManageMeetings(user, meeting.teamId)) {
+      return NextResponse.json({ error: 'Você não tem permissão para alterar presenças em reuniões desta equipe.' }, { status: 403 });
     }
 
-    const { id: meetingId } = await params;
     const body = await req.json();
     const { memberId, status, notes } = body;
 

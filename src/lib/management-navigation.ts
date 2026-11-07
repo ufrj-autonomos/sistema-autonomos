@@ -6,6 +6,7 @@ export const MANAGEMENT_SECTIONS = [
   { href: '/gestao/dashboard', label: 'Dashboard', group: 'Principal', icon: 'analytics', description: 'Distribuição, qualidade do cadastro e evolução da presença.' },
   { href: '/gestao/contas', label: 'Contas e permissões', group: 'Pessoas', icon: 'accounts', description: 'Aprovar cadastros e administrar o acesso à plataforma.' },
   { href: '/gestao/integrantes', label: 'Integrantes', group: 'Pessoas', icon: 'members', description: 'Administrar dados públicos, dados internos e vínculos com contas.' },
+  { href: '/gestao/advertencias', label: 'Gestão disciplinar', group: 'Pessoas', icon: 'disciplinary', description: 'Registro de avisos e advertências dos integrantes.' },
   { href: '/gestao/presenca', label: 'Presença no laboratório', group: 'Operação', icon: 'attendance', description: 'Acompanhar horas semanais, pendências e registros.' },
   { href: '/gestao/projetos', label: 'Projetos', group: 'Operação', icon: 'divisions', description: 'Administrar projetos, informações internas e exibição no site.' },
   { href: '/gestao/divisoes', label: 'Divisões', group: 'Operação', icon: 'divisions', description: 'Consultar Harpia, Nautilus e seus projetos cadastrados.' },

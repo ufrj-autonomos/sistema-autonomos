@@ -76,6 +76,11 @@ enum MeetingAttendanceStatus {
   NOT_A_MEMBER
 }
 
+enum DisciplinaryWarningType {
+  AVISO
+  ADVERTENCIA_DIRETA
+}
+
 // ---------------------------------------------------------------------------
 // 1. UNIFIED MEMBER & AUTHENTICATION (1 Member = 1 Platform User)
 // ---------------------------------------------------------------------------
@@ -132,6 +137,10 @@ model Member {
   // Meeting relations
   meetingAttendances MeetingAttendance[]
   createdMeetings    Meeting[]             @relation("CreatedMeetings")
+
+  // Disciplinary relations
+  disciplinaryWarnings DisciplinaryWarning[] @relation("MemberWarnings")
+  issuedWarnings       DisciplinaryWarning[] @relation("IssuedWarnings")
 
   @@index([email])
   @@index([institutionalMemberId])
@@ -520,4 +529,26 @@ model MeetingAttendance {
   @@unique([meetingId, memberId])
   @@index([memberId])
   @@index([meetingId])
+}
+
+// ---------------------------------------------------------------------------
+// 7. GESTÃO DISCIPLINAR (Avisos e Advertências)
+// ---------------------------------------------------------------------------
+
+model DisciplinaryWarning {
+  id         String                  @id @default(cuid())
+  memberId   String
+  member     Member                  @relation("MemberWarnings", fields: [memberId], references: [id], onDelete: Cascade)
+  type       DisciplinaryWarningType @default(AVISO)
+  reason     String                  @db.Text
+  notes      String?                 @db.Text
+  issuedById String?
+  issuedBy   Member?                 @relation("IssuedWarnings", fields: [issuedById], references: [id], onDelete: SetNull)
+  createdAt  DateTime                @default(now()) @db.Timestamptz(3)
+  updatedAt  DateTime                @updatedAt @db.Timestamptz(3)
+
+  @@index([memberId])
+  @@index([issuedById])
+  @@index([type])
+  @@index([createdAt])
 }

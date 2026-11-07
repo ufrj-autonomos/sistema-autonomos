@@ -103,6 +103,7 @@ export interface DetailedArea {
 export interface MeetingsData {
   period: string;
   isAdmin: boolean;
+  canEdit?: boolean;
   visibleAreas: {
     area: string;
     teamId: number | null;
@@ -229,6 +230,7 @@ export function MeetingsView({
   user: SafeUser;
 }) {
   const [data, setData] = useState<MeetingsData>(initialData);
+  const canEdit = Boolean(data.canEdit ?? data.isAdmin);
   const [activeTab, setActiveTab] = useState<string>('painel');
   const [isPending, startTransition] = useTransition();
 
@@ -329,7 +331,7 @@ export function MeetingsView({
     currentStatus: MeetingStatus,
     newStatus: MeetingStatus
   ) => {
-    if (!data.isAdmin) return;
+    if (!canEdit) return;
     setAttendanceModal({
       isOpen: true,
       meetingId,
@@ -418,9 +420,14 @@ export function MeetingsView({
               <span>Divisão Nautilus</span>
             </div>
           )}
-          {data.isAdmin && (
+          {user.role === 'ADMIN' && (
             <span className="text-xs font-mono font-semibold px-2.5 py-1 rounded-md bg-amber-500/15 text-amber-600 dark:text-amber-400 border border-amber-500/30">
               Acesso ADMIN (Edição liberada)
+            </span>
+          )}
+          {user.role === 'COORDINATOR' && (
+            <span className="text-xs font-mono font-semibold px-2.5 py-1 rounded-md bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30">
+              Acesso Coordenação (Edição da equipe)
             </span>
           )}
         </div>
@@ -1008,8 +1015,8 @@ export function MeetingsView({
               </div>
             </div>
 
-            {/* Ação ADMIN: Adicionar Reunião */}
-            {data.isAdmin && (
+            {/* Ação de Gerenciamento: Adicionar Reunião */}
+            {canEdit && (
               <button
                 type="button"
                 onClick={() =>
@@ -1039,7 +1046,7 @@ export function MeetingsView({
                 <span className="text-muted-foreground">{config.label}</span>
               </div>
             ))}
-            {data.isAdmin && (
+            {canEdit && (
               <span className="ml-auto text-amber-600 dark:text-amber-400 font-medium">
                 💡 Clique em uma célula para alterar a presença
               </span>
@@ -1072,7 +1079,7 @@ export function MeetingsView({
                             })}
                           </span>
                         </div>
-                        {data.isAdmin && (
+                        {canEdit && (
                           <button
                             type="button"
                             onClick={() => handleDeleteMeeting(meeting.id, meeting.title)}
@@ -1129,7 +1136,7 @@ export function MeetingsView({
                               key={meeting.id}
                               className="px-2 py-2 text-center border-r border-border"
                             >
-                              {data.isAdmin ? (
+                              {canEdit ? (
                                 <div className="relative inline-block group">
                                   <button
                                     type="button"

@@ -61,6 +61,43 @@ test('Theme and team mapping logic', () => {
   assert.equal(canUserManageMeetings(autonomosUser), false);
   assert.equal(canUserManageMeetings(adminUser), true);
 
+  const coordinatorHarpia: SafeUser = {
+    id: 'u5',
+    name: 'Harpia Coordinator',
+    email: 'coord.harpia@ufrj.br',
+    role: 'COORDINATOR',
+    status: 'APPROVED',
+    teamId: 2,
+    teamSlug: 'harpia',
+    area: 'Software',
+  };
+
+  const coordinatorNautilus: SafeUser = {
+    id: 'u6',
+    name: 'Nautilus Coordinator',
+    email: 'coord.nautilus@ufrj.br',
+    role: 'COORDINATOR',
+    status: 'APPROVED',
+    teamId: 1,
+    teamSlug: 'nautilus',
+    area: 'Mecânica',
+  };
+
+  // Coordenadores podem editar reuniões e presenças apenas da sua própria equipe
+  assert.equal(canUserManageMeetings(coordinatorHarpia), true);
+  assert.equal(canUserManageMeetings(coordinatorHarpia, 2), true);
+  assert.equal(canUserManageMeetings(coordinatorHarpia, 1), false);
+  assert.equal(canUserManageMeetings(coordinatorHarpia, null), false);
+
+  assert.equal(canUserManageMeetings(coordinatorNautilus), true);
+  assert.equal(canUserManageMeetings(coordinatorNautilus, 1), true);
+  assert.equal(canUserManageMeetings(coordinatorNautilus, 2), false);
+
+  // Áreas visíveis para o coordenador: somente a sua equipe
+  const coordHarpiaAreas = getVisibleAreasForUser(coordinatorHarpia);
+  assert.equal(coordHarpiaAreas.length, 3);
+  assert.ok(coordHarpiaAreas.every((a) => a.teamId === 2));
+
   // Verificação de visibilidade de áreas
   const harpiaAreas = getVisibleAreasForUser(harpiaUser);
   assert.equal(harpiaAreas.length, 3);

@@ -35,8 +35,13 @@ export const KNOWN_AREAS: AreaDefinition[] = [
   { area: 'Marketing', teamId: null, label: 'Marketing', teamSlug: 'autonomos', icon: '📲', coordinator: 'Thiago' },
 ];
 
-export function canUserManageMeetings(user: SafeUser): boolean {
-  return user.role === 'ADMIN';
+export function canUserManageMeetings(user: SafeUser, targetTeamId?: number | null): boolean {
+  if (user.role === 'ADMIN') return true;
+  if (user.role === 'COORDINATOR') {
+    if (targetTeamId === undefined) return true;
+    return (user.teamId ?? null) === (targetTeamId ?? null);
+  }
+  return false;
 }
 
 export function getVisibleAreasForUser(user: SafeUser): AreaDefinition[] {
@@ -99,9 +104,14 @@ export function getFrequencyStatus(pct: number, totalMeetings: number): { label:
 export async function getMeetingsDashboardData(user: SafeUser, period = '26.2') {
   const visibleAreas = getVisibleAreasForUser(user);
 
-  // Buscar todas as reuniões do período
+  // Buscar todas as reuniões do período no escopo da equipe do usuário (Admin vê todas)
+  const meetingWhere: { period: string; teamId?: number | null } = { period };
+  if (user.role !== 'ADMIN') {
+    meetingWhere.teamId = user.teamId ?? null;
+  }
+
   const allMeetings = await prisma.meeting.findMany({
-    where: { period },
+    where: meetingWhere,
     include: {
       attendances: {
         include: {
@@ -419,7 +429,8 @@ export async function getMeetingsDashboardData(user: SafeUser, period = '26.2') 
 
   return {
     period,
-    isAdmin: canUserManageMeetings(user),
+    isAdmin: user.role === 'ADMIN',
+    canEdit: canUserManageMeetings(user),
     visibleAreas,
     overview: {
       totalMembers: scopedMembersList.length,

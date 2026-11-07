@@ -3,14 +3,14 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
-import { ChartNoAxesCombined, ScrollText, ArrowLeft, ArrowUpRight, ChevronRight, Clock3, LayoutDashboard, Globe, LogOut, Menu, Network, Server, ShieldCheck, Users, X } from 'lucide-react';
+import { ChartNoAxesCombined, ScrollText, ArrowLeft, ArrowUpRight, ChevronRight, Clock3, LayoutDashboard, Globe, LogOut, Menu, Network, Server, ShieldAlert, ShieldCheck, Users, X } from 'lucide-react';
 import { ThemeToggle } from '@/components/layout/theme-toggle';
 import { hasManagementAccess, ROLE_LABELS } from '@/lib/access-policy';
 import { useSession } from '@/contexts/auth-context';
 import type { SafeUser } from '@/lib/session';
 import { getManagementSection, managementSectionsForRole, INSTITUTIONAL_LINKS } from '@/lib/management-navigation';
 
-const icons = { analytics: ChartNoAxesCombined, logs: ScrollText, overview: LayoutDashboard, accounts: ShieldCheck, members: Users, attendance: Clock3, divisions: Network, system: Server, institutional: Globe };
+const icons = { analytics: ChartNoAxesCombined, logs: ScrollText, overview: LayoutDashboard, accounts: ShieldCheck, members: Users, disciplinary: ShieldAlert, attendance: Clock3, divisions: Network, system: Server, institutional: Globe };
 const focus = 'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring';
 
 export function ManagementShell({ children, initialUser }: { children: ReactNode; initialUser: SafeUser }) {

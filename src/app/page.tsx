@@ -6,12 +6,15 @@ import { hasManagementAccess } from '@/lib/access-policy';
 import { ArrowRight, BookOpen, ShieldCheck, UserCircle } from 'lucide-react';
 import { requirePageUser } from '@/lib/session';
 import { prisma } from '@/lib/prisma';
+import { getMemberDisciplinarySummary } from '@/lib/disciplinary/service';
+import { MemberWarningBanner } from '@/components/disciplinary/member-warning-banner';
 
 export const dynamic = 'force-dynamic';
 
 export default async function HomePage() {
   const user = await requirePageUser();
-  if (hasManagementAccess(user.role)) return <div className="mx-auto w-full max-w-7xl px-4 py-8 sm:px-6 sm:py-10"><ManagementOverview name={user.name} /></div>;
+  const disciplinary = await getMemberDisciplinarySummary(user.id);
+  if (hasManagementAccess(user.role)) return <div className="mx-auto w-full max-w-7xl px-4 py-8 sm:px-6 sm:py-10"><ManagementOverview name={user.name} userId={user.id} /></div>;
   const courses = await prisma.course.findMany({ where: { published: true }, orderBy: { orderIndex: 'asc' }, select: {
       id: true, title: true, subtitle: true, level: true, durationHours: true,
       courseProgress: { where: { memberId: user.id }, select: { percentage: true } },
@@ -21,21 +24,21 @@ export default async function HomePage() {
   const attendance = await attendanceReport(undefined, user.id).catch(() => null);
 
   return (
-    <div className="mx-auto w-full max-w-6xl px-4 py-10 sm:px-6 sm:py-14">
+    <div className="mx-auto w-full max-w-6xl px-4 py-10 sm:px-6 sm:py-14 space-y-6">
       <header className="flex flex-wrap items-start justify-between gap-6 border-b border-border pb-8">
         <div>
           <div className="flex items-center gap-2 mb-2">
-            {user.teamSlug === 'harpia' && (
+            {user.role !== 'ADMIN' && user.teamSlug === 'harpia' && (
               <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-purple-100 text-purple-800 border border-purple-200 dark:bg-purple-900/30 dark:text-purple-300 dark:border-purple-500/30">
                 ☁️ Divisão Harpia · Aeronaves Autônomas
               </span>
             )}
-            {user.teamSlug === 'nautilus' && (
+            {user.role !== 'ADMIN' && user.teamSlug === 'nautilus' && (
               <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-sky-100 text-sky-800 border border-sky-200 dark:bg-sky-900/30 dark:text-sky-300 dark:border-sky-500/30">
                 🌊 Divisão Nautilus · Veículos Subaquáticos
               </span>
             )}
-            {(!user.teamSlug || user.teamSlug === 'autonomos') && (
+            {(user.role === 'ADMIN' || !user.teamSlug || user.teamSlug === 'autonomos') && (
               <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-zinc-100 text-zinc-800 border border-zinc-200 dark:bg-zinc-800 dark:text-zinc-300 dark:border-zinc-700">
                 🤖 UFRJ Autônomos Geral
               </span>
@@ -55,6 +58,9 @@ export default async function HomePage() {
           {hasManagementAccess(user.role) && <Link href="/gestao" className="inline-flex min-h-11 items-center gap-2 rounded-lg border border-border px-4 py-2 text-sm text-foreground hover:bg-muted focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-ring"><ShieldCheck className="h-4 w-4" />Abrir gestão</Link>}
         </div>
       </header>
+
+      {/* Alerta Disciplinar do Integrante em Vermelho */}
+      {disciplinary && <MemberWarningBanner summary={disciplinary} />}
 
       {!user.profileCompletedAt && (
         <div className="mt-6 flex flex-wrap items-center justify-between gap-4 rounded-xl border border-amber-500/30 bg-amber-500/10 p-4 text-sm text-amber-700 dark:text-amber-200">
