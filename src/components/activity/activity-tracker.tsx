@@ -7,7 +7,7 @@ import { activityPath } from '@/lib/activity/catalog';
 export function ActivityTracker() {
   const { user } = useSession(); const pathname = usePathname(); const last = useRef('');
   useEffect(() => {
-    if (!user?.id) { last.current = ''; return; }
+    if (!user?.id || user.role === 'ADMIN') { last.current = ''; return; }
     const path = activityPath(pathname); if (!path) return;
     const key = `${user.id}:${path}`; if (last.current === key) return; last.current = key;
     void fetch('/api/activity', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ events: [{ id: crypto.randomUUID(), action: 'PAGE_VIEW', path }] }), keepalive: true }).catch(() => {});

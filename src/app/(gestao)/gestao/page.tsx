@@ -4,5 +4,5 @@ export const dynamic = 'force-dynamic';
 export const metadata = { title: 'Visão geral — Gestão' };
 export default async function GestaoPage() {
   const user = await requirePageUser(true);
-  return <ManagementOverview name={user.name} />;
+  return <ManagementOverview name={user.name} userId={user.id} user={user} />;
 }

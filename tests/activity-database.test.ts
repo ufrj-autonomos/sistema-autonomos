@@ -13,7 +13,7 @@ async function main() {
   try {
     const rls = await prisma.$queryRaw<{ protected: boolean }[]>`SELECT relrowsecurity AS protected FROM pg_class WHERE relname='ActivityLog'`;
     assert.equal(rls[0]?.protected, true);
-    const actor = await prisma.member.create({ data: { name: `Log QA ${marker}`, email: `log-${marker}@example.invalid`, role: 'ADMIN', status: 'APPROVED' } });
+    const actor = await prisma.member.create({ data: { name: `Log QA ${marker}`, email: `log-${marker}@example.invalid`, role: 'MANAGEMENT', status: 'APPROVED' } });
     actorId = actor.id;
     const data = { actor, kind: 'SERVER_ACTION', action: 'updateRecord', path: '/gestao', targetPath, outcome: 'SUCCESS' };
     // Exercise the native unique upsert under concurrency, not an in-memory mock.

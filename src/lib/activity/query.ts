@@ -6,7 +6,10 @@ export async function activityLogs(filters: LogFilters, now = new Date()) {
   const matchingActions = Object.entries(ACTION_LABELS).filter(([, label]) => label.toLocaleLowerCase('pt-BR').includes(filters.q.toLocaleLowerCase('pt-BR'))).map(([action]) => action);
   const matchingLegacy = Object.entries(API_ACTIVITY).filter(([, action]) => matchingActions.includes(action)).map(([legacy]) => legacy);
   const where: Prisma.ActivityLogWhereInput = {
-    AND: [{ OR: [{ kind: 'SERVER_ACTION' }, { action: { in: [...Object.values(API_ACTIVITY), ...Object.keys(API_ACTIVITY)] } }, { action: { in: ['ATTENDANCE_IN', 'ATTENDANCE_OUT', 'ATTENDANCE_JUSTIFICATION_APPROVED', 'ATTENDANCE_JUSTIFICATION_REJECTED'] } }, ...(filters.kind === 'PAGE_VIEW' || filters.kind === 'CONTROL_CHANGE' ? [{ kind: filters.kind }] : [])] }],
+    AND: [
+      { OR: [{ actorRole: null }, { actorRole: { not: 'ADMIN' } }] },
+      { OR: [{ kind: 'SERVER_ACTION' }, { action: { in: [...Object.values(API_ACTIVITY), ...Object.keys(API_ACTIVITY)] } }, { action: { in: ['ATTENDANCE_IN', 'ATTENDANCE_OUT', 'ATTENDANCE_JUSTIFICATION_APPROVED', 'ATTENDANCE_JUSTIFICATION_REJECTED'] } }, ...(filters.kind === 'PAGE_VIEW' || filters.kind === 'CONTROL_CHANGE' ? [{ kind: filters.kind }] : [])] },
+    ],
     ...(filters.kind ? { kind: filters.kind } : {}),
     ...(filters.outcome ? { outcome: filters.outcome } : {}),
     ...(filters.days ? { lastOccurredAt: { gte: new Date(now.getTime() - filters.days * 86400000) } } : {}),
