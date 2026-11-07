@@ -161,6 +161,60 @@
   --hairline-strong: rgba(234, 242, 248, 0.16);
 }
 
+/* ---- TEMA DA DIVISÃO HARPIA (Modo Claro) ---- */
+.light.theme-harpia,
+.light .theme-harpia {
+  --background: #FAF5FF;
+  --foreground: #1D062B;
+  --card: #FFFFFF;
+  --card-foreground: #1D062B;
+  --popover: #FFFFFF;
+  --popover-foreground: #1D062B;
+  --primary: #702191;
+  --primary-foreground: #FAF4FF;
+  --secondary: #F3E8FF;
+  --secondary-foreground: #4A085E;
+  --muted: #F3E8FF;
+  --muted-foreground: #7E4996;
+  --accent: #E9D5FF;
+  --accent-foreground: #1D062B;
+  --border: rgba(112, 33, 145, 0.15);
+  --input: rgba(112, 33, 145, 0.20);
+  --ring: #8530B0;
+  --team-primary: #8530B0;
+  --team-secondary: #702191;
+  --team-glow: rgba(163, 70, 204, 0.15);
+  --hairline: rgba(112, 33, 145, 0.10);
+  --hairline-strong: rgba(112, 33, 145, 0.20);
+}
+
+/* ---- TEMA DA DIVISÃO NAUTILUS (Modo Claro) ---- */
+.light.theme-nautilus,
+.light .theme-nautilus {
+  --background: #F0F7FF;
+  --foreground: #021829;
+  --card: #FFFFFF;
+  --card-foreground: #021829;
+  --popover: #FFFFFF;
+  --popover-foreground: #021829;
+  --primary: #0154a0;
+  --primary-foreground: #EAF2F8;
+  --secondary: #E0F2FE;
+  --secondary-foreground: #032841;
+  --muted: #E0F2FE;
+  --muted-foreground: #3B6B94;
+  --accent: #BAE6FD;
+  --accent-foreground: #021829;
+  --border: rgba(1, 84, 160, 0.15);
+  --input: rgba(1, 84, 160, 0.20);
+  --ring: #0154a0;
+  --team-primary: #0154a0;
+  --team-secondary: #022343;
+  --team-glow: rgba(1, 84, 160, 0.15);
+  --hairline: rgba(1, 84, 160, 0.10);
+  --hairline-strong: rgba(1, 84, 160, 0.20);
+}
+
 @layer base {
   * {
     border-color: var(--border);

@@ -262,7 +262,7 @@ function LoginForm() {
               }`}
               className="text-foreground hover:text-foreground font-medium underline underline-offset-4 decoration-zinc-600 hover:decoration-white transition-colors"
             >
-              Cadastre-se gratuitamente
+              Cadastre-se agora
             </Link>
           </p>
 

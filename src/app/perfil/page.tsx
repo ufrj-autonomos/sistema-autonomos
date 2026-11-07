@@ -497,33 +497,45 @@ function ProfileFormContent() {
               )}
             </div>
             <div className="space-y-2 flex-1">
-              <label className="inline-flex min-h-10 cursor-pointer items-center gap-2 rounded-lg border border-border bg-muted px-4 py-2 text-xs font-medium text-foreground hover:bg-accent">
-                {uploadingPhoto ? (
-                  <>
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                    <span>Enviando foto...</span>
-                  </>
-                ) : (
-                  <>
-                    <Camera className="h-4 w-4" />
-                    <span>Enviar e recortar foto</span>
-                  </>
+              <div className="flex flex-wrap items-center gap-2">
+                <label className="inline-flex min-h-10 cursor-pointer items-center gap-2 rounded-lg border border-border bg-muted px-4 py-2 text-xs font-medium text-foreground hover:bg-accent">
+                  {uploadingPhoto ? (
+                    <>
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                      <span>Enviando foto...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Camera className="h-4 w-4" />
+                      <span>{photo ? 'Trocar foto' : 'Enviar e recortar foto'}</span>
+                    </>
+                  )}
+                  <input
+                    type="file"
+                    accept="image/*"
+                    disabled={uploadingPhoto}
+                    onChange={handlePhotoUpload}
+                    className="sr-only"
+                  />
+                </label>
+                {photo && (
+                  <button
+                    type="button"
+                    onClick={() => setPhoto('')}
+                    disabled={uploadingPhoto}
+                    className="inline-flex min-h-10 items-center gap-1.5 rounded-lg border border-border px-3 py-2 text-xs font-medium text-red-600 dark:text-red-400 hover:bg-accent cursor-pointer"
+                  >
+                    Remover foto
+                  </button>
                 )}
-                <input
-                  type="file"
-                  accept="image/*"
-                  disabled={uploadingPhoto}
-                  onChange={handlePhotoUpload}
-                  className="sr-only"
-                />
-              </label>
+              </div>
               <p className="text-xs text-muted-foreground">
-                Original até 25 MB; envio até 4 MB após o recorte. Você também pode informar a URL abaixo.
+                Original até 25 MB; envio até 4 MB após o recorte.
               </p>
             </div>
           </div>
 
-          <div className="grid gap-5 sm:grid-cols-2">
+          <div className="grid gap-5">
             <label className="block text-sm font-medium text-foreground">
               Nome de Exibição <span className="text-amber-700 dark:text-amber-400">*</span>
               <input
@@ -536,17 +548,6 @@ function ProfileFormContent() {
             </label>
 
             <label className="block text-sm font-medium text-foreground">
-              URL da Foto
-              <input
-                type="url"
-                value={photo}
-                onChange={(e) => setPhoto(e.target.value)}
-                placeholder="https://..."
-                className={inputClass}
-              />
-            </label>
-
-            <label className="block text-sm font-medium text-foreground sm:col-span-2">
               Biografia (em Português — traduzida automaticamente para EN/FR após aprovação)
               <textarea
                 rows={4}

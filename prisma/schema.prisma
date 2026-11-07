@@ -66,6 +66,14 @@ enum AttendancePunchType {
   OUT
 }
 
+enum MeetingAttendanceStatus {
+  PRESENT
+  ABSENT
+  JUSTIFIED
+  LATE
+  NO_MEETING
+}
+
 // ---------------------------------------------------------------------------
 // 1. UNIFIED MEMBER & AUTHENTICATION (1 Member = 1 Platform User)
 // ---------------------------------------------------------------------------
@@ -75,6 +83,7 @@ enum AttendancePunchType {
 model Member {
   id                         String        @id @default(cuid())
   institutionalMemberId      Int?          @unique
+  teamId                     Int?
   email                      String?       @unique
   name                       String
   role                       Role          @default(TRAINEE)
@@ -117,6 +126,10 @@ model Member {
   courseProgress     CourseProgress[]
   lessonProgress     LessonProgress[]
   exerciseProgress   ExerciseProgress[]
+
+  // Meeting relations
+  meetingAttendances MeetingAttendance[]
+  createdMeetings    Meeting[]             @relation("CreatedMeetings")
 
   @@index([email])
   @@index([institutionalMemberId])
@@ -463,4 +476,46 @@ model AttendanceJustification {
 
   @@index([memberId, weekStartsOn])
   @@index([status, createdAt, id])
+}
+
+// ---------------------------------------------------------------------------
+// 7. MEETING ATTENDANCE & ACCOUNTING (Reuniões de Área e Gerais)
+// ---------------------------------------------------------------------------
+
+model Meeting {
+  id          String   @id @default(cuid())
+  title       String
+  date        DateTime @db.Date
+  area        String   // "Software" | "Mecânica" | "Eletrônica" | "Gestão" | "Marketing"
+  teamId      Int?     // 1 = Nautilus, 2 = Harpia, null = Autônomos (Geral)
+  period      String   @default("26.2")
+  description String?  @db.Text
+  createdById String?
+  createdBy   Member?  @relation("CreatedMeetings", fields: [createdById], references: [id], onDelete: SetNull)
+
+  attendances MeetingAttendance[]
+
+  createdAt   DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt   DateTime @updatedAt @db.Timestamptz(3)
+
+  @@index([area, teamId])
+  @@index([period])
+  @@index([date])
+}
+
+model MeetingAttendance {
+  id        String                  @id @default(cuid())
+  meetingId String
+  meeting   Meeting                 @relation(fields: [meetingId], references: [id], onDelete: Cascade)
+  memberId  String
+  member    Member                  @relation(fields: [memberId], references: [id], onDelete: Cascade)
+  status    MeetingAttendanceStatus @default(PRESENT)
+  notes     String?                 @db.Text
+
+  createdAt DateTime                @default(now()) @db.Timestamptz(3)
+  updatedAt DateTime                @updatedAt @db.Timestamptz(3)
+
+  @@unique([meetingId, memberId])
+  @@index([memberId])
+  @@index([meetingId])
 }

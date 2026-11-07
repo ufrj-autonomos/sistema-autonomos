@@ -12,6 +12,7 @@ import {
   ShieldCheck,
   Home,
   Clock3,
+  CalendarCheck,
   LogOut,
   ArrowRight,
   UserCircle,
@@ -94,6 +95,7 @@ export function Navbar({ className }: NavbarProps) {
     { label: "Início", href: "/", icon: Home },
     { label: "Ensino", href: "/ensino", icon: BookOpen },
     { label: "Presença", href: "/presenca", icon: Clock3 },
+    { label: "Reuniões", href: "/reunioes", icon: CalendarCheck },
     { label: "Meu Perfil", href: "/perfil", icon: UserCircle },
     { label: "Gestão", href: "/gestao", icon: ShieldCheck },
   ].filter(item => Boolean(user) && (item.href !== "/gestao" || canAccessManagement));
@@ -243,6 +245,16 @@ export function Navbar({ className }: NavbarProps) {
                 <span className="text-sm font-medium text-foreground hidden sm:inline max-w-[120px] truncate">
                   {user.name.split(" ")[0]}
                 </span>
+                {user.teamSlug === 'harpia' && (
+                  <span className="hidden md:inline-flex items-center text-[10px] font-medium px-1.5 py-0.5 rounded-full bg-purple-900/40 text-purple-200 border border-purple-500/30">
+                    ☁️ Harpia
+                  </span>
+                )}
+                {user.teamSlug === 'nautilus' && (
+                  <span className="hidden md:inline-flex items-center text-[10px] font-medium px-1.5 py-0.5 rounded-full bg-sky-900/40 text-sky-200 border border-sky-500/30">
+                    🌊 Nautilus
+                  </span>
+                )}
                 <ChevronDown
                   className={cn(
                     "w-3.5 h-3.5 text-muted-foreground transition-transform duration-200",
@@ -265,7 +277,7 @@ export function Navbar({ className }: NavbarProps) {
                     <p className="text-xs text-muted-foreground truncate mt-0.5">
                       {user.email}
                     </p>
-                    <div className="mt-2 flex items-center gap-1.5">
+                    <div className="mt-2 flex items-center gap-1.5 flex-wrap">
                       <span
                         className={cn(
                           "text-[10px] font-mono px-2 py-0.5 rounded border font-medium",
@@ -274,6 +286,21 @@ export function Navbar({ className }: NavbarProps) {
                       >
                         {roleDisplay.label}
                       </span>
+                      {user.teamSlug === 'harpia' && (
+                        <span className="text-[10px] font-medium px-2 py-0.5 rounded-full bg-purple-900/40 text-purple-200 border border-purple-500/30 flex items-center gap-1">
+                          <span>☁️</span> Divisão Harpia
+                        </span>
+                      )}
+                      {user.teamSlug === 'nautilus' && (
+                        <span className="text-[10px] font-medium px-2 py-0.5 rounded-full bg-sky-900/40 text-sky-200 border border-sky-500/30 flex items-center gap-1">
+                          <span>🌊</span> Divisão Nautilus
+                        </span>
+                      )}
+                      {(!user.teamSlug || user.teamSlug === 'autonomos') && (
+                        <span className="text-[10px] font-medium px-2 py-0.5 rounded-full bg-zinc-800 text-zinc-300 border border-zinc-700">
+                          Autônomos Geral
+                        </span>
+                      )}
                     </div>
                   </div>
 
@@ -490,6 +517,18 @@ export function Navbar({ className }: NavbarProps) {
                 <p className="text-xs text-muted-foreground truncate">
                   {user.email}
                 </p>
+                <div className="mt-1 flex items-center gap-1.5 flex-wrap">
+                  {user.teamSlug === 'harpia' && (
+                    <span className="text-[10px] font-medium px-2 py-0.5 rounded-full bg-purple-900/40 text-purple-200 border border-purple-500/30">
+                      ☁️ Divisão Harpia
+                    </span>
+                  )}
+                  {user.teamSlug === 'nautilus' && (
+                    <span className="text-[10px] font-medium px-2 py-0.5 rounded-full bg-sky-900/40 text-sky-200 border border-sky-500/30">
+                      🌊 Divisão Nautilus
+                    </span>
+                  )}
+                </div>
               </div>
             </div>
             <button

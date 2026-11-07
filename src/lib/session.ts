@@ -16,6 +16,8 @@ export const safeUserSelect = {
   role: true,
   status: true,
   avatar: true,
+  area: true,
+  teamId: true,
   institutionalMemberId: true,
   profileCompletedAt: true,
 } as const;
@@ -27,6 +29,8 @@ export const sessionCookieOptions = {
   path: '/',
 };
 
+export type TeamSlug = 'nautilus' | 'harpia' | 'autonomos';
+
 export interface SafeUser {
   id: string;
   email: string;
@@ -34,6 +38,9 @@ export interface SafeUser {
   role: string;
   status: string;
   avatar?: string | null;
+  area?: string | null;
+  teamId?: number | null;
+  teamSlug?: TeamSlug;
   institutionalMemberId?: number | null;
   profileCompletedAt?: Date | string | null;
 }
@@ -65,7 +72,8 @@ export async function getCurrentUser(req?: NextRequest): Promise<SafeUser | null
   const member = sessionAny.member ?? sessionAny.user;
   if (!member || ownerId !== payload.sub) return null;
   if (member.status !== 'APPROVED') return null;
-  const user = { ...member, email: member.email || '' };
+  const teamSlug: TeamSlug = member.teamId === 1 ? 'nautilus' : member.teamId === 2 ? 'harpia' : 'autonomos';
+  const user: SafeUser = { ...member, email: member.email || '', teamSlug };
   rememberActivityActor(user);
   return user;
 }

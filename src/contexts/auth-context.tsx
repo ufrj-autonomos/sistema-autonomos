@@ -9,6 +9,9 @@ import React, {
   ReactNode,
 } from "react";
 import { usePathname, useRouter } from "next/navigation";
+import { applyTeamTheme, TEAM_THEME_STORAGE_KEY } from "@/lib/theme";
+
+export type TeamSlug = 'nautilus' | 'harpia' | 'autonomos';
 
 export interface SafeUser {
   id: string;
@@ -17,6 +20,9 @@ export interface SafeUser {
   role: "TRAINEE" | "MANAGEMENT" | "MEMBER" | "ADMIN" | string;
   avatar?: string | null;
   status?: string;
+  area?: string | null;
+  teamId?: number | null;
+  teamSlug?: TeamSlug;
   institutionalMemberId?: number | null;
   profileCompletedAt?: string | Date | null;
 }
@@ -94,6 +100,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [refreshSession]);
 
   useEffect(() => { refreshSession(); }, [pathname, refreshSession]);
+
+  useEffect(() => {
+    if (user?.teamSlug && user.teamSlug !== 'autonomos') {
+      try { localStorage.setItem(TEAM_THEME_STORAGE_KEY, user.teamSlug); } catch {}
+      applyTeamTheme(user.teamSlug);
+    } else {
+      try { localStorage.removeItem(TEAM_THEME_STORAGE_KEY); } catch {}
+      applyTeamTheme(null);
+    }
+  }, [user?.teamSlug]);
 
   useEffect(() => {
     if (!isLoading && !user && !['/login', '/register', '/forgot-password', '/reset-password'].includes(pathname)) {

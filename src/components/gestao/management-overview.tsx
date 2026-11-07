@@ -32,7 +32,37 @@ export async function ManagementOverview({ name }: { name: string }) {
           {current ? <><p className="mt-6 text-base leading-relaxed"><strong className="font-display text-3xl font-semibold tabular-nums">{current.summary.met}</strong><span className="text-muted-foreground"> de {current.summary.requiredMembers} integrantes</span><span className="mt-1 block text-sm">cumpriram a meta semanal.</span></p>{current.summary.requiredMembers > 0 ? <><progress value={current.summary.met} max={current.summary.requiredMembers} aria-label="Integrantes com meta semanal cumprida" className="overview-progress mt-4 h-2 w-full" /><p className="mt-3 text-sm text-muted-foreground">{current.summary.pending} ainda em andamento. Meta padrão: 2 horas.</p><details className="mt-3 text-sm"><summary className="min-h-11 cursor-pointer py-3 font-medium">Ver quem cumpriu a meta</summary>{current.summary.met ? <ul className="max-h-52 space-y-2 overflow-y-auto pb-3 text-muted-foreground">{current.members.filter(member => member.status === 'MET').map(member => <li key={member.id}>{member.name}</li>)}</ul> : <p className="pb-3 text-muted-foreground">Ninguém cumpriu a meta até o momento.</p>}</details></> : <p className="mt-3 text-sm text-muted-foreground">Nenhum integrante com meta nesta semana.</p>}{current.summary.review > 0 && <p className="mt-3 text-sm text-amber-700 dark:text-amber-300">{current.summary.review} registros aguardam revisão.</p>}</> : <p role="status" className="my-6 text-sm text-muted-foreground">Não foi possível consultar as horas desta semana.</p>}
           <Link href="/gestao/presenca" className={`${action} mt-5 w-full justify-between`}>Acompanhar presença<ArrowRight size={16} aria-hidden="true" /></Link>
         </section>
-        <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-border bg-card px-5 py-4"><div><p className="text-sm font-medium">Cadastros para aprovar</p><p className="mt-1 text-sm text-muted-foreground">{overview.pendingAccounts === null ? 'Consulta indisponível' : overview.pendingAccounts ? `${overview.pendingAccounts} aguardando liberação` : 'Nenhum cadastro pendente'}</p></div><Link href="/gestao/contas" className="inline-flex min-h-11 items-center gap-2 text-sm font-medium hover:underline">Ver contas<ArrowRight size={14} aria-hidden="true" /></Link></div>
+        <div className={`flex flex-wrap items-center justify-between gap-3 rounded-xl border px-5 py-4 transition-colors ${
+          overview.pendingAccounts
+            ? 'border-amber-500/40 bg-amber-500/10 dark:bg-amber-950/20 text-amber-900 dark:text-amber-200'
+            : 'border-border bg-card'
+        }`}>
+          <div>
+            <div className="flex items-center gap-2">
+              <p className="text-sm font-medium">Cadastros para aprovar</p>
+              {Boolean(overview.pendingAccounts) && (
+                <span className="inline-flex items-center rounded-full bg-amber-500/20 px-2 py-0.5 text-xs font-semibold text-amber-700 dark:text-amber-300">
+                  {overview.pendingAccounts}
+                </span>
+              )}
+            </div>
+            <p className={`mt-1 text-sm ${overview.pendingAccounts ? 'text-amber-800/80 dark:text-amber-300/80' : 'text-muted-foreground'}`}>
+              {overview.pendingAccounts === null
+                ? 'Consulta indisponível'
+                : overview.pendingAccounts
+                ? `${overview.pendingAccounts} ${overview.pendingAccounts === 1 ? 'cadastro aguardando liberação' : 'cadastros aguardando liberação'}`
+                : 'Nenhum cadastro pendente'}
+            </p>
+          </div>
+          <Link
+            href="/gestao/contas"
+            className={`inline-flex min-h-11 items-center gap-2 text-sm font-medium hover:underline ${
+              overview.pendingAccounts ? 'text-amber-950 dark:text-amber-100 font-semibold' : ''
+            }`}
+          >
+            Ver contas<ArrowRight size={14} aria-hidden="true" />
+          </Link>
+        </div>
       </div>
     </div>
     <section aria-labelledby="previous-presence-heading" className="min-w-0 overflow-hidden rounded-xl border border-border bg-card"><div className="flex flex-wrap items-start justify-between gap-4 border-b border-border p-5 sm:px-6"><div><h2 id="previous-presence-heading" className="text-base font-semibold">Abaixo da meta na semana passada{overview.belowTarget && <span className="ml-2 text-sm font-normal tabular-nums text-muted-foreground">({overview.belowTarget.length})</span>}</h2><p className="mt-1 text-sm text-muted-foreground">{period(overview.previousWeek)} · apenas horas validadas. Pessoas sem meta no período não entram nesta lista.</p></div><Link href={`/gestao/presenca?week=${overview.previousWeek}`} className={action}>Ver semana passada<ArrowRight size={16} aria-hidden="true" /></Link></div>
