@@ -35,7 +35,7 @@ export function UserManagement({ standalone = false }: { standalone?: boolean })
   }, []);
   useEffect(() => { void load(); }, [load]);
 
-  async function update(account: Account, changes: { role?: Role; status?: Status }) {
+  async function update(account: Account, changes: { role?: Role; status?: Status; isAdmin?: boolean }) {
     const rejecting = changes.status === 'REJECTED';
     const accountIndex = users.findIndex(item => item.id === account.id);
     setBusy(account.id); setError(''); setNotice('');
@@ -117,10 +117,50 @@ export function UserManagement({ standalone = false }: { standalone?: boolean })
             </>
           ) : canEditAccounts && account.status !== 'PENDING' ? (
             <>
-              <label className="flex flex-col gap-1.5 text-sm text-muted-foreground">Perfil<span className="sr-only"> de {account.name}</span><select aria-label={`Perfil de ${account.name}`} value={account.role} disabled={!!busy} onChange={event => void update(account, { role: event.target.value as Role })} className={control}>{ROLES.map(role => <option key={role} value={role}>{ROLE_LABELS[role]}</option>)}</select></label>
-              <label className="flex flex-col gap-1.5 text-sm text-muted-foreground">Situação<span className="sr-only"> de {account.name}</span><select aria-label={`Situação de ${account.name}`} value={account.status} disabled={!!busy} onChange={event => void update(account, { status: event.target.value as Status })} className={control}>{ACCOUNT_STATUSES.map(status => <option key={status} value={status}>{status === 'REJECTED' ? 'Rejeitar e excluir' : STATUS_LABELS[status]}</option>)}</select></label>
+              <div className="flex flex-col gap-1.5">
+                <span className="text-xs font-medium text-muted-foreground">Permissão ADMIN</span>
+                <button
+                  type="button"
+                  disabled={!!busy}
+                  onClick={() => void update(account, { isAdmin: account.role !== 'ADMIN' })}
+                  className={`inline-flex min-h-11 items-center gap-2 rounded-lg border px-3.5 py-2 text-sm font-semibold transition-all cursor-pointer ${
+                    account.role === 'ADMIN'
+                      ? 'bg-purple-100 text-purple-900 border-purple-300 dark:bg-purple-950/60 dark:text-purple-200 dark:border-purple-500/40 hover:bg-purple-200 dark:hover:bg-purple-900/60'
+                      : 'bg-muted/50 text-muted-foreground border-border hover:bg-muted hover:text-foreground'
+                  }`}
+                  title={`Clique para ${account.role === 'ADMIN' ? 'remover acesso' : 'conceder acesso'} de Administrador`}
+                >
+                  <span className={`h-2.5 w-2.5 rounded-full ${account.role === 'ADMIN' ? 'bg-purple-500' : 'bg-muted-foreground/40'}`} />
+                  <span>{account.role === 'ADMIN' ? 'ADMIN: Sim' : 'ADMIN: Não'}</span>
+                </button>
+              </div>
+              <label className="flex flex-col gap-1.5 text-sm text-muted-foreground">
+                Situação
+                <span className="sr-only"> de {account.name}</span>
+                <select
+                  aria-label={`Situação de ${account.name}`}
+                  value={account.status}
+                  disabled={!!busy}
+                  onChange={event => void update(account, { status: event.target.value as Status })}
+                  className={control}
+                >
+                  {ACCOUNT_STATUSES.map(status => (
+                    <option key={status} value={status}>
+                      {status === 'REJECTED' ? 'Rejeitar e excluir' : STATUS_LABELS[status]}
+                    </option>
+                  ))}
+                </select>
+              </label>
             </>
-          ) : <div className="text-sm text-muted-foreground"><p>Cargo: {ROLE_LABELS[account.role]}</p>{account.status === 'PENDING' && <p className="mt-1">Liberação exclusiva de Admin.</p>}</div>}
+          ) : (
+            <div className="flex items-center gap-3 text-sm text-muted-foreground">
+              <span className={`inline-flex items-center gap-1.5 rounded-md px-2.5 py-1 text-xs font-semibold border ${account.role === 'ADMIN' ? 'bg-purple-100 text-purple-900 border-purple-200 dark:bg-purple-950/50 dark:text-purple-300 dark:border-purple-500/30' : 'bg-muted text-muted-foreground border-border'}`}>
+                {account.role === 'ADMIN' ? '👑 Admin: Sim' : 'Admin: Não'}
+              </span>
+              <span>{STATUS_LABELS[account.status]}</span>
+              {account.status === 'PENDING' && <p className="text-xs text-amber-600">Aguardando liberação de Admin.</p>}
+            </div>
+          )}
         </div>
       </div>)}
     </div>}

@@ -7,7 +7,7 @@ import { requirePageUser } from '@/lib/session';
 import { getInstitutionalModel, recordData, institutionalFailure, InstitutionalError } from '@/lib/institutional/records';
 import { publishInstitutionalSite } from '@/lib/institutional/publish';
 import { directoryPath } from '@/lib/institutional/routes';
-import { memberRoleTranslations } from '@/lib/member-fields';
+import { memberRoleTranslations, roleFromCargo } from '@/lib/member-fields';
 import { storeInstitutionalImage } from '@/lib/institutional/image-upload';
 import { prisma } from '@/lib/prisma';
 
@@ -76,6 +76,18 @@ export async function updateRecord(table: string, id: number, data: unknown): Pr
       if ('name' in parsed && typeof parsed.name === 'string') syncData.name = parsed.name;
       if ('area' in parsed && (typeof parsed.area === 'string' || parsed.area === null)) syncData.area = parsed.area;
       if ('course' in parsed && (typeof parsed.course === 'string' || parsed.course === null)) syncData.course = parsed.course;
+      if ('teamId' in parsed) {
+        syncData.teamId = parsed.teamId === '' || parsed.teamId === null ? null : Number(parsed.teamId);
+      }
+      if ('role' in parsed && typeof parsed.role === 'string') {
+        const targetMember = await prisma.member.findFirst({ where: { institutionalMemberId: id } });
+        if (targetMember) {
+          const derivedRole = roleFromCargo(parsed.role);
+          if (derivedRole === 'ADMIN' || targetMember.role !== 'ADMIN') {
+            syncData.role = derivedRole;
+          }
+        }
+      }
       if (Object.keys(syncData).length > 0) {
         await prisma.member.updateMany({
           where: { institutionalMemberId: id },

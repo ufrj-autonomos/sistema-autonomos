@@ -10,9 +10,25 @@ export const MEMBER_ROLES: MemberOption[] = [
   { value: 'Membro', label: 'Membro / Integrante', group: 'Integrantes' },
   { value: 'Trainee', label: 'Trainee', group: 'Integrantes' },
   { value: 'Alumni', label: 'Alumni', group: 'Integrantes' },
-  { value: 'Professor Orientador', label: 'Professor(a) orientador(a)', group: 'Orientação' },
 ];
-export const MEMBER_AREAS = ['Gestão', 'Marketing', 'Mecânica', 'Eletrônica', 'Software', 'Orientação'] as const;
+export const MEMBER_AREAS = ['Gestão', 'Marketing', 'Mecânica', 'Eletrônica', 'Software'] as const;
+
+export function roleFromCargo(cargo: string | null | undefined): 'ADMIN' | 'COORDINATOR' | 'TRAINEE' | 'MEMBER' {
+  if (!cargo) return 'MEMBER';
+  const c = normalizeMemberRole(cargo);
+  // Diretoria e capitania (e vices) são ADMIN
+  if (['Capitão', 'Vice-Capitão', 'Diretor de Gente e Gestão', 'Diretor de Operações'].includes(c)) {
+    return 'ADMIN';
+  }
+  // Coordenador e vice-coordenador têm os mesmos acessos de coordenador
+  if (['Coordenador', 'Vice-Coordenador', 'Coordenador de Marketing'].includes(c)) {
+    return 'COORDINATOR';
+  }
+  if (c === 'Trainee') {
+    return 'TRAINEE';
+  }
+  return 'MEMBER';
+}
 const normalizedKey = (value: string) => value.trim().normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
 export function normalizeMemberArea(value: unknown): string | null {
   if (typeof value !== 'string') return null;
@@ -44,7 +60,7 @@ export function normalizeMemberRole(value: string) {
     integrante: 'Membro', membro: 'Membro', capita: 'Capitão', 'vice-capita': 'Vice-Capitão',
     coordenadora: 'Coordenador', 'vice-coordenadora': 'Vice-Coordenador',
     'coordenadora de marketing': 'Coordenador de Marketing', 'diretora de gente e gestao': 'Diretor de Gente e Gestão',
-    'diretora de operacoes': 'Diretor de Operações', 'professora orientadora': 'Professor Orientador',
+    'diretora de operacoes': 'Diretor de Operações',
   };
   return aliases[normalizedKey(value)] || MEMBER_ROLES.find(role => normalizedKey(role.value) === normalizedKey(value))?.value || value.trim();
 }
@@ -60,6 +76,5 @@ export function memberRoleTranslations(role: string) {
     'Membro': { roleEn: 'Member', roleFr: 'Membre' },
     'Trainee': { roleEn: 'Trainee', roleFr: 'Stagiaire' },
     'Alumni': { roleEn: 'Alumni', roleFr: 'Ancien élève' },
-    'Professor Orientador': { roleEn: 'Faculty Advisor', roleFr: 'Professeur Conseiller' },
   } as Record<string, { roleEn: string; roleFr: string }>)[normalizeMemberRole(role)];
 }

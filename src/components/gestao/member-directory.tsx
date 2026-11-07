@@ -43,7 +43,7 @@ export function MemberDirectory({ rows, initialPreferences }: { rows: MemberDire
   const [updatingField, setUpdatingField] = useState(false);
   const [selectedEnumMember, setSelectedEnumMember] = useState<{
     member: MemberDirectoryRow;
-    field: 'role' | 'area';
+    field: 'role' | 'area' | 'teamId';
   } | null>(null);
   const router = useRouter();
 
@@ -103,7 +103,30 @@ export function MemberDirectory({ rows, initialPreferences }: { rows: MemberDire
     });
   }
 
-  function requestEnumChange(row: MemberDirectoryRow, field: 'role' | 'area', newValue: string) {
+  function requestEnumChange(row: MemberDirectoryRow, field: 'role' | 'area' | 'teamId', newValue: unknown) {
+    if (field === 'teamId') {
+      const curTeamId = row.teamId;
+      const nxtTeamId = newValue === '' || newValue === null || newValue === undefined ? null : Number(newValue);
+      if (curTeamId === nxtTeamId) {
+        setSelectedEnumMember(null);
+        return;
+      }
+      const teamLabels: Record<string, string> = {
+        '1': 'Nautilus',
+        '2': 'Harpia',
+        'null': 'UFRJ Autônomos',
+      };
+      setSelectedEnumMember(null);
+      setConfirmModal({
+        member: row,
+        field: 'teamId',
+        fieldLabel: 'Equipe',
+        currentValueLabel: row.teamName || 'UFRJ Autônomos',
+        newValue: nxtTeamId,
+        newValueLabel: teamLabels[String(nxtTeamId)] || 'UFRJ Autônomos',
+      });
+      return;
+    }
     const cur = row[field];
     if (cur === newValue) return;
     const fieldLabel = field === 'role' ? 'Cargo' : 'Área';
@@ -113,8 +136,8 @@ export function MemberDirectory({ rows, initialPreferences }: { rows: MemberDire
       field,
       fieldLabel,
       currentValueLabel: cur || 'Não informada',
-      newValue,
-      newValueLabel: newValue,
+      newValue: newValue as string,
+      newValueLabel: newValue as string,
     });
   }
   const asset = useInstitutionalAsset();
@@ -206,6 +229,29 @@ export function MemberDirectory({ rows, initialPreferences }: { rows: MemberDire
             title="Clique para alternar adaptação de cargo feminino"
           >
             {boolVal ? 'Sim' : 'Não'}
+          </button>
+          {badge}
+        </div>
+      );
+    }
+
+    if (key === 'teamName') {
+      const teamColors: Record<string, string> = {
+        Harpia: 'bg-purple-100 text-purple-800 border-purple-200 dark:bg-purple-950/40 dark:text-purple-200 dark:border-purple-500/30',
+        Nautilus: 'bg-sky-100 text-sky-800 border-sky-200 dark:bg-sky-950/40 dark:text-sky-200 dark:border-sky-500/30',
+        'UFRJ Autônomos': 'bg-zinc-100 text-zinc-800 border-zinc-200 dark:bg-zinc-800 dark:text-zinc-300 dark:border-zinc-700',
+      };
+      const color = teamColors[String(value)] || 'bg-accent text-foreground border-border';
+      return (
+        <div className="flex items-center gap-1.5">
+          <button
+            type="button"
+            onClick={() => setSelectedEnumMember({ member: row, field: 'teamId' })}
+            className={`inline-flex items-center gap-1.5 rounded-md px-2.5 py-1 text-xs font-medium border cursor-pointer hover:ring-1 hover:ring-ring transition-all ${color} ${focus}`}
+            title="Clique para alterar a equipe"
+          >
+            <span>{value ? String(value) : 'UFRJ Autônomos'}</span>
+            <ChevronDown className="h-3 w-3 opacity-60" />
           </button>
           {badge}
         </div>
@@ -324,19 +370,64 @@ export function MemberDirectory({ rows, initialPreferences }: { rows: MemberDire
     </div>
     <Dialog open={Boolean(target)} onOpenChange={open => { if (!open && !deleting) setTarget(null); }}><DialogContent className="border-border bg-background text-foreground"><DialogHeader><DialogTitle>Excluir integrante?</DialogTitle></DialogHeader><DialogDescription className="text-sm leading-relaxed text-muted-foreground">O cadastro de <strong className="font-medium text-foreground">{target?.name}</strong> será removido da gestão e do site. O histórico de presença será preservado. Para retirar apenas do site, edite o cadastro e desmarque “Exibir no site”.</DialogDescription>{error && <p role="alert" className="text-sm text-red-700 dark:text-red-300">{error}</p>}<DialogFooter><button type="button" disabled={deleting} onClick={() => setTarget(null)} className={secondary}>Cancelar</button><button type="button" disabled={deleting} onClick={() => void remove()} className={`min-h-11 rounded-lg bg-red-900 px-4 text-sm font-medium text-white hover:bg-red-800 disabled:opacity-50 ${focus}`}>{deleting ? 'Excluindo…' : 'Excluir cadastro'}</button></DialogFooter></DialogContent></Dialog>
 
-    {/* Modal de seleção para Enum (Cargo ou Área) */}
+    {/* Modal de seleção para Enum (Cargo, Equipe ou Área) */}
     <Dialog open={Boolean(selectedEnumMember)} onOpenChange={open => { if (!open) setSelectedEnumMember(null); }}>
       <DialogContent className="border-border bg-background text-foreground max-w-sm">
         <DialogHeader>
           <DialogTitle>
-            Alterar {selectedEnumMember?.field === 'role' ? 'Cargo' : 'Área'} de {selectedEnumMember?.member.name}
+            Alterar {selectedEnumMember?.field === 'role' ? 'Cargo' : selectedEnumMember?.field === 'teamId' ? 'Equipe' : 'Área'} de {selectedEnumMember?.member.name}
           </DialogTitle>
         </DialogHeader>
         <DialogDescription className="text-xs text-muted-foreground">
-          Selecione o novo valor para {selectedEnumMember?.field === 'role' ? 'o cargo' : 'a área'}. Você precisará confirmar antes de salvar.
+          Selecione o novo valor para {selectedEnumMember?.field === 'role' ? 'o cargo' : selectedEnumMember?.field === 'teamId' ? 'a equipe' : 'a área'}. Você precisará confirmar antes de salvar.
         </DialogDescription>
         <div className="py-2 space-y-1.5 max-h-64 overflow-y-auto">
-          {selectedEnumMember?.field === 'role' ? [...new Set(MEMBER_ROLES.map(option => option.group))].map(group => <div key={group} className="space-y-1 py-2"><h3 className="px-3 text-xs font-medium text-muted-foreground">{group}</h3>{MEMBER_ROLES.filter(option => option.group === group).map(option => <button key={option.value} type="button" onClick={() => requestEnumChange(selectedEnumMember.member, 'role', option.value)} className={`flex min-h-11 w-full items-center justify-between rounded-md px-3 py-2 text-left text-sm ${normalizeMemberRole(selectedEnumMember.member.role) === option.value ? 'bg-accent text-foreground' : 'text-secondary-foreground hover:bg-muted'} ${focus}`}><span>{option.label}</span>{normalizeMemberRole(selectedEnumMember.member.role) === option.value && <span className="ml-2 text-xs text-muted-foreground">Atual</span>}</button>)}</div>) : MEMBER_AREAS.map(option => <button key={option} type="button" onClick={() => selectedEnumMember && requestEnumChange(selectedEnumMember.member, 'area', option)} className={`flex min-h-11 w-full items-center justify-between rounded-md px-3 py-2 text-left text-sm ${selectedEnumMember?.member.area === option ? 'bg-accent text-foreground' : 'text-secondary-foreground hover:bg-muted'} ${focus}`}><span>{option}</span>{selectedEnumMember?.member.area === option && <span className="text-xs text-muted-foreground">Atual</span>}</button>)}
+          {selectedEnumMember?.field === 'teamId' ? (
+            [
+              { label: '🌊 Nautilus (Veículos Subaquáticos)', value: 1 },
+              { label: '☁️ Harpia (Aeronaves Autônomas)', value: 2 },
+              { label: '🤖 UFRJ Autônomos (Geral)', value: null },
+            ].map(option => (
+              <button
+                key={String(option.value)}
+                type="button"
+                onClick={() => selectedEnumMember && requestEnumChange(selectedEnumMember.member, 'teamId', option.value)}
+                className={`flex min-h-11 w-full items-center justify-between rounded-md px-3 py-2 text-left text-sm ${selectedEnumMember?.member.teamId === option.value ? 'bg-accent text-foreground' : 'text-secondary-foreground hover:bg-muted'} ${focus}`}
+              >
+                <span>{option.label}</span>
+                {selectedEnumMember?.member.teamId === option.value && <span className="ml-2 text-xs text-muted-foreground">Atual</span>}
+              </button>
+            ))
+          ) : selectedEnumMember?.field === 'role' ? (
+            [...new Set(MEMBER_ROLES.map(option => option.group))].map(group => (
+              <div key={group} className="space-y-1 py-2">
+                <h3 className="px-3 text-xs font-medium text-muted-foreground">{group}</h3>
+                {MEMBER_ROLES.filter(option => option.group === group).map(option => (
+                  <button
+                    key={option.value}
+                    type="button"
+                    onClick={() => requestEnumChange(selectedEnumMember.member, 'role', option.value)}
+                    className={`flex min-h-11 w-full items-center justify-between rounded-md px-3 py-2 text-left text-sm ${normalizeMemberRole(selectedEnumMember.member.role) === option.value ? 'bg-accent text-foreground' : 'text-secondary-foreground hover:bg-muted'} ${focus}`}
+                  >
+                    <span>{option.label}</span>
+                    {normalizeMemberRole(selectedEnumMember.member.role) === option.value && <span className="ml-2 text-xs text-muted-foreground">Atual</span>}
+                  </button>
+                ))}
+              </div>
+            ))
+          ) : (
+            MEMBER_AREAS.map(option => (
+              <button
+                key={option}
+                type="button"
+                onClick={() => selectedEnumMember && requestEnumChange(selectedEnumMember.member, 'area', option)}
+                className={`flex min-h-11 w-full items-center justify-between rounded-md px-3 py-2 text-left text-sm ${selectedEnumMember?.member.area === option ? 'bg-accent text-foreground' : 'text-secondary-foreground hover:bg-muted'} ${focus}`}
+              >
+                <span>{option}</span>
+                {selectedEnumMember?.member.area === option && <span className="text-xs text-muted-foreground">Atual</span>}
+              </button>
+            ))
+          )}
         </div>
         <DialogFooter>
           <button type="button" onClick={() => setSelectedEnumMember(null)} className={secondary}>

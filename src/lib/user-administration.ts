@@ -5,6 +5,7 @@ import { ACCOUNT_STATUSES, ROLES, hasManagementAccess } from './access-policy';
 import { safeUserSelect } from './session';
 import { db as institutionalDb } from './institutional/db';
 import { sendAccountApprovedEmail } from './email';
+import { roleFromCargo } from './member-fields';
 
 export class AccountUpdateError extends Error {
   constructor(message: string, public status: number) { super(message); }
@@ -13,9 +14,30 @@ export class AccountUpdateError extends Error {
 export async function updateAccount(actorId: string, targetId: string, input: unknown) {
   if (!input || typeof input !== 'object' || Array.isArray(input)) throw new AccountUpdateError('Dados inválidos.', 400);
   const data = input as Record<string, unknown>;
-  if (Object.keys(data).some(key => !['role', 'status'].includes(key)) || !Object.keys(data).length) {
+  if (Object.keys(data).some(key => !['role', 'status', 'isAdmin'].includes(key)) || !Object.keys(data).length) {
     throw new AccountUpdateError('Informe apenas perfil e/ou situação da conta.', 400);
   }
+
+  if (typeof data.isAdmin === 'boolean') {
+    if (data.isAdmin) {
+      data.role = 'ADMIN';
+    } else {
+      let fallbackRole: Role = 'MEMBER';
+      try {
+        const targetUser = await prisma.member.findUnique({ where: { id: targetId }, select: { institutionalMemberId: true } });
+        if (targetUser?.institutionalMemberId) {
+          const inst = await institutionalDb.institutionalMember.findUnique({ where: { id: targetUser.institutionalMemberId }, select: { role: true } });
+          if (inst?.role) {
+            const derived = roleFromCargo(inst.role);
+            fallbackRole = derived === 'ADMIN' ? 'MEMBER' : (derived as Role);
+          }
+        }
+      } catch {}
+      data.role = fallbackRole;
+    }
+    delete data.isAdmin;
+  }
+
   if (data.role !== undefined && !ROLES.includes(data.role as Role)) throw new AccountUpdateError('Perfil inválido.', 400);
   if (data.status !== undefined && !ACCOUNT_STATUSES.includes(data.status as AccountStatus)) throw new AccountUpdateError('Situação inválida.', 400);
 

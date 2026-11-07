@@ -7,6 +7,7 @@ import {
   WeeklyPresenceChart,
   TeamDistributionChart,
   AreaDistributionChart,
+  CoursesDistributionChart,
 } from '@/components/gestao/dashboard-charts';
 
 export const dynamic = 'force-dynamic';
@@ -116,7 +117,20 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
               </Link>
             </section>
 
-            <Groups title="Cursos de graduação" rows={roster.courses} total={roster.active} />
+            <section className={panel}>
+              <div className="flex items-center gap-2">
+                <div className="p-2 rounded-lg bg-indigo-500/10 text-indigo-500">
+                  <PieIcon className="h-4 w-4" />
+                </div>
+                <div>
+                  <h2 className="text-base font-semibold">Cursos de graduação</h2>
+                  <p className="text-xs text-muted-foreground">
+                    Distribuição acadêmica dos integrantes ({roster.active} ativos).
+                  </p>
+                </div>
+              </div>
+              <CoursesDistributionChart courses={roster.courses} total={roster.active} />
+            </section>
           </div>
 
           <p className="text-xs leading-relaxed text-muted-foreground">

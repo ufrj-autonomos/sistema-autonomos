@@ -1,6 +1,12 @@
-export const ROLES = ['TRAINEE', 'MEMBER', 'MANAGEMENT', 'ADMIN'] as const;
+export const ROLES = ['TRAINEE', 'MEMBER', 'COORDINATOR', 'MANAGEMENT', 'ADMIN'] as const;
 export const ACCOUNT_STATUSES = ['PENDING', 'APPROVED', 'REJECTED', 'SUSPENDED'] as const;
-export const ROLE_LABELS = { TRAINEE: 'Trainee', MEMBER: 'Membro', MANAGEMENT: 'Gestão', ADMIN: 'Admin' };
+export const ROLE_LABELS = {
+  TRAINEE: 'Trainee',
+  MEMBER: 'Membro',
+  COORDINATOR: 'Coordenador',
+  MANAGEMENT: 'Gestão',
+  ADMIN: 'Admin',
+};
 export const STATUS_LABELS = { PENDING: 'Aguardando aprovação', APPROVED: 'Aprovada', REJECTED: 'Rejeitada', SUSPENDED: 'Suspensa' };
 
 export function isManagementPath(pathname: string) {
@@ -25,4 +31,4 @@ export function isPublicPath(pathname: string) {
   ].includes(pathname);
 }
 
-export function hasManagementAccess(role: unknown) { return role === 'ADMIN' || role === 'MANAGEMENT'; }
+export function hasManagementAccess(role: unknown) { return role === 'ADMIN' || role === 'MANAGEMENT' || role === 'COORDINATOR'; }
