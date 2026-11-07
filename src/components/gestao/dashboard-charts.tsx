@@ -133,7 +133,10 @@ export function WeeklyPresenceChart({ trend }: WeeklyPresenceChartProps) {
             unit="%"
             hide={true}
           />
-          <Tooltip content={<CustomTooltip />} />
+          <Tooltip
+            cursor={{ fill: 'var(--muted)', opacity: 0.35 }}
+            content={<CustomTooltip />}
+          />
           <Legend
             verticalAlign="top"
             align="right"
@@ -348,7 +351,10 @@ export function AreaDistributionChart({ areas, total }: AreaDistributionChartPro
             axisLine={false}
             width={90}
           />
-          <Tooltip content={<AreaCustomTooltip />} />
+          <Tooltip
+            cursor={{ fill: 'var(--muted)', opacity: 0.35 }}
+            content={<AreaCustomTooltip />}
+          />
           <Bar dataKey="count" name="Integrantes" radius={[0, 6, 6, 0]}>
             {chartData.map((entry, index) => (
               <Cell key={`cell-${index}`} fill={entry.fill} />
@@ -445,6 +451,58 @@ export function CoursesDistributionChart({ courses, total }: CoursesDistribution
    HIERARQUIA DE CARGOS, SAÚDE DISCIPLINAR E HISTÓRICO INDIVIDUAL)
    ========================================================================== */
 
+function StandardChartTooltip({
+  active,
+  payload,
+  label,
+  suffix = '',
+}: {
+  active?: boolean;
+  payload?: any[];
+  label?: string;
+  suffix?: string;
+}) {
+  if (!active || !payload || payload.length === 0) return null;
+
+  const heading = label || payload[0]?.name || payload[0]?.payload?.name || payload[0]?.payload?.label;
+
+  return (
+    <div className="rounded-xl border border-border bg-card p-3 shadow-xl text-xs space-y-1.5 min-w-40 text-foreground">
+      {heading && (
+        <p className="font-semibold text-foreground border-b border-border/70 pb-1">
+          {heading}
+        </p>
+      )}
+      <div className="space-y-1">
+        {payload.map((entry: any, idx: number) => {
+          const dotColor =
+            entry.color && entry.color !== '#000' && entry.color !== '#000000'
+              ? entry.color
+              : entry.payload?.fill || entry.payload?.color || '#387aef';
+          return (
+            <div
+              key={idx}
+              className="flex items-center justify-between gap-3 text-muted-foreground"
+            >
+              <span className="flex items-center gap-1.5 truncate">
+                <span
+                  className="h-2.5 w-2.5 rounded-full shrink-0"
+                  style={{ backgroundColor: dotColor }}
+                />
+                <span className="text-foreground/90 font-medium">{entry.name}:</span>
+              </span>
+              <strong className="text-foreground font-mono font-bold">
+                {entry.value}
+                {suffix}
+              </strong>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 interface AreaByTeamItem {
   area: string;
   Harpia: number;
@@ -482,13 +540,8 @@ export function AreaByTeamStackedChart({ data }: { data: AreaByTeamItem[] }) {
             allowDecimals={false}
           />
           <Tooltip
-            contentStyle={{
-              backgroundColor: 'var(--card)',
-              borderColor: 'var(--border)',
-              borderRadius: '0.75rem',
-              fontSize: '12px',
-              color: 'var(--foreground)',
-            }}
+            cursor={{ fill: 'var(--muted)', opacity: 0.35 }}
+            content={<StandardChartTooltip />}
           />
           <Legend
             verticalAlign="top"
@@ -546,13 +599,8 @@ export function RolesHierarchyChart({ data }: { data: RolesByTeamItem[] }) {
             width={80}
           />
           <Tooltip
-            contentStyle={{
-              backgroundColor: 'var(--card)',
-              borderColor: 'var(--border)',
-              borderRadius: '0.75rem',
-              fontSize: '12px',
-              color: 'var(--foreground)',
-            }}
+            cursor={{ fill: 'var(--muted)', opacity: 0.35 }}
+            content={<StandardChartTooltip />}
           />
           <Legend
             verticalAlign="top"
@@ -625,16 +673,10 @@ export function MeetingsPerformanceByAreaChart({ data }: { data: AreaMeetingPerf
             width={125}
           />
           <Tooltip
-            formatter={(value: any) => [`${value}%`, 'Taxa de Presença']}
-            contentStyle={{
-              backgroundColor: 'var(--card)',
-              borderColor: 'var(--border)',
-              borderRadius: '0.75rem',
-              fontSize: '12px',
-              color: 'var(--foreground)',
-            }}
+            cursor={{ fill: 'var(--muted)', opacity: 0.35 }}
+            content={<StandardChartTooltip suffix="%" />}
           />
-          <Bar dataKey="pct" name="Frequência (%)" radius={[0, 6, 6, 0]} barSize={18}>
+          <Bar dataKey="pct" name="Frequência" fill="#387aef" radius={[0, 6, 6, 0]} barSize={18}>
             {chartData.map((entry, idx) => (
               <Cell key={idx} fill={entry.fill} />
             ))}
@@ -677,15 +719,7 @@ export function DisciplinaryHealthChart({
       <div className="h-44 w-44 shrink-0">
         <ResponsiveContainer width="100%" height="100%">
           <PieChart>
-            <Tooltip
-              contentStyle={{
-                backgroundColor: 'var(--card)',
-                borderColor: 'var(--border)',
-                borderRadius: '0.75rem',
-                fontSize: '12px',
-                color: 'var(--foreground)',
-              }}
-            />
+            <Tooltip content={<StandardChartTooltip />} />
             <Pie
               data={items}
               innerRadius={42}
@@ -763,13 +797,8 @@ export function DivisionsHeadToHeadChart({ data }: { data: HeadToHeadAreaItem[] 
             allowDecimals={false}
           />
           <Tooltip
-            contentStyle={{
-              backgroundColor: 'var(--card)',
-              borderColor: 'var(--border)',
-              borderRadius: '0.75rem',
-              fontSize: '12px',
-              color: 'var(--foreground)',
-            }}
+            cursor={{ fill: 'var(--muted)', opacity: 0.35 }}
+            content={<StandardChartTooltip />}
           />
           <Legend
             verticalAlign="top"
@@ -821,14 +850,8 @@ export function DivisionsMeetingRateComparisonChart({ data }: { data: HeadToHead
             axisLine={false}
           />
           <Tooltip
-            formatter={(value: any) => [`${value}%`, 'Frequência']}
-            contentStyle={{
-              backgroundColor: 'var(--card)',
-              borderColor: 'var(--border)',
-              borderRadius: '0.75rem',
-              fontSize: '12px',
-              color: 'var(--foreground)',
-            }}
+            cursor={{ fill: 'var(--muted)', opacity: 0.35 }}
+            content={<StandardChartTooltip suffix="%" />}
           />
           <Legend
             verticalAlign="top"
@@ -837,8 +860,8 @@ export function DivisionsMeetingRateComparisonChart({ data }: { data: HeadToHead
             iconSize={8}
             wrapperStyle={{ paddingBottom: '10px', fontSize: '12px' }}
           />
-          <Bar dataKey="harpiaRate" name="☁️ Harpia (%)" fill="#A346CC" radius={[5, 5, 0, 0]} barSize={22} />
-          <Bar dataKey="nautilusRate" name="🌊 Nautilus (%)" fill="#387aef" radius={[5, 5, 0, 0]} barSize={22} />
+          <Bar dataKey="harpiaRate" name="☁️ Harpia" fill="#A346CC" radius={[5, 5, 0, 0]} barSize={22} />
+          <Bar dataKey="nautilusRate" name="🌊 Nautilus" fill="#387aef" radius={[5, 5, 0, 0]} barSize={22} />
         </BarChart>
       </ResponsiveContainer>
     </div>
@@ -884,14 +907,8 @@ export function MemberWeeklyLabChart({
             axisLine={false}
           />
           <Tooltip
-            formatter={(value: any, name: any) => [`${value}h`, name]}
-            contentStyle={{
-              backgroundColor: 'var(--card)',
-              borderColor: 'var(--border)',
-              borderRadius: '0.75rem',
-              fontSize: '12px',
-              color: 'var(--foreground)',
-            }}
+            cursor={{ fill: 'var(--muted)', opacity: 0.35 }}
+            content={<StandardChartTooltip suffix="h" />}
           />
           <Legend
             verticalAlign="top"
@@ -900,7 +917,7 @@ export function MemberWeeklyLabChart({
             iconSize={8}
             wrapperStyle={{ paddingBottom: '8px', fontSize: '11px' }}
           />
-          <Bar dataKey="hours" name="Horas Validadas" radius={[5, 5, 0, 0]} barSize={24}>
+          <Bar dataKey="hours" name="Horas Validadas" fill="#387aef" radius={[5, 5, 0, 0]} barSize={24}>
             {chartData.map((entry, idx) => (
               <Cell key={idx} fill={entry.fill} />
             ))}

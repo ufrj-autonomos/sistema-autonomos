@@ -212,13 +212,26 @@ const STATUS_CONFIG: Record<
 function ChartTooltip({ active, payload, label }: any) {
   if (active && payload && payload.length) {
     return (
-      <div className="rounded-lg border border-border bg-card p-2.5 shadow-md text-xs">
-        <p className="font-semibold text-foreground mb-1">{label}</p>
-        {payload.map((item: any, idx: number) => (
-          <p key={idx} style={{ color: item.color }} className="font-mono text-[11px]">
-            {item.name}: {item.value}
-          </p>
-        ))}
+      <div className="rounded-xl border border-border bg-card p-3 shadow-xl text-xs space-y-1.5 min-w-36 text-foreground">
+        <p className="font-semibold text-foreground border-b border-border/70 pb-1">{label}</p>
+        {payload.map((item: any, idx: number) => {
+          const dotColor =
+            item.color && item.color !== '#000' && item.color !== '#000000'
+              ? item.color
+              : item.payload?.fill || '#387aef';
+          return (
+            <div key={idx} className="flex items-center justify-between gap-3 text-muted-foreground">
+              <span className="flex items-center gap-1.5">
+                <span
+                  className="h-2.5 w-2.5 rounded-full shrink-0"
+                  style={{ backgroundColor: dotColor }}
+                />
+                <span className="text-foreground/90 font-medium">{item.name}:</span>
+              </span>
+              <strong className="font-mono font-bold text-foreground">{item.value}</strong>
+            </div>
+          );
+        })}
       </div>
     );
   }
@@ -638,10 +651,14 @@ export function MeetingsView({
                       axisLine={false}
                       allowDecimals={false}
                     />
-                    <Tooltip content={<ChartTooltip />} />
+                    <Tooltip
+                      cursor={{ fill: 'var(--muted)', opacity: 0.35 }}
+                      content={<ChartTooltip />}
+                    />
                     <Bar
                       dataKey="meetingsCount"
                       name="Qtd. Reuniões"
+                      fill="#387aef"
                       radius={[6, 6, 0, 0]}
                     >
                       {data.overview.areaSummaries.map((entry, index) => {
@@ -719,7 +736,10 @@ export function MeetingsView({
                       tickLine={false}
                       axisLine={false}
                     />
-                    <Tooltip content={<ChartTooltip />} />
+                    <Tooltip
+                      cursor={{ fill: 'var(--muted)', opacity: 0.35 }}
+                      content={<ChartTooltip />}
+                    />
                     <Legend
                       verticalAlign="top"
                       height={32}
