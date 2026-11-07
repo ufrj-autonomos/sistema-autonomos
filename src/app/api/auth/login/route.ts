@@ -3,7 +3,7 @@ import { readAuthPayload } from '@/lib/auth-request';
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { verifyPassword } from '@/lib/auth';
-import { createUserSession, SESSION_COOKIE_NAME, sessionCookieOptions } from '@/lib/session';
+import { createUserSession, SESSION_COOKIE_NAME, sessionCookieOptions, TeamSlug } from '@/lib/session';
 import { checkRateLimit, clientAddress, resetRateLimit } from '@/lib/rate-limit';
 
 export async function POST(req: NextRequest) {
@@ -70,6 +70,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: messages[member.status], status: member.status }, { status: 403 });
     }
 
+    const teamSlug: TeamSlug = member.teamId === 1 ? 'nautilus' : member.teamId === 2 ? 'harpia' : 'autonomos';
     const safeUser = {
       id: member.id,
       email: member.email || normalizedEmail,
@@ -77,6 +78,9 @@ export async function POST(req: NextRequest) {
       role: member.role,
       status: member.status,
       avatar: member.avatar,
+      area: member.area,
+      teamId: member.teamId,
+      teamSlug,
       institutionalMemberId: member.institutionalMemberId,
       profileCompletedAt: member.profileCompletedAt,
     };

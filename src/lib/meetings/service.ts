@@ -159,8 +159,9 @@ export async function getMeetingsDashboardData(user: SafeUser, period = '26.2') 
     pct: s.meetings > 0 ? (s.presences / s.meetings) * 100 : 0,
   }));
 
-  // Consolidado por Área (para todas as áreas conhecidas)
-  const areaSummaries = KNOWN_AREAS.map((def) => {
+  // Consolidado por Área (apenas áreas visíveis ao usuário; Admin vê todas)
+  const targetAreas = user.role === 'ADMIN' ? KNOWN_AREAS : visibleAreas;
+  const areaSummaries = targetAreas.map((def) => {
     const areaMeetings = allMeetings.filter(
       (m) => m.area === def.area && m.teamId === def.teamId
     );
@@ -262,12 +263,20 @@ export async function getMeetingsDashboardData(user: SafeUser, period = '26.2') 
     };
   });
 
-  // Métricas Gerais do Painel Executivo
+  // Métricas Gerais do Painel Executivo (no escopo da equipe do usuário, ou global para Admin)
+  const scopedMembersList = user.role === 'ADMIN'
+    ? memberStatsList
+    : memberStatsList.filter((s) => s.teamId === user.teamId);
+
+  const scopedMeetings = user.role === 'ADMIN'
+    ? allMeetings
+    : allMeetings.filter((m) => m.teamId === user.teamId);
+
   let totalPresences = 0;
   let totalAbsences = 0;
   let perfectCount = 0;
 
-  for (const s of memberStatsList) {
+  for (const s of scopedMembersList) {
     totalPresences += s.presences;
     totalAbsences += s.absences;
     if (s.meetings > 0 && s.pct >= 99.9) perfectCount++;
@@ -275,17 +284,17 @@ export async function getMeetingsDashboardData(user: SafeUser, period = '26.2') 
 
   const grandTotal = totalPresences + totalAbsences;
   const overallRate = grandTotal > 0 ? (totalPresences / grandTotal) * 100 : 0;
-  const overallStatus = getFrequencyStatus(overallRate, allMeetings.length);
+  const overallStatus = getFrequencyStatus(overallRate, scopedMeetings.length);
 
-  // Top 5 Membros com Menor Frequência (com pelo menos 1 reunião)
-  const lowFrequencyMembers = memberStatsList
+  // Top 5 Membros com Menor Frequência no escopo da equipe
+  const lowFrequencyMembers = scopedMembersList
     .filter((s) => s.meetings > 0 && s.pct < 75)
     .sort((a, b) => a.pct - b.pct || b.absences - a.absences)
     .slice(0, 5);
 
-  // Mural dos Mais Presentes:
+  // Mural dos Mais Presentes no escopo da equipe:
   // Os 5 membros com melhor presença, e se houver mais de 5 com 100%, mostra todos os de 100%
-  const sortedActiveMembers = memberStatsList
+  const sortedActiveMembers = scopedMembersList
     .filter((s) => s.meetings > 0)
     .sort((a, b) => b.pct - a.pct || b.meetings - a.meetings || b.presences - a.presences || a.name.localeCompare(b.name, 'pt-BR'));
 
@@ -398,8 +407,8 @@ export async function getMeetingsDashboardData(user: SafeUser, period = '26.2') 
     isAdmin: canUserManageMeetings(user),
     visibleAreas,
     overview: {
-      totalMembers: memberStatsList.length,
-      totalMeetings: allMeetings.length,
+      totalMembers: scopedMembersList.length,
+      totalMeetings: scopedMeetings.length,
       totalPresences,
       totalAbsences,
       overallRate: Number(overallRate.toFixed(1)),

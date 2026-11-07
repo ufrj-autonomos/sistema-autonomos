@@ -826,7 +826,12 @@ export function MeetingsView({
               </div>
 
               <div className="divide-y divide-border/60 max-h-96 overflow-y-auto pr-1">
-                {(data.overview.topPresentMembers || data.overview.perfectFrequencyMembers).map((member, idx) => (
+                {(data.overview.topPresentMembers || data.overview.perfectFrequencyMembers).length === 0 ? (
+                  <p className="text-sm text-muted-foreground py-6 text-center">
+                    Aguardando reuniões contabilizadas nesta equipe para listar os destaques.
+                  </p>
+                ) : (
+                  (data.overview.topPresentMembers || data.overview.perfectFrequencyMembers).map((member, idx) => (
                   <div
                     key={member.id}
                     className="py-2.5 flex items-center justify-between text-sm hover:bg-muted/30 px-2 rounded-lg transition-colors"
@@ -873,7 +878,7 @@ export function MeetingsView({
                       </span>
                     </div>
                   </div>
-                ))}
+                )))}
               </div>
             </div>
 
