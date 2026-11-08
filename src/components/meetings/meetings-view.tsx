@@ -2,6 +2,7 @@
 
 import { useMemo, useRef, useState, useTransition } from 'react';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/institutional/ui/dialog';
+import { meetingCalendarDate } from '@/lib/meetings/calendar';
 import { MeetingFeed } from './meeting-feed';
 import { MeetingMinutesDialog, type MeetingMinuteCard } from './meeting-minutes-dialog';
 import { toast } from 'sonner';
@@ -264,7 +265,7 @@ export function MeetingsView({
   const [isNewMeetingModalOpen, setIsNewMeetingModalOpen] = useState(false);
   const [newMeetingArea, setNewMeetingArea] = useState<{ area: string; teamId: number | null } | null>(null);
   const [newMeetingTitle, setNewMeetingTitle] = useState('');
-  const [newMeetingDate, setNewMeetingDate] = useState(new Date().toISOString().slice(0, 10));
+  const [newMeetingDate, setNewMeetingDate] = useState(meetingCalendarDate);
   const [newMeetingDescription, setNewMeetingDescription] = useState('');
   const [savingMeeting, setSavingMeeting] = useState(false);
 
@@ -290,7 +291,7 @@ export function MeetingsView({
   const openNewMeetingModal = (area: string, teamId: number | null) => {
     setNewMeetingArea({ area, teamId });
     setNewMeetingTitle(`Reunião ${(data.detailedAreas.find(d => d.def.area === area && d.def.teamId === teamId)?.meetings.length || 0) + 1}`);
-    setNewMeetingDate(new Date().toISOString().slice(0, 10));
+    setNewMeetingDate(meetingCalendarDate());
     setNewMeetingDescription('');
     setIsNewMeetingModalOpen(true);
   };

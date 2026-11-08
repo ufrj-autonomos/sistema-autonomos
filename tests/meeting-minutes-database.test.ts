@@ -12,7 +12,7 @@ async function main() {
   const meetings = await import('../src/app/api/reunioes/route');
   const minutes = await import('../src/app/api/reunioes/[id]/ata/route');
   const attendance = await import('../src/app/api/reunioes/[id]/presenca/route');
-  const ids: string[] = []; let meetingId: string | undefined; let otherAreaId: string | undefined;
+  const ids: string[] = []; let meetingId: string | undefined; let otherAreaId: string | undefined; let futureId: string | undefined;
   const marker = randomUUID();
   try {
     async function account(role: 'MEMBER' | 'COORDINATOR' | 'ADMIN', teamId: number) {
@@ -40,6 +40,9 @@ async function main() {
     assert.equal(scoped.total, 1, 'creating a meeting in another area does not expand reminders');
     assert.ok(scoped.meetings.every(row => row.area === coordinator.area && row.teamId === coordinator.teamId));
     assert.equal((await pendingMeetingMinutes({ ...coordinator, area: null })).total, 0, 'missing area fails closed');
+    const future = await prisma.meeting.create({ data: { ...input, title: 'Reunião futura', date: new Date('2099-01-01'), createdById: coordinator.id } });
+    futureId = future.id;
+    assert.equal((await pendingMeetingMinutes(coordinator)).total, 2, 'a created meeting without minutes is visible even with a future date');
     const marked = await attendance.PUT(request(`/api/reunioes/${meetingId}/presenca`, coordinator.token, { memberId: member.id, status: 'PRESENT' }, 'PUT'), params);
     assert.equal(marked.status, 200);
     assert.equal((await prisma.meeting.findUniqueOrThrow({ where: { id: meetingId } })).minutes, null, 'roll call is allowed before minutes');
@@ -53,7 +56,9 @@ async function main() {
     assert.equal(concurrent.filter(response => response.status === 200).length, 1); assert.equal(concurrent.filter(response => response.status === 409).length, 2);
     const saved = await minutes.GET(request(`/api/reunioes/${meetingId}/ata`, member.token), params);
     assert.equal(saved.status, 200); const data = await saved.json(); assert.equal(data.minutes, body.minutes); assert.equal(data.source, 'EXCERPT');
-    assert.equal((await pendingMeetingMinutes(coordinator)).total, 0);
+    const remaining = await pendingMeetingMinutes(coordinator);
+    assert.equal(remaining.total, 1);
+    assert.equal(remaining.meetings[0].id, futureId);
     const dashboard = await getMeetingsDashboardData(member, 'qa');
     const card = dashboard.detailedAreas.flatMap(area => area.meetings).find(meeting => meeting.id === meetingId)!;
     assert.equal(card.hasMinutes, true); assert.equal(card.minutesSummary, body.minutes); assert.ok(!('minutes' in card), 'full minutes are fetched only when opened');
@@ -63,6 +68,7 @@ async function main() {
     assert.equal((await minutes.PUT(request(`/api/reunioes/${meetingId}/ata`, coordinator.token, body, 'PUT'), params)).status, 403);
     console.log('Atas PostgreSQL: N por padrão, chamada sem ata, permissões, pendências, resumo, leitura por membro e edições concorrentes passaram.');
   } finally {
+    if (futureId) await prisma.meeting.deleteMany({ where: { id: futureId } });
     if (otherAreaId) await prisma.meeting.deleteMany({ where: { id: otherAreaId } });
     if (meetingId) await prisma.meeting.deleteMany({ where: { id: meetingId } });
     await prisma.member.deleteMany({ where: { id: { in: ids } } });

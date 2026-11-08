@@ -31,3 +31,27 @@ test('coordinator and vice-coordinator cargos both receive the coordinator role'
   assert.equal(roleFromCargo('Coordenador'), 'COORDINATOR');
   assert.equal(roleFromCargo('Vice-Coordenador'), 'COORDINATOR');
 });
+
+
+test('meeting form uses Brasília calendar date across the UTC midnight boundary', async () => {
+  const { meetingCalendarDate } = await import('../src/lib/meetings/calendar');
+  assert.equal(meetingCalendarDate(new Date('2026-11-08T02:29:00Z')), '2026-11-07');
+  assert.equal(meetingCalendarDate(new Date('2026-11-08T02:59:59Z')), '2026-11-07');
+  assert.equal(meetingCalendarDate(new Date('2026-11-08T03:00:00Z')), '2026-11-08');
+});
+
+
+test('minutes reminders follow the coordinator office even when that person also has Admin access', async () => {
+  const { meetingMinutesResponsibility } = await import('../src/lib/meetings/responsibility');
+  const coordinator = { role: 'COORDINATOR', area: 'Software', teamId: 2 };
+  const office = { role: 'Coordenador', area: 'Software', teamId: 2 };
+  assert.deepEqual(meetingMinutesResponsibility(coordinator, office), { area: 'Software', teamId: 2 });
+  assert.deepEqual(meetingMinutesResponsibility({ ...coordinator, role: 'ADMIN' }, office), { area: 'Software', teamId: 2 });
+  assert.deepEqual(meetingMinutesResponsibility({ ...coordinator, role: 'ADMIN' }, { ...office, role: 'Vice-Coordenador' }), { area: 'Software', teamId: 2 });
+  assert.equal(meetingMinutesResponsibility({ ...coordinator, role: 'ADMIN' }, { ...office, role: 'Capitão' }), null);
+  assert.equal(meetingMinutesResponsibility({ ...coordinator, role: 'ADMIN' }, null), null);
+  assert.equal(meetingMinutesResponsibility({ ...coordinator, role: 'MEMBER' }, office), null);
+  assert.equal(meetingMinutesResponsibility(coordinator, { ...office, area: null }), null);
+  assert.equal(meetingMinutesResponsibility(coordinator, { ...office, teamId: 1 }), null);
+  assert.deepEqual(meetingMinutesResponsibility(coordinator, null), { area: 'Software', teamId: 2 });
+});

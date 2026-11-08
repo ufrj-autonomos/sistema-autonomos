@@ -1,3 +1,5 @@
+import { meetingMinutesResponsibility } from './responsibility';
+import { db as institutionalDb } from '@/lib/institutional/db';
 import { prisma } from '@/lib/prisma';
 import type { SafeUser } from '@/lib/session';
 import type { MeetingAttendanceStatus } from '@prisma/client';
@@ -469,12 +471,16 @@ export async function getMeetingsDashboardData(user: SafeUser, period = '26.2') 
 
 
 export async function pendingMeetingMinutes(user: SafeUser) {
-  if (user.role !== 'COORDINATOR' || !user.area?.trim()) return { total: 0, meetings: [] };
-  const today = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Sao_Paulo', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date());
-  const where = { date: { lte: new Date(`${today}T00:00:00Z`) }, AND: [
+  if (!['COORDINATOR', 'ADMIN'].includes(user.role)) return { total: 0, meetings: [] };
+  const office = user.institutionalMemberId && process.env.INSTITUTIONAL_DATABASE_URL
+    ? await institutionalDb.institutionalMember.findUnique({ where: { id: user.institutionalMemberId }, select: { role: true, area: true, teamId: true } }).catch(() => null)
+    : null;
+  const scope = meetingMinutesResponsibility(user, office);
+  if (!scope) return { total: 0, meetings: [] };
+  const where = { AND: [
     { OR: [{ minutes: null }, { minutes: '' }] },
-    { teamId: user.teamId ?? null },
-    { area: user.area },
+    { teamId: scope.teamId },
+    { area: scope.area },
   ] };
   const [total, meetings] = await Promise.all([
     prisma.meeting.count({ where }),
