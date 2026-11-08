@@ -1,6 +1,7 @@
 'use client';
 
 import { useMemo, useRef, useState, useTransition } from 'react';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/institutional/ui/dialog';
 import { MeetingFeed } from './meeting-feed';
 import { MeetingMinutesDialog, type MeetingMinuteCard } from './meeting-minutes-dialog';
 import { toast } from 'sonner';
@@ -268,6 +269,7 @@ export function MeetingsView({
   const [savingMeeting, setSavingMeeting] = useState(false);
 
   const [minutesMeeting, setMinutesMeeting] = useState<MeetingMinuteCard | null>(() => openMinutes ? initialData.detailedAreas.flatMap(area => area.meetings).find(meeting => meeting.id === initialMeetingId) || null : null);
+  const [tableAttendance, setTableAttendance] = useState<{ meetingId: string; meetingTitle: string; memberId: string; memberName: string; currentStatus: MeetingStatus; selectedStatus: MeetingStatus } | null>(null);
   const attendanceSaving = useRef(false);
   const [savingAttendance, setSavingAttendance] = useState(false);
   const [attendanceNotice, setAttendanceNotice] = useState('');
@@ -345,7 +347,7 @@ export function MeetingsView({
   };
 
   const triggerChangeAttendance = async (meetingId: string, _title: string, memberId: string, _name: string, currentStatus: MeetingStatus, newStatus: MeetingStatus) => {
-    if (!canEdit || attendanceSaving.current || currentStatus === newStatus) return;
+    if (!canEdit || attendanceSaving.current || currentStatus === newStatus) return false;
     attendanceSaving.current = true; setSavingAttendance(true); setAttendanceNotice('Salvando presença…');
     const previous = structuredClone(data);
     setData(prev => {
@@ -360,7 +362,8 @@ export function MeetingsView({
       const result = await response.json().catch(() => null);
       if (!response.ok) throw Error(result?.error || 'Não foi possível salvar a presença.');
       const refreshed = await refreshData(); setAttendanceNotice(refreshed ? 'Presença salva.' : 'Presença salva. Atualize a página para conferir os totais.');
-    } catch (error) { setData(previous); setAttendanceNotice(`${error instanceof Error ? error.message : 'Não foi possível salvar.'} A marcação anterior foi mantida. Tente novamente.`); }
+      return true;
+    } catch (error) { setData(previous); setAttendanceNotice(`${error instanceof Error ? error.message : 'Não foi possível salvar.'} A marcação anterior foi mantida. Tente novamente.`); return false; }
     finally { attendanceSaving.current = false; setSavingAttendance(false); }
   };
 
@@ -1422,30 +1425,14 @@ export function MeetingsView({
                                         type="button"
                                         disabled={savingAttendance}
                                         onClick={() => {
-                                          // Ciclo rápido ao clicar: P -> A -> F -> J -> N -> S -> P
-                                          const cycle: Record<string, MeetingStatus> = {
-                                            PRESENT: 'LATE',
-                                            LATE: 'ABSENT',
-                                            ABSENT: 'JUSTIFIED',
-                                            JUSTIFIED: 'NOT_A_MEMBER',
-                                            NOT_A_MEMBER: 'NO_MEETING',
-                                            NO_MEETING: 'PRESENT',
-                                          };
-                                          const next = cycle[status] || 'PRESENT';
-                                          triggerChangeAttendance(
-                                            meeting.id,
-                                            meeting.title,
-                                            member.id,
-                                            member.name,
-                                            status,
-                                            next
-                                          );
+                                          setAttendanceNotice('');
+                                          setTableAttendance({ meetingId: meeting.id, meetingTitle: meeting.title, memberId: member.id, memberName: member.name, currentStatus: status, selectedStatus: status });
                                         }}
                                         className={cn(
                                           'h-7 w-7 rounded-md flex items-center justify-center font-mono font-bold text-xs border transition shadow-xs cursor-pointer',
                                           config.badge
                                         )}
-                                        title={`Status: ${config.label}. Clique para alterar.`}
+                                        title={`Status: ${config.label}. Clique para escolher o status.`}
                                       >
                                         {config.code}
                                       </button>
@@ -1559,7 +1546,7 @@ export function MeetingsView({
               </div>
 
               <div className="p-3 rounded-lg bg-muted text-xs text-muted-foreground">
-                Ao criar a reunião, todos os membros da área serão adicionados automaticamente com o status <strong>[P] Presente</strong>. Você poderá ajustar faltas ou justificativas individualmente na planilha.
+                Ao criar a reunião, todos os membros da área serão adicionados automaticamente com o status <strong>[N]</strong>. Você poderá ajustar faltas ou justificativas individualmente na planilha.
               </div>
 
               <div className="flex items-center justify-end gap-3 pt-2">
@@ -1583,7 +1570,16 @@ export function MeetingsView({
         </div>
       )}
 
-      {/* POP-UP / MODAL: CONFIRMAÇÃO DE MUDANÇA DE PRESENÇA */}
+      <Dialog open={!!tableAttendance} onOpenChange={open => { if (!open && !savingAttendance) setTableAttendance(null); }}>
+        <DialogContent showCloseButton={!savingAttendance} className="sm:max-w-xl">
+          <DialogHeader><DialogTitle>Alterar presença</DialogTitle><DialogDescription>{tableAttendance?.memberName} · {tableAttendance?.meetingTitle}. Escolha o status e confirme a alteração.</DialogDescription></DialogHeader>
+          <div role="group" aria-label="Status de presença" className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+            {Object.entries(STATUS_CONFIG).map(([key, config]) => <button key={key} type="button" disabled={savingAttendance} aria-pressed={tableAttendance?.selectedStatus === key} onClick={() => setTableAttendance(previous => previous ? { ...previous, selectedStatus: key as MeetingStatus } : null)} className={cn('min-h-20 rounded-lg border p-3 text-left text-xs disabled:opacity-50', tableAttendance?.selectedStatus === key ? 'border-primary bg-primary/10 ring-2 ring-primary' : 'border-border hover:bg-muted')}><span className="flex items-center gap-2 font-medium"><span className={cn('inline-flex h-6 w-6 items-center justify-center rounded border font-mono font-bold', config.badge)}>{config.code}</span>{config.label}</span><span className="mt-2 block text-muted-foreground">{config.desc}</span></button>)}
+          </div>
+          {attendanceNotice && <p role="status" className="text-sm text-muted-foreground">{attendanceNotice}</p>}
+          <DialogFooter><button type="button" disabled={savingAttendance} onClick={() => setTableAttendance(null)} className="min-h-11 rounded-lg border border-border px-4 text-sm hover:bg-accent disabled:opacity-50">Cancelar</button><button type="button" disabled={savingAttendance || !tableAttendance || tableAttendance.currentStatus === tableAttendance.selectedStatus} onClick={async () => { if (!tableAttendance) return; const request = tableAttendance; const saved = await triggerChangeAttendance(request.meetingId, request.meetingTitle, request.memberId, request.memberName, request.currentStatus, request.selectedStatus); if (saved) setTableAttendance(null); }} className="min-h-11 rounded-lg bg-primary px-4 text-sm font-medium text-primary-foreground disabled:opacity-50">{savingAttendance ? 'Salvando…' : 'Confirmar alteração'}</button></DialogFooter>
+        </DialogContent>
+      </Dialog>
       {minutesMeeting && <MeetingMinutesDialog meeting={minutesMeeting} canEdit={canEdit} onClose={() => setMinutesMeeting(null)} onSaved={() => { void refreshData(); router.refresh(); }} />}
     </div>
   );

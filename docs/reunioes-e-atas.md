@@ -6,7 +6,7 @@ Cada reunião tem uma ata em texto (10 a 20.000 caracteres). Coordenadores edita
 
 A página inicial da coordenação e a de reuniões apresentam atas pendentes de reuniões até a data atual, incluindo períodos anteriores. O aviso considera a própria área ou reuniões criadas pelo coordenador dentro da equipe. Admin vê todas. O link leva diretamente ao editor da reunião. Reuniões futuras só entram no aviso na sua data.
 
-Novas reuniões e presenças usam N (`NOT_A_MEMBER`) por padrão. Registros antigos são preservados. N continua fora do cálculo de frequência. Criar a reunião e inicializar sua chamada ocorre numa transação. A chamada salva a seleção imediatamente, sem confirmação nem toast; o status de salvamento/erro aparece na própria tela, com reversão se o pedido falhar. As opções ficam desabilitadas durante o envio para evitar respostas fora de ordem.
+Novas reuniões e presenças usam N (`NOT_A_MEMBER`) por padrão. Registros antigos são preservados. N continua fora do cálculo de frequência. Criar a reunião e inicializar sua chamada ocorre numa transação. Na Planilha/Matriz, o clique abre um popup para escolher o status e confirmar. A Chamada por Reunião salva a seleção imediatamente, sem confirmação nem toast; o status de salvamento/erro aparece na própria tela, com reversão se o pedido falhar. As opções ficam desabilitadas durante o envio para evitar respostas fora de ordem.
 
 ## Verificação
 
@@ -16,4 +16,4 @@ A migração cria somente as estruturas de reuniões que ainda não existirem e 
 
 ## Decisões de interface
 
-O membro acompanha conteúdo e decisões antes da matriz de presença. A chamada mantém marcação direta, conforme solicitado. A ausência da ata é uma pendência documental; não bloqueia a reunião nem sua chamada. O resumo serve de entrada para a ata integral e um trecho automático não recebe o rótulo de resumo de IA.
+O membro acompanha conteúdo e decisões antes da matriz de presença. A chamada mantém marcação direta; a tabela mantém a escolha de status com confirmação. A ausência da ata é uma pendência documental; não bloqueia a reunião nem sua chamada. O resumo serve de entrada para a ata integral e um trecho automático não recebe o rótulo de resumo de IA.
