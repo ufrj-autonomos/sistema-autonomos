@@ -4,6 +4,7 @@ import { randomUUID } from 'node:crypto';
 async function main() {
   const url = process.env.TEST_DATABASE_URL;
   if (!url || !['localhost', '127.0.0.1', '[::1]'].includes(new URL(url).hostname)) throw new Error('Use somente TEST_DATABASE_URL local e descartável.');
+  Object.assign(process.env, { NODE_ENV: 'test' });
   process.env.DATABASE_URL = url;
   process.env.DIRECT_URL = url;
   process.env.JWT_SECRET = 'isolated-attendance-test-signing-key-at-least-32-characters';

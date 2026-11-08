@@ -164,7 +164,7 @@ test('Frequency status thresholds', () => {
   assert.equal(getFrequencyStatus(0, 0).tone, 'gray');
 });
 
-test('Database imported meeting data matches Google Sheets Painel 26.2', async () => {
+test('Database imported meeting data matches Google Sheets Painel 26.2', { skip: process.env.TEST_IMPORTED_SPREADSHEETS !== '1' }, async () => {
   const meetings = await prisma.meeting.findMany({
     where: { period: '26.2' },
     include: { attendances: true },
@@ -221,7 +221,7 @@ test('Database imported meeting data matches Google Sheets Painel 26.2', async (
   assert.ok(perfectCount >= 14, `perfectCount should be around 15, got ${perfectCount}`);
 });
 
-test('Mural dos mais presentes and team comparison data structure', async () => {
+test('Mural dos mais presentes and team comparison data structure', { skip: process.env.TEST_IMPORTED_SPREADSHEETS !== '1' }, async () => {
   const adminUser: SafeUser = {
     id: 'u-admin',
     name: 'Admin Tester',

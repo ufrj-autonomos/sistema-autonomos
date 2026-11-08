@@ -1,3 +1,4 @@
+import { PendingMinutesBanner } from '@/components/meetings/pending-minutes-banner';
 import Link from 'next/link';
 import {
   ArrowRight,
@@ -100,6 +101,8 @@ export async function ManagementOverview({
           </Link>
         </div>
       </header>
+
+      {user && <PendingMinutesBanner user={user} />}
 
       {/* Banner Disciplinar Pessoal (se o gestor tiver advertências) */}
       {disciplinary && <MemberWarningBanner summary={disciplinary} />}

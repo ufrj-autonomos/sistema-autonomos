@@ -501,6 +501,10 @@ model Meeting {
   teamId      Int?     // 1 = Nautilus, 2 = Harpia, null = Autônomos (Geral)
   period      String   @default("26.2")
   description String?  @db.Text
+  minutes String? @db.Text
+  minutesSummary String? @db.Text
+  minutesSummarySource String? @db.VarChar(16)
+  minutesUpdatedAt DateTime? @db.Timestamptz(3)
   createdById String?
   createdBy   Member?  @relation("CreatedMeetings", fields: [createdById], references: [id], onDelete: SetNull)
 
@@ -520,7 +524,7 @@ model MeetingAttendance {
   meeting   Meeting                 @relation(fields: [meetingId], references: [id], onDelete: Cascade)
   memberId  String
   member    Member                  @relation(fields: [memberId], references: [id], onDelete: Cascade)
-  status    MeetingAttendanceStatus @default(PRESENT)
+  status    MeetingAttendanceStatus @default(NOT_A_MEMBER)
   notes     String?                 @db.Text
 
   createdAt DateTime                @default(now()) @db.Timestamptz(3)

@@ -1,6 +1,8 @@
 'use client';
 
-import { useMemo, useState, useTransition } from 'react';
+import { useMemo, useRef, useState, useTransition } from 'react';
+import { MeetingFeed } from './meeting-feed';
+import { MeetingMinutesDialog, type MeetingMinuteCard } from './meeting-minutes-dialog';
 import { toast } from 'sonner';
 import {
   CalendarCheck,
@@ -36,6 +38,7 @@ import {
   Legend,
 } from 'recharts';
 import { cn } from '@/lib/utils';
+import { useRouter } from 'next/navigation';
 import type { SafeUser } from '@/contexts/auth-context';
 
 export type MeetingStatus = 'PRESENT' | 'ABSENT' | 'JUSTIFIED' | 'LATE' | 'NO_MEETING' | 'NOT_A_MEMBER';
@@ -82,6 +85,7 @@ export interface DetailedArea {
     title: string;
     date: string;
     description: string | null;
+    hasMinutes: boolean; minutesSummary: string | null; minutesSummarySource: string | null; minutesUpdatedAt: string | null;
   }[];
   members: {
     id: string;
@@ -240,18 +244,19 @@ function ChartTooltip({ active, payload, label }: any) {
 
 export function MeetingsView({
   initialData,
-  user,
+  user, initialArea, initialMeetingId, openMinutes = false,
 }: {
   initialData: MeetingsData;
-  user: SafeUser;
+  user: SafeUser; initialArea?: string; initialMeetingId?: string; openMinutes?: boolean;
 }) {
+  const router = useRouter();
   const [data, setData] = useState<MeetingsData>(initialData);
   const canEdit = Boolean(data.canEdit ?? data.isAdmin);
-  const [activeTab, setActiveTab] = useState<string>('painel');
+  const [activeTab, setActiveTab] = useState<string>(initialArea || 'painel');
   const [isPending, startTransition] = useTransition();
 
   // Alternador de visualização para áreas detalhadas: 'matrix' (planilha) ou 'cards' (chamada por reunião / mobile)
-  const [areaViewMode, setAreaViewMode] = useState<'matrix' | 'cards'>('matrix');
+  const [areaViewMode, setAreaViewMode] = useState<'feed' | 'matrix' | 'cards'>('feed');
   const [selectedMeetingIndex, setSelectedMeetingIndex] = useState<number>(0);
 
   // Modal para Nova Reunião
@@ -262,27 +267,21 @@ export function MeetingsView({
   const [newMeetingDescription, setNewMeetingDescription] = useState('');
   const [savingMeeting, setSavingMeeting] = useState(false);
 
-  // Modal de Confirmação para Alterar Presença (conforme diretriz do usuário)
-  const [attendanceModal, setAttendanceModal] = useState<{
-    isOpen: boolean;
-    meetingId: string;
-    meetingTitle: string;
-    memberId: string;
-    memberName: string;
-    currentStatus: MeetingStatus;
-    newStatus: MeetingStatus;
-    notes: string;
-  } | null>(null);
+  const [minutesMeeting, setMinutesMeeting] = useState<MeetingMinuteCard | null>(() => openMinutes ? initialData.detailedAreas.flatMap(area => area.meetings).find(meeting => meeting.id === initialMeetingId) || null : null);
+  const attendanceSaving = useRef(false);
+  const [savingAttendance, setSavingAttendance] = useState(false);
+  const [attendanceNotice, setAttendanceNotice] = useState('');
 
   const refreshData = async () => {
     try {
       const res = await fetch(`/api/reunioes?period=${data.period}`);
-      if (res.ok) {
-        const json = await res.json();
-        setData(json);
-      }
+      if (!res.ok) return false;
+      const json = await res.json();
+      setData(json);
+      return true;
     } catch (err) {
       console.error('Erro ao recarregar:', err);
+      return false;
     }
   };
 
@@ -321,6 +320,7 @@ export function MeetingsView({
       toast.success('Reunião criada com sucesso!');
       setIsNewMeetingModalOpen(false);
       await refreshData();
+      router.refresh();
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : 'Falha ao salvar reunião';
       toast.error(msg);
@@ -337,70 +337,31 @@ export function MeetingsView({
       if (!res.ok) throw new Error('Falha ao excluir reunião.');
       toast.success('Reunião excluída.');
       await refreshData();
+      router.refresh();
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : 'Erro ao excluir';
       toast.error(msg);
     }
   };
 
-  const triggerChangeAttendance = (
-    meetingId: string,
-    meetingTitle: string,
-    memberId: string,
-    memberName: string,
-    currentStatus: MeetingStatus,
-    newStatus: MeetingStatus
-  ) => {
-    if (!canEdit) return;
-    setAttendanceModal({
-      isOpen: true,
-      meetingId,
-      meetingTitle,
-      memberId,
-      memberName,
-      currentStatus,
-      newStatus,
-      notes: '',
-    });
-  };
-
-  const confirmAttendanceChange = async () => {
-    if (!attendanceModal) return;
-
-    const { meetingId, memberId, newStatus, notes } = attendanceModal;
-    setAttendanceModal(null);
-
-    // Atualização otimista
-    setData((prev) => {
+  const triggerChangeAttendance = async (meetingId: string, _title: string, memberId: string, _name: string, currentStatus: MeetingStatus, newStatus: MeetingStatus) => {
+    if (!canEdit || attendanceSaving.current || currentStatus === newStatus) return;
+    attendanceSaving.current = true; setSavingAttendance(true); setAttendanceNotice('Salvando presença…');
+    const previous = structuredClone(data);
+    setData(prev => {
       const next = structuredClone(prev);
-      for (const da of next.detailedAreas) {
-        for (const m of da.members) {
-          if (m.id === memberId) {
-            m.attendances[meetingId] = {
-              status: newStatus,
-              notes: notes || null,
-              attendanceId: m.attendances[meetingId]?.attendanceId || '',
-            };
-          }
-        }
+      for (const area of next.detailedAreas) for (const member of area.members) {
+        if (member.id === memberId && area.meetings.some(meeting => meeting.id === meetingId)) member.attendances[meetingId] = { ...member.attendances[meetingId], status: newStatus, notes: member.attendances[meetingId]?.notes || null, attendanceId: member.attendances[meetingId]?.attendanceId || '' };
       }
       return next;
     });
-
     try {
-      const res = await fetch(`/api/reunioes/${meetingId}/presenca`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ memberId, status: newStatus, notes }),
-      });
-
-      if (!res.ok) throw new Error('Erro ao salvar presença');
-      toast.success('Presença atualizada!');
-      await refreshData();
-    } catch {
-      toast.error('Erro ao salvar. Revertendo alteração.');
-      await refreshData();
-    }
+      const response = await fetch(`/api/reunioes/${meetingId}/presenca`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ memberId, status: newStatus }) });
+      const result = await response.json().catch(() => null);
+      if (!response.ok) throw Error(result?.error || 'Não foi possível salvar a presença.');
+      const refreshed = await refreshData(); setAttendanceNotice(refreshed ? 'Presença salva.' : 'Presença salva. Atualize a página para conferir os totais.');
+    } catch (error) { setData(previous); setAttendanceNotice(`${error instanceof Error ? error.message : 'Não foi possível salvar.'} A marcação anterior foi mantida. Tente novamente.`); }
+    finally { attendanceSaving.current = false; setSavingAttendance(false); }
   };
 
   const activeDetailedArea = data.detailedAreas.find(
@@ -1058,7 +1019,7 @@ export function MeetingsView({
               <div className="min-w-0">
                 <div className="flex flex-wrap items-center gap-2">
                   <h2 className="text-lg sm:text-xl font-bold text-foreground truncate">
-                    Controle de Presença — {activeDetailedArea.def.label}
+                    Reuniões — {activeDetailedArea.def.label}
                   </h2>
                   {data.isAdmin && activeDetailedArea.def.teamSlug === 'harpia' && (
                     <span className="text-xs px-2 py-0.5 rounded-full bg-purple-100 text-purple-800 border border-purple-200 dark:bg-purple-900/30 dark:text-purple-300 dark:border-purple-500/20">
@@ -1080,8 +1041,8 @@ export function MeetingsView({
 
             {/* Alternador de Modo e Ação Adicionar Reunião */}
             <div className="flex flex-wrap items-center gap-2.5">
-              {activeDetailedArea.meetings.length > 0 && (
-                <div className="flex items-center rounded-lg bg-muted p-1 text-xs font-medium border border-border">
+              {(
+                <div className="flex flex-wrap items-center rounded-lg bg-muted p-1 text-xs font-medium border border-border"><button type="button" onClick={() => setAreaViewMode('feed')} aria-pressed={areaViewMode === 'feed'} className={cn('min-h-11 rounded-md px-3 py-2', areaViewMode === 'feed' ? 'bg-card text-foreground font-semibold shadow-xs' : 'text-muted-foreground hover:text-foreground')}><CalendarCheck className="mr-1 inline h-4 w-4" />Acompanhamento</button>
                   <button
                     type="button"
                     onClick={() => setAreaViewMode('matrix')}
@@ -1128,6 +1089,9 @@ export function MeetingsView({
             </div>
           </div>
 
+          <p role="status" aria-live="polite" className="text-sm text-muted-foreground">{attendanceNotice}</p>
+          {areaViewMode === 'feed' && <MeetingFeed area={activeDetailedArea} userId={user.id} canEdit={canEdit} onMinutes={setMinutesMeeting} onRollCall={id => { setSelectedMeetingIndex(activeDetailedArea.meetings.findIndex(meeting => meeting.id === id)); setAreaViewMode('cards'); }} />}
+          {canEdit && areaViewMode !== 'feed' && currentMeeting && <button type="button" onClick={() => setMinutesMeeting(currentMeeting)} className="mb-4 inline-flex min-h-11 items-center rounded-lg border border-border px-4 text-sm hover:bg-accent">{currentMeeting.hasMinutes ? 'Ler / editar ata da reunião selecionada' : 'Adicionar ata da reunião selecionada'}</button>}
           {/* MODO 1: CHAMADA POR REUNIÃO (OTIMIZADO PARA CELULAR E TOQUE RÁPIDO) */}
           {areaViewMode === 'cards' && (
             <div className="space-y-4 animate-in fade-in duration-200">
@@ -1282,6 +1246,8 @@ export function MeetingsView({
                                   return (
                                     <button
                                       key={opt.status}
+                                      disabled={savingAttendance}
+                                      aria-pressed={isSelected}
                                       type="button"
                                       onClick={() =>
                                         triggerChangeAttendance(
@@ -1454,6 +1420,7 @@ export function MeetingsView({
                                     <div className="relative inline-block group">
                                       <button
                                         type="button"
+                                        disabled={savingAttendance}
                                         onClick={() => {
                                           // Ciclo rápido ao clicar: P -> A -> F -> J -> N -> S -> P
                                           const cycle: Record<string, MeetingStatus> = {
@@ -1617,84 +1584,7 @@ export function MeetingsView({
       )}
 
       {/* POP-UP / MODAL: CONFIRMAÇÃO DE MUDANÇA DE PRESENÇA */}
-      {attendanceModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4 animate-in fade-in duration-150">
-          <div className="bg-card border border-border rounded-xl max-w-md w-full p-5 shadow-2xl space-y-4">
-            <div className="flex items-center justify-between border-b border-border pb-3">
-              <h3 className="text-sm font-bold text-foreground">
-                Alterar Presença
-              </h3>
-              <button
-                type="button"
-                onClick={() => setAttendanceModal(null)}
-                className="text-muted-foreground hover:text-foreground cursor-pointer"
-              >
-                <X className="h-4 w-4" />
-              </button>
-            </div>
-
-            <div className="text-sm space-y-1">
-              <p className="font-semibold text-foreground">{attendanceModal.memberName}</p>
-              <p className="text-xs text-muted-foreground">{attendanceModal.meetingTitle}</p>
-            </div>
-
-            <div className="space-y-2">
-              <label className="block text-xs font-semibold text-muted-foreground uppercase">
-                Selecione o novo status:
-              </label>
-              <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-                {Object.entries(STATUS_CONFIG).map(([key, config]) => (
-                  <button
-                    key={key}
-                    type="button"
-                    onClick={() =>
-                      setAttendanceModal((prev) =>
-                        prev ? { ...prev, newStatus: key as any } : null
-                      )
-                    }
-                    className={cn(
-                      'flex flex-col gap-1 p-2.5 rounded-lg border text-xs font-medium transition cursor-pointer text-left',
-                      attendanceModal.newStatus === key
-                        ? 'ring-2 ring-primary border-primary bg-primary/10 text-foreground'
-                        : 'border-border text-muted-foreground hover:bg-muted'
-                    )}
-                  >
-                    <div className="flex items-center gap-1.5">
-                      <span
-                        className={cn(
-                          'h-5 w-5 rounded flex items-center justify-center font-mono font-bold text-[10px] border',
-                          config.badge
-                        )}
-                      >
-                        {config.code}
-                      </span>
-                      <span className="font-semibold truncate">{config.label}</span>
-                    </div>
-                    <span className="text-[10px] opacity-75">{config.desc}</span>
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            <div className="flex items-center justify-end gap-2 pt-2">
-              <button
-                type="button"
-                onClick={() => setAttendanceModal(null)}
-                className="px-3 py-1.5 rounded-lg border border-border text-xs font-medium text-foreground hover:bg-muted cursor-pointer"
-              >
-                Cancelar
-              </button>
-              <button
-                type="button"
-                onClick={confirmAttendanceChange}
-                className="px-3.5 py-1.5 rounded-lg bg-primary text-primary-foreground text-xs font-medium hover:bg-primary/90 cursor-pointer"
-              >
-                Confirmar
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      {minutesMeeting && <MeetingMinutesDialog meeting={minutesMeeting} canEdit={canEdit} onClose={() => setMinutesMeeting(null)} onSaved={() => { void refreshData(); router.refresh(); }} />}
     </div>
   );
 }

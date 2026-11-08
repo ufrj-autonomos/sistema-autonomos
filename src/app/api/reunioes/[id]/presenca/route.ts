@@ -28,6 +28,10 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
       return NextResponse.json({ error: 'Status de presença inválido.' }, { status: 400 });
     }
 
+    if (typeof memberId !== 'string' || (notes !== undefined && (typeof notes !== 'string' || notes.length > 1000))) return NextResponse.json({ error: 'Dados de presença inválidos.' }, { status: 400 });
+    const member = await prisma.member.findFirst({ where: { id: memberId, teamId: meeting.teamId, active: true, status: 'APPROVED' }, select: { id: true } });
+    if (!member) return NextResponse.json({ error: 'Selecione um integrante ativo desta equipe.' }, { status: 400 });
+
     const attendance = await prisma.meetingAttendance.upsert({
       where: {
         meetingId_memberId: {

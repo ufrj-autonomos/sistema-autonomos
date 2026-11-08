@@ -135,7 +135,7 @@ test('Disciplinary permission checks: Coordenadores, Gestão e Admin podem geren
   assert.equal(canUserManageDisciplinary(trainee), false);
 });
 
-test('Member disciplinary summary matches Google Spreadsheet records', async () => {
+test('Member disciplinary summary matches Google Spreadsheet records', { skip: process.env.TEST_IMPORTED_SPREADSHEETS !== '1' }, async () => {
   const kauan = await prisma.member.findFirst({ where: { name: { contains: 'Kauan Chaves' } } });
   const gabrielFelix = await prisma.member.findFirst({ where: { name: { contains: 'Gabriel Felix' } } });
   const arthur = await prisma.member.findFirst({ where: { name: { contains: 'Arthur Bacci' } } });

@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getCurrentUser } from '@/lib/session';
 import { prisma } from '@/lib/prisma';
-import { canUserManageMeetings, getMeetingsDashboardData } from '@/lib/meetings/service';
+import { canUserManageMeetings, getMeetingsDashboardData, KNOWN_AREAS } from '@/lib/meetings/service';
 
 export async function GET(req: NextRequest) {
   try {
@@ -14,7 +14,7 @@ export async function GET(req: NextRequest) {
     const period = searchParams.get('period') || '26.2';
 
     const data = await getMeetingsDashboardData(user, period);
-    return NextResponse.json(data);
+    return NextResponse.json(data, { headers: { 'Cache-Control': 'private, no-store' } });
   } catch (error) {
     console.error('Erro ao buscar dados de reuniões:', error);
     return NextResponse.json({ error: 'Erro interno ao processar reuniões.' }, { status: 500 });
@@ -46,8 +46,11 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Acesso negado. Você não tem permissão para gerenciar reuniões nesta equipe.' }, { status: 403 });
     }
 
+    if (typeof title !== 'string' || !title.trim() || title.length > 200 || typeof date !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(date) || parsedDate.toISOString().slice(0, 10) !== date || typeof period !== 'string' || !/^[a-z0-9_.-]{1,24}$/i.test(period) || !KNOWN_AREAS.some(item => item.area === area && item.teamId === normalizedTeamId) || (description !== undefined && (typeof description !== 'string' || description.length > 5000))) return NextResponse.json({ error: 'Confira o título, a data, a área e a equipe da reunião.' }, { status: 400 });
+
     // 1. Criar a reunião
-    const meeting = await prisma.meeting.create({
+    const meeting = await prisma.$transaction(async tx => {
+    const created = await tx.meeting.create({
       data: {
         title,
         date: parsedDate,
@@ -60,9 +63,10 @@ export async function POST(req: NextRequest) {
     });
 
     // 2. Buscar membros da área/equipe para inicializar presenças
-    const areaMembers = await prisma.member.findMany({
+    const areaMembers = await tx.member.findMany({
       where: {
         active: true,
+        status: 'APPROVED',
         ...(normalizedTeamId !== null ? { teamId: normalizedTeamId } : { teamId: null }),
         area: { contains: area, mode: 'insensitive' },
       },
@@ -70,16 +74,18 @@ export async function POST(req: NextRequest) {
     });
 
     if (areaMembers.length > 0) {
-      await prisma.meetingAttendance.createMany({
+      await tx.meetingAttendance.createMany({
         data: areaMembers.map((m) => ({
-          meetingId: meeting.id,
+          meetingId: created.id,
           memberId: m.id,
-          status: 'PRESENT',
+          status: 'NOT_A_MEMBER',
         })),
         skipDuplicates: true,
       });
     }
 
+    return created;
+    });
     return NextResponse.json({ success: true, meeting });
   } catch (error) {
     console.error('Erro ao criar reunião:', error);
