@@ -24,3 +24,10 @@ test('summary fallback is a clearly identified excerpt and AI returns only a sho
     if (oldAlias === undefined) delete process.env.GEMINI_API; else process.env.GEMINI_API = oldAlias;
   }
 });
+
+
+test('coordinator and vice-coordinator cargos both receive the coordinator role', async () => {
+  const { roleFromCargo } = await import('../src/lib/member-fields');
+  assert.equal(roleFromCargo('Coordenador'), 'COORDINATOR');
+  assert.equal(roleFromCargo('Vice-Coordenador'), 'COORDINATOR');
+});

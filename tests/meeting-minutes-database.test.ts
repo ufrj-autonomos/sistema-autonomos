@@ -12,7 +12,7 @@ async function main() {
   const meetings = await import('../src/app/api/reunioes/route');
   const minutes = await import('../src/app/api/reunioes/[id]/ata/route');
   const attendance = await import('../src/app/api/reunioes/[id]/presenca/route');
-  const ids: string[] = []; let meetingId: string | undefined;
+  const ids: string[] = []; let meetingId: string | undefined; let otherAreaId: string | undefined;
   const marker = randomUUID();
   try {
     async function account(role: 'MEMBER' | 'COORDINATOR' | 'ADMIN', teamId: number) {
@@ -32,6 +32,14 @@ async function main() {
     assert.equal(defaultRow.status, 'NOT_A_MEMBER'); await prisma.meetingAttendance.delete({ where: { id: defaultRow.id } });
     assert.equal((await pendingMeetingMinutes(coordinator)).total, 1);
     assert.equal((await pendingMeetingMinutes(outsider)).total, 0);
+    assert.equal((await pendingMeetingMinutes(admin)).total, 0, 'Admin does not receive coordinator reminders');
+    assert.equal((await pendingMeetingMinutes(member)).total, 0);
+    const otherArea = await prisma.meeting.create({ data: { ...input, title: 'Outra área', date: new Date(input.date), area: 'Mecânica', createdById: coordinator.id } });
+    otherAreaId = otherArea.id;
+    const scoped = await pendingMeetingMinutes(coordinator);
+    assert.equal(scoped.total, 1, 'creating a meeting in another area does not expand reminders');
+    assert.ok(scoped.meetings.every(row => row.area === coordinator.area && row.teamId === coordinator.teamId));
+    assert.equal((await pendingMeetingMinutes({ ...coordinator, area: null })).total, 0, 'missing area fails closed');
     const marked = await attendance.PUT(request(`/api/reunioes/${meetingId}/presenca`, coordinator.token, { memberId: member.id, status: 'PRESENT' }, 'PUT'), params);
     assert.equal(marked.status, 200);
     assert.equal((await prisma.meeting.findUniqueOrThrow({ where: { id: meetingId } })).minutes, null, 'roll call is allowed before minutes');
@@ -55,6 +63,7 @@ async function main() {
     assert.equal((await minutes.PUT(request(`/api/reunioes/${meetingId}/ata`, coordinator.token, body, 'PUT'), params)).status, 403);
     console.log('Atas PostgreSQL: N por padrão, chamada sem ata, permissões, pendências, resumo, leitura por membro e edições concorrentes passaram.');
   } finally {
+    if (otherAreaId) await prisma.meeting.deleteMany({ where: { id: otherAreaId } });
     if (meetingId) await prisma.meeting.deleteMany({ where: { id: meetingId } });
     await prisma.member.deleteMany({ where: { id: { in: ids } } });
     await prisma.$disconnect();

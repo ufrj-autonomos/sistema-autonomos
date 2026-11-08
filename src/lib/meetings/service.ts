@@ -469,12 +469,12 @@ export async function getMeetingsDashboardData(user: SafeUser, period = '26.2') 
 
 
 export async function pendingMeetingMinutes(user: SafeUser) {
-  if (!canUserManageMeetings(user)) return { total: 0, meetings: [] };
+  if (user.role !== 'COORDINATOR' || !user.area?.trim()) return { total: 0, meetings: [] };
   const today = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Sao_Paulo', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date());
   const where = { date: { lte: new Date(`${today}T00:00:00Z`) }, AND: [
     { OR: [{ minutes: null }, { minutes: '' }] },
-    ...(user.role === 'ADMIN' ? [] : [{ teamId: user.teamId ?? null }]),
-    ...(user.role === 'COORDINATOR' && user.area ? [{ OR: [{ area: user.area }, { createdById: user.id }] }] : []),
+    { teamId: user.teamId ?? null },
+    { area: user.area },
   ] };
   const [total, meetings] = await Promise.all([
     prisma.meeting.count({ where }),
