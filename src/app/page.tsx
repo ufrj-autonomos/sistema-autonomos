@@ -331,19 +331,19 @@ export default async function HomePage() {
 
       {/* GRÁFICOS DE INSIGHTS PESSOAIS & DA DIVISÃO */}
       {homeInsights && (
-        <div className="grid items-start gap-6 lg:grid-cols-2">
+        <div className="grid items-start gap-6 lg:grid-cols-2 min-w-0 max-w-full overflow-hidden">
           {/* Gráfico 1: Meu Histórico Semanal de Horas no Laboratório */}
-          <section className="rounded-xl border border-border bg-card p-5 sm:p-6 shadow-xs">
+          <section className="rounded-xl border border-border bg-card p-4 sm:p-6 shadow-xs min-w-0 max-w-full overflow-hidden">
             <div className="flex items-center justify-between gap-3 border-b border-border/70 pb-3">
-              <div className="flex items-center gap-2.5">
-                <span className="p-2 rounded-lg bg-blue-500/10 text-blue-500">
+              <div className="flex items-center gap-2.5 min-w-0">
+                <span className="p-2 rounded-lg bg-blue-500/10 text-blue-500 shrink-0">
                   <TrendingUp className="h-4 w-4" />
                 </span>
-                <div>
-                  <h2 className="text-base font-semibold text-foreground">
+                <div className="min-w-0">
+                  <h2 className="text-sm sm:text-base font-semibold text-foreground truncate">
                     Minha Evolução Semanal no Laboratório
                   </h2>
-                  <p className="text-xs text-muted-foreground">
+                  <p className="text-xs text-muted-foreground truncate">
                     Horas validadas nas últimas 6 semanas comparadas à meta semanal (2h).
                   </p>
                 </div>
@@ -353,17 +353,17 @@ export default async function HomePage() {
           </section>
 
           {/* Gráfico 2: Comparativo de Frequência das Áreas da Minha Equipe */}
-          <section className="rounded-xl border border-border bg-card p-5 sm:p-6 shadow-xs">
+          <section className="rounded-xl border border-border bg-card p-4 sm:p-6 shadow-xs min-w-0 max-w-full overflow-hidden">
             <div className="flex items-center justify-between gap-3 border-b border-border/70 pb-3">
-              <div className="flex items-center gap-2.5">
-                <span className="p-2 rounded-lg bg-emerald-500/10 text-emerald-500">
+              <div className="flex items-center gap-2.5 min-w-0">
+                <span className="p-2 rounded-lg bg-emerald-500/10 text-emerald-500 shrink-0">
                   <CalendarCheck className="h-4 w-4" />
                 </span>
-                <div>
-                  <h2 className="text-base font-semibold text-foreground">
+                <div className="min-w-0">
+                  <h2 className="text-sm sm:text-base font-semibold text-foreground truncate">
                     Frequência nas Reuniões por Área ({homeInsights.teamPulse.teamName})
                   </h2>
-                  <p className="text-xs text-muted-foreground">
+                  <p className="text-xs text-muted-foreground truncate">
                     Desempenho coletivo das áreas da sua divisão no período 26.2.
                   </p>
                 </div>

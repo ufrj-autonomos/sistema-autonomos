@@ -13,6 +13,9 @@ dev.log
 .aws/
 .codex/
 .agents/
+.claude/
+agent/
+skills-lock.json
 *.tsbuildinfo
 next-env.d.ts
 

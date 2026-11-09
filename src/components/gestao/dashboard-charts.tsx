@@ -95,11 +95,11 @@ export function WeeklyPresenceChart({ trend }: WeeklyPresenceChartProps) {
   }));
 
   return (
-    <div className="h-72 w-full pt-3">
-      <ResponsiveContainer width="100%" height="100%">
+    <div className="h-64 sm:h-72 w-full min-w-0 max-w-full overflow-hidden pt-3">
+      <ResponsiveContainer width="100%" height="100%" minWidth={0}>
         <ComposedChart
           data={chartData}
-          margin={{ top: 10, right: 10, left: -20, bottom: 5 }}
+          margin={{ top: 10, right: 10, left: -25, bottom: 5 }}
         >
           <CartesianGrid
             strokeDasharray="3 3"
@@ -110,14 +110,14 @@ export function WeeklyPresenceChart({ trend }: WeeklyPresenceChartProps) {
           <XAxis
             dataKey="displayDate"
             stroke="#888888"
-            fontSize={11}
+            fontSize={10}
             tickLine={false}
             axisLine={false}
           />
           <YAxis
             yAxisId="left"
             stroke="#888888"
-            fontSize={11}
+            fontSize={10}
             tickLine={false}
             axisLine={false}
             allowDecimals={false}
@@ -126,7 +126,7 @@ export function WeeklyPresenceChart({ trend }: WeeklyPresenceChartProps) {
             yAxisId="right"
             orientation="right"
             stroke="#888888"
-            fontSize={11}
+            fontSize={10}
             tickLine={false}
             axisLine={false}
             domain={[0, 100]}
@@ -142,7 +142,7 @@ export function WeeklyPresenceChart({ trend }: WeeklyPresenceChartProps) {
             align="right"
             iconType="circle"
             iconSize={8}
-            wrapperStyle={{ paddingBottom: '12px', fontSize: '12px' }}
+            wrapperStyle={{ paddingBottom: '12px', fontSize: '11px' }}
           />
           <Bar
             yAxisId="left"
@@ -151,7 +151,7 @@ export function WeeklyPresenceChart({ trend }: WeeklyPresenceChartProps) {
             fill="var(--muted-foreground)"
             opacity={0.3}
             radius={[4, 4, 0, 0]}
-            barSize={20}
+            barSize={18}
           />
           <Bar
             yAxisId="left"
@@ -159,7 +159,7 @@ export function WeeklyPresenceChart({ trend }: WeeklyPresenceChartProps) {
             name="Meta Cumprida"
             fill="#387aef"
             radius={[4, 4, 0, 0]}
-            barSize={20}
+            barSize={18}
           />
           <Line
             yAxisId="right"
@@ -240,14 +240,14 @@ export function TeamDistributionChart({ teams, total }: TeamDistributionChartPro
   });
 
   return (
-    <div className="flex flex-col sm:flex-row items-center justify-between gap-6 pt-2">
-      <div className="h-48 w-48 shrink-0">
-        <ResponsiveContainer width="100%" height="100%">
+    <div className="flex flex-col sm:flex-row items-center justify-between gap-4 sm:gap-6 pt-2 w-full min-w-0 max-w-full overflow-hidden">
+      <div className="h-44 w-44 sm:h-48 sm:w-48 shrink-0 min-w-0">
+        <ResponsiveContainer width="100%" height="100%" minWidth={0}>
           <PieChart>
             <Tooltip content={<PieItemTooltip />} />
             <Pie
               data={chartData}
-              innerRadius={46}
+              innerRadius={44}
               outerRadius={68}
               paddingAngle={4}
               dataKey="value"
@@ -260,20 +260,20 @@ export function TeamDistributionChart({ teams, total }: TeamDistributionChartPro
         </ResponsiveContainer>
       </div>
 
-      <div className="flex-1 w-full space-y-2.5">
+      <div className="flex-1 w-full min-w-0 space-y-2">
         {chartData.map((t) => (
           <div
             key={t.name}
             className="flex items-center justify-between p-2 rounded-lg border border-border/60 bg-muted/20"
           >
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 min-w-0">
               <span
                 className="h-2.5 w-2.5 rounded-full shrink-0"
                 style={{ backgroundColor: t.color }}
               />
-              <span className="text-sm font-medium text-foreground">{t.name}</span>
+              <span className="text-xs sm:text-sm font-medium text-foreground truncate">{t.name}</span>
             </div>
-            <div className="flex items-center gap-2 font-mono text-sm">
+            <div className="flex items-center gap-2 font-mono text-xs sm:text-sm shrink-0">
               <span className="text-foreground font-bold">{t.value}</span>
               <span className="text-xs text-muted-foreground">({t.percentage}%)</span>
             </div>
@@ -321,12 +321,12 @@ export function AreaDistributionChart({ areas, total }: AreaDistributionChartPro
   });
 
   return (
-    <div className="h-56 w-full pt-2">
-      <ResponsiveContainer width="100%" height="100%">
+    <div className="h-56 sm:h-60 w-full min-w-0 max-w-full overflow-hidden pt-2">
+      <ResponsiveContainer width="100%" height="100%" minWidth={0}>
         <BarChart
           data={chartData}
           layout="vertical"
-          margin={{ top: 5, right: 35, left: 15, bottom: 5 }}
+          margin={{ top: 5, right: 30, left: -10, bottom: 0 }}
         >
           <CartesianGrid
             strokeDasharray="3 3"
@@ -337,7 +337,7 @@ export function AreaDistributionChart({ areas, total }: AreaDistributionChartPro
           <XAxis
             type="number"
             stroke="#888888"
-            fontSize={11}
+            fontSize={10}
             tickLine={false}
             axisLine={false}
             allowDecimals={false}
@@ -346,16 +346,16 @@ export function AreaDistributionChart({ areas, total }: AreaDistributionChartPro
             type="category"
             dataKey="name"
             stroke="#888888"
-            fontSize={11}
+            fontSize={10}
             tickLine={false}
             axisLine={false}
-            width={90}
+            width={75}
           />
           <Tooltip
             cursor={{ fill: 'var(--muted)', opacity: 0.35 }}
             content={<AreaCustomTooltip />}
           />
-          <Bar dataKey="count" name="Integrantes" radius={[0, 6, 6, 0]}>
+          <Bar dataKey="count" name="Integrantes" radius={[0, 6, 6, 0]} barSize={16}>
             {chartData.map((entry, index) => (
               <Cell key={`cell-${index}`} fill={entry.fill} />
             ))}
@@ -363,7 +363,7 @@ export function AreaDistributionChart({ areas, total }: AreaDistributionChartPro
               dataKey="count"
               position="right"
               fill="var(--foreground)"
-              fontSize={11}
+              fontSize={10}
               fontWeight="bold"
             />
           </Bar>
@@ -400,15 +400,15 @@ export function CoursesDistributionChart({ courses, total }: CoursesDistribution
   }));
 
   return (
-    <div className="flex flex-col sm:flex-row items-center justify-between gap-6 pt-2">
-      <div className="h-52 w-52 shrink-0">
-        <ResponsiveContainer width="100%" height="100%">
+    <div className="flex flex-col sm:flex-row items-center justify-between gap-4 sm:gap-6 pt-2 w-full min-w-0 max-w-full overflow-hidden">
+      <div className="h-44 w-44 sm:h-52 sm:w-52 shrink-0 min-w-0">
+        <ResponsiveContainer width="100%" height="100%" minWidth={0}>
           <PieChart>
             <Tooltip content={<PieItemTooltip />} />
             <Pie
               data={chartData}
-              innerRadius={46}
-              outerRadius={72}
+              innerRadius={42}
+              outerRadius={68}
               paddingAngle={3}
               dataKey="value"
             >
@@ -420,7 +420,7 @@ export function CoursesDistributionChart({ courses, total }: CoursesDistribution
         </ResponsiveContainer>
       </div>
 
-      <div className="flex-1 w-full space-y-2 max-h-56 overflow-y-auto pr-1">
+      <div className="flex-1 w-full min-w-0 space-y-2 max-h-56 overflow-y-auto pr-1">
         {chartData.map((c) => (
           <div
             key={c.name}
@@ -467,9 +467,9 @@ function StandardChartTooltip({
   const heading = label || payload[0]?.name || payload[0]?.payload?.name || payload[0]?.payload?.label;
 
   return (
-    <div className="rounded-xl border border-border bg-card p-3 shadow-xl text-xs space-y-1.5 min-w-40 text-foreground">
+    <div className="rounded-xl border border-border bg-card p-3 shadow-xl text-xs space-y-1.5 min-w-36 max-w-[280px] text-foreground">
       {heading && (
-        <p className="font-semibold text-foreground border-b border-border/70 pb-1">
+        <p className="font-semibold text-foreground border-b border-border/70 pb-1 truncate">
           {heading}
         </p>
       )}
@@ -482,16 +482,16 @@ function StandardChartTooltip({
           return (
             <div
               key={idx}
-              className="flex items-center justify-between gap-3 text-muted-foreground"
+              className="flex items-center justify-between gap-2.5 text-muted-foreground"
             >
               <span className="flex items-center gap-1.5 truncate">
                 <span
                   className="h-2.5 w-2.5 rounded-full shrink-0"
                   style={{ backgroundColor: dotColor }}
                 />
-                <span className="text-foreground/90 font-medium">{entry.name}:</span>
+                <span className="text-foreground/90 font-medium truncate">{entry.name}:</span>
               </span>
-              <strong className="text-foreground font-mono font-bold">
+              <strong className="text-foreground font-mono font-bold shrink-0">
                 {entry.value}
                 {suffix}
               </strong>
@@ -513,11 +513,11 @@ interface AreaByTeamItem {
 
 export function AreaByTeamStackedChart({ data }: { data: AreaByTeamItem[] }) {
   return (
-    <div className="h-64 w-full pt-3">
-      <ResponsiveContainer width="100%" height="100%">
+    <div className="h-60 sm:h-64 w-full min-w-0 max-w-full overflow-hidden pt-2">
+      <ResponsiveContainer width="100%" height="100%" minWidth={0}>
         <BarChart
           data={data}
-          margin={{ top: 10, right: 15, left: -20, bottom: 5 }}
+          margin={{ top: 10, right: 10, left: -25, bottom: 0 }}
         >
           <CartesianGrid
             strokeDasharray="3 3"
@@ -528,13 +528,13 @@ export function AreaByTeamStackedChart({ data }: { data: AreaByTeamItem[] }) {
           <XAxis
             dataKey="area"
             stroke="#888888"
-            fontSize={11}
+            fontSize={10}
             tickLine={false}
             axisLine={false}
           />
           <YAxis
             stroke="#888888"
-            fontSize={11}
+            fontSize={10}
             tickLine={false}
             axisLine={false}
             allowDecimals={false}
@@ -548,11 +548,11 @@ export function AreaByTeamStackedChart({ data }: { data: AreaByTeamItem[] }) {
             align="right"
             iconType="circle"
             iconSize={8}
-            wrapperStyle={{ paddingBottom: '10px', fontSize: '12px' }}
+            wrapperStyle={{ paddingBottom: '8px', fontSize: '11px' }}
           />
-          <Bar dataKey="Harpia" name="☁️ Harpia" stackId="a" fill="#A346CC" radius={[0, 0, 0, 0]} barSize={28} />
-          <Bar dataKey="Nautilus" name="🌊 Nautilus" stackId="a" fill="#387aef" radius={[0, 0, 0, 0]} barSize={28} />
-          <Bar dataKey="Autonomos" name="🤖 Geral" stackId="a" fill="#10b981" radius={[6, 6, 0, 0]} barSize={28} />
+          <Bar dataKey="Harpia" name="☁️ Harpia" stackId="a" fill="#A346CC" radius={[0, 0, 0, 0]} barSize={22} />
+          <Bar dataKey="Nautilus" name="🌊 Nautilus" stackId="a" fill="#387aef" radius={[0, 0, 0, 0]} barSize={22} />
+          <Bar dataKey="Autonomos" name="🤖 Geral" stackId="a" fill="#10b981" radius={[4, 4, 0, 0]} barSize={22} />
         </BarChart>
       </ResponsiveContainer>
     </div>
@@ -568,12 +568,12 @@ interface RolesByTeamItem {
 
 export function RolesHierarchyChart({ data }: { data: RolesByTeamItem[] }) {
   return (
-    <div className="h-64 w-full pt-3">
-      <ResponsiveContainer width="100%" height="100%">
+    <div className="h-60 sm:h-64 w-full min-w-0 max-w-full overflow-hidden pt-2">
+      <ResponsiveContainer width="100%" height="100%" minWidth={0}>
         <BarChart
           data={data}
           layout="vertical"
-          margin={{ top: 5, right: 20, left: 10, bottom: 5 }}
+          margin={{ top: 5, right: 15, left: -15, bottom: 0 }}
         >
           <CartesianGrid
             strokeDasharray="3 3"
@@ -584,7 +584,7 @@ export function RolesHierarchyChart({ data }: { data: RolesByTeamItem[] }) {
           <XAxis
             type="number"
             stroke="#888888"
-            fontSize={11}
+            fontSize={10}
             tickLine={false}
             axisLine={false}
             allowDecimals={false}
@@ -593,10 +593,10 @@ export function RolesHierarchyChart({ data }: { data: RolesByTeamItem[] }) {
             type="category"
             dataKey="team"
             stroke="#888888"
-            fontSize={11}
+            fontSize={10}
             tickLine={false}
             axisLine={false}
-            width={80}
+            width={65}
           />
           <Tooltip
             cursor={{ fill: 'var(--muted)', opacity: 0.35 }}
@@ -607,11 +607,11 @@ export function RolesHierarchyChart({ data }: { data: RolesByTeamItem[] }) {
             align="right"
             iconType="circle"
             iconSize={8}
-            wrapperStyle={{ paddingBottom: '10px', fontSize: '12px' }}
+            wrapperStyle={{ paddingBottom: '8px', fontSize: '11px' }}
           />
-          <Bar dataKey="Lideranca" name="Liderança / Coord." stackId="role" fill="#f59e0b" barSize={22} />
-          <Bar dataKey="Membros" name="Membros Efetivos" stackId="role" fill="#387aef" barSize={22} />
-          <Bar dataKey="Trainees" name="Trainees" stackId="role" fill="#8b5cf6" radius={[0, 6, 6, 0]} barSize={22} />
+          <Bar dataKey="Lideranca" name="Liderança" stackId="role" fill="#f59e0b" barSize={18} />
+          <Bar dataKey="Membros" name="Membros" stackId="role" fill="#387aef" barSize={18} />
+          <Bar dataKey="Trainees" name="Trainees" stackId="role" fill="#8b5cf6" radius={[0, 4, 4, 0]} barSize={18} />
         </BarChart>
       </ResponsiveContainer>
     </div>
@@ -641,12 +641,12 @@ export function MeetingsPerformanceByAreaChart({ data }: { data: AreaMeetingPerf
   }));
 
   return (
-    <div className="h-64 w-full pt-2">
-      <ResponsiveContainer width="100%" height="100%">
+    <div className="h-60 sm:h-64 w-full min-w-0 max-w-full overflow-hidden pt-2">
+      <ResponsiveContainer width="100%" height="100%" minWidth={0}>
         <BarChart
           data={chartData}
           layout="vertical"
-          margin={{ top: 5, right: 42, left: 10, bottom: 5 }}
+          margin={{ top: 5, right: 35, left: -10, bottom: 0 }}
         >
           <CartesianGrid
             strokeDasharray="3 3"
@@ -659,7 +659,7 @@ export function MeetingsPerformanceByAreaChart({ data }: { data: AreaMeetingPerf
             domain={[0, 100]}
             unit="%"
             stroke="#888888"
-            fontSize={11}
+            fontSize={10}
             tickLine={false}
             axisLine={false}
           />
@@ -667,16 +667,16 @@ export function MeetingsPerformanceByAreaChart({ data }: { data: AreaMeetingPerf
             type="category"
             dataKey="label"
             stroke="#888888"
-            fontSize={11}
+            fontSize={10}
             tickLine={false}
             axisLine={false}
-            width={125}
+            width={85}
           />
           <Tooltip
             cursor={{ fill: 'var(--muted)', opacity: 0.35 }}
             content={<StandardChartTooltip suffix="%" />}
           />
-          <Bar dataKey="pct" name="Frequência" fill="#387aef" radius={[0, 6, 6, 0]} barSize={18}>
+          <Bar dataKey="pct" name="Frequência" fill="#387aef" radius={[0, 4, 4, 0]} barSize={16}>
             {chartData.map((entry, idx) => (
               <Cell key={idx} fill={entry.fill} />
             ))}
@@ -685,7 +685,7 @@ export function MeetingsPerformanceByAreaChart({ data }: { data: AreaMeetingPerf
               position="right"
               formatter={(v: any) => `${v}%`}
               fill="var(--foreground)"
-              fontSize={11}
+              fontSize={10}
               fontWeight="bold"
             />
           </Bar>
@@ -715,15 +715,15 @@ export function DisciplinaryHealthChart({
   ].filter((i) => i.value > 0 || i.name.includes('Regular'));
 
   return (
-    <div className="flex flex-col sm:flex-row items-center justify-between gap-6 pt-2">
-      <div className="h-44 w-44 shrink-0">
-        <ResponsiveContainer width="100%" height="100%">
+    <div className="flex flex-col sm:flex-row items-center justify-between gap-4 sm:gap-6 pt-2 w-full min-w-0 max-w-full overflow-hidden">
+      <div className="h-40 w-40 sm:h-44 sm:w-44 shrink-0 min-w-0">
+        <ResponsiveContainer width="100%" height="100%" minWidth={0}>
           <PieChart>
             <Tooltip content={<StandardChartTooltip />} />
             <Pie
               data={items}
-              innerRadius={42}
-              outerRadius={64}
+              innerRadius={38}
+              outerRadius={60}
               paddingAngle={3}
               dataKey="value"
             >
@@ -735,7 +735,7 @@ export function DisciplinaryHealthChart({
         </ResponsiveContainer>
       </div>
 
-      <div className="flex-1 w-full space-y-2">
+      <div className="flex-1 w-full min-w-0 space-y-2">
         {[
           { label: '🟢 Regulares', count: regulares, color: '#10b981' },
           { label: '🟡 Em Atenção', count: atencao, color: '#f59e0b' },
@@ -748,8 +748,8 @@ export function DisciplinaryHealthChart({
               key={row.label}
               className="flex items-center justify-between p-2 rounded-lg border border-border/60 bg-muted/20 text-xs"
             >
-              <span className="font-medium text-foreground">{row.label}</span>
-              <span className="font-mono font-bold text-foreground">
+              <span className="font-medium text-foreground truncate">{row.label}</span>
+              <span className="font-mono font-bold text-foreground shrink-0">
                 {row.count} <span className="text-muted-foreground font-normal">({pct}%)</span>
               </span>
             </div>
@@ -770,11 +770,11 @@ interface HeadToHeadAreaItem {
 
 export function DivisionsHeadToHeadChart({ data }: { data: HeadToHeadAreaItem[] }) {
   return (
-    <div className="h-64 w-full pt-3">
-      <ResponsiveContainer width="100%" height="100%">
+    <div className="h-60 sm:h-64 w-full min-w-0 max-w-full overflow-hidden pt-2">
+      <ResponsiveContainer width="100%" height="100%" minWidth={0}>
         <BarChart
           data={data}
-          margin={{ top: 10, right: 15, left: -15, bottom: 5 }}
+          margin={{ top: 10, right: 10, left: -25, bottom: 0 }}
         >
           <CartesianGrid
             strokeDasharray="3 3"
@@ -785,13 +785,13 @@ export function DivisionsHeadToHeadChart({ data }: { data: HeadToHeadAreaItem[] 
           <XAxis
             dataKey="area"
             stroke="#888888"
-            fontSize={11}
+            fontSize={10}
             tickLine={false}
             axisLine={false}
           />
           <YAxis
             stroke="#888888"
-            fontSize={11}
+            fontSize={10}
             tickLine={false}
             axisLine={false}
             allowDecimals={false}
@@ -805,13 +805,13 @@ export function DivisionsHeadToHeadChart({ data }: { data: HeadToHeadAreaItem[] 
             align="right"
             iconType="circle"
             iconSize={8}
-            wrapperStyle={{ paddingBottom: '10px', fontSize: '12px' }}
+            wrapperStyle={{ paddingBottom: '8px', fontSize: '11px' }}
           />
-          <Bar dataKey="Harpia" name="☁️ Harpia (UAV)" fill="#A346CC" radius={[5, 5, 0, 0]} barSize={22}>
-            <LabelList dataKey="Harpia" position="top" fill="var(--foreground)" fontSize={10} fontWeight="bold" />
+          <Bar dataKey="Harpia" name="☁️ Harpia" fill="#A346CC" radius={[4, 4, 0, 0]} barSize={18}>
+            <LabelList dataKey="Harpia" position="top" fill="var(--foreground)" fontSize={9} fontWeight="bold" />
           </Bar>
-          <Bar dataKey="Nautilus" name="🌊 Nautilus (AUV)" fill="#387aef" radius={[5, 5, 0, 0]} barSize={22}>
-            <LabelList dataKey="Nautilus" position="top" fill="var(--foreground)" fontSize={10} fontWeight="bold" />
+          <Bar dataKey="Nautilus" name="🌊 Nautilus" fill="#387aef" radius={[4, 4, 0, 0]} barSize={18}>
+            <LabelList dataKey="Nautilus" position="top" fill="var(--foreground)" fontSize={9} fontWeight="bold" />
           </Bar>
         </BarChart>
       </ResponsiveContainer>
@@ -822,11 +822,11 @@ export function DivisionsHeadToHeadChart({ data }: { data: HeadToHeadAreaItem[] 
 export function DivisionsMeetingRateComparisonChart({ data }: { data: HeadToHeadAreaItem[] }) {
   const filtered = data.filter((d) => d.harpiaRate > 0 || d.nautilusRate > 0);
   return (
-    <div className="h-64 w-full pt-3">
-      <ResponsiveContainer width="100%" height="100%">
+    <div className="h-60 sm:h-64 w-full min-w-0 max-w-full overflow-hidden pt-2">
+      <ResponsiveContainer width="100%" height="100%" minWidth={0}>
         <BarChart
           data={filtered}
-          margin={{ top: 10, right: 15, left: -15, bottom: 5 }}
+          margin={{ top: 10, right: 10, left: -25, bottom: 0 }}
         >
           <CartesianGrid
             strokeDasharray="3 3"
@@ -837,7 +837,7 @@ export function DivisionsMeetingRateComparisonChart({ data }: { data: HeadToHead
           <XAxis
             dataKey="area"
             stroke="#888888"
-            fontSize={11}
+            fontSize={10}
             tickLine={false}
             axisLine={false}
           />
@@ -845,7 +845,7 @@ export function DivisionsMeetingRateComparisonChart({ data }: { data: HeadToHead
             domain={[0, 100]}
             unit="%"
             stroke="#888888"
-            fontSize={11}
+            fontSize={10}
             tickLine={false}
             axisLine={false}
           />
@@ -858,10 +858,10 @@ export function DivisionsMeetingRateComparisonChart({ data }: { data: HeadToHead
             align="right"
             iconType="circle"
             iconSize={8}
-            wrapperStyle={{ paddingBottom: '10px', fontSize: '12px' }}
+            wrapperStyle={{ paddingBottom: '8px', fontSize: '11px' }}
           />
-          <Bar dataKey="harpiaRate" name="☁️ Harpia" fill="#A346CC" radius={[5, 5, 0, 0]} barSize={22} />
-          <Bar dataKey="nautilusRate" name="🌊 Nautilus" fill="#387aef" radius={[5, 5, 0, 0]} barSize={22} />
+          <Bar dataKey="harpiaRate" name="☁️ Harpia" fill="#A346CC" radius={[4, 4, 0, 0]} barSize={18} />
+          <Bar dataKey="nautilusRate" name="🌊 Nautilus" fill="#387aef" radius={[4, 4, 0, 0]} barSize={18} />
         </BarChart>
       </ResponsiveContainer>
     </div>
@@ -880,11 +880,11 @@ export function MemberWeeklyLabChart({
   }));
 
   return (
-    <div className="h-56 w-full pt-2">
-      <ResponsiveContainer width="100%" height="100%">
+    <div className="h-56 sm:h-60 w-full min-w-0 max-w-full overflow-hidden pt-2">
+      <ResponsiveContainer width="100%" height="100%" minWidth={0}>
         <ComposedChart
           data={chartData}
-          margin={{ top: 10, right: 15, left: -20, bottom: 5 }}
+          margin={{ top: 10, right: 10, left: -25, bottom: 0 }}
         >
           <CartesianGrid
             strokeDasharray="3 3"
@@ -895,14 +895,14 @@ export function MemberWeeklyLabChart({
           <XAxis
             dataKey="label"
             stroke="#888888"
-            fontSize={11}
+            fontSize={10}
             tickLine={false}
             axisLine={false}
           />
           <YAxis
             unit="h"
             stroke="#888888"
-            fontSize={11}
+            fontSize={10}
             tickLine={false}
             axisLine={false}
           />
@@ -917,7 +917,7 @@ export function MemberWeeklyLabChart({
             iconSize={8}
             wrapperStyle={{ paddingBottom: '8px', fontSize: '11px' }}
           />
-          <Bar dataKey="hours" name="Horas Validadas" fill="#387aef" radius={[5, 5, 0, 0]} barSize={24}>
+          <Bar dataKey="hours" name="Horas Validadas" fill="#387aef" radius={[4, 4, 0, 0]} barSize={20}>
             {chartData.map((entry, idx) => (
               <Cell key={idx} fill={entry.fill} />
             ))}
@@ -925,7 +925,7 @@ export function MemberWeeklyLabChart({
           <Line
             type="monotone"
             dataKey="targetHours"
-            name="Meta Semanal (2h)"
+            name="Meta (2h)"
             stroke="#f59e0b"
             strokeWidth={2}
             strokeDasharray="4 4"

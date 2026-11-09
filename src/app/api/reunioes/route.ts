@@ -11,9 +11,9 @@ export async function GET(req: NextRequest) {
     }
 
     const { searchParams } = new URL(req.url);
-    const period = searchParams.get('period') || '26.2';
+    const requestedPeriod = searchParams.get('period') || undefined;
 
-    const data = await getMeetingsDashboardData(user, period);
+    const data = await getMeetingsDashboardData(user, requestedPeriod);
     return NextResponse.json(data, { headers: { 'Cache-Control': 'private, no-store' } });
   } catch (error) {
     console.error('Erro ao buscar dados de reuniões:', error);

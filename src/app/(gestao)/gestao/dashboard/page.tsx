@@ -28,7 +28,7 @@ import {
 export const dynamic = 'force-dynamic';
 export const metadata = { title: 'Dashboard — Gestão' };
 
-const panel = 'min-w-0 rounded-xl border border-border bg-card p-5 sm:p-6 shadow-xs';
+const panel = 'min-w-0 max-w-full overflow-hidden rounded-xl border border-border bg-card p-4 sm:p-6 shadow-xs';
 const button =
   'inline-flex min-h-11 items-center justify-center gap-2 rounded-lg border border-border px-4 py-2 text-sm font-medium hover:bg-accent transition-colors';
 
@@ -165,15 +165,15 @@ export default async function DashboardPage({
           </section>
 
           {/* LINHA 1: DISTRIBUIÇÃO POR EQUIPE & DISTRIBUIÇÃO POR ÁREA TÉCNICA */}
-          <div className="grid items-start gap-6 lg:grid-cols-2">
+          <div className="grid items-start gap-6 lg:grid-cols-2 min-w-0 max-w-full overflow-hidden">
             <section className={panel}>
-              <div className="flex items-center gap-2.5">
-                <div className="p-2 rounded-lg bg-primary/10 text-primary">
+              <div className="flex items-center gap-2.5 min-w-0">
+                <div className="p-2 rounded-lg bg-primary/10 text-primary shrink-0">
                   <PieIcon className="h-4 w-4" />
                 </div>
-                <div>
-                  <h2 className="text-base font-semibold">Integrantes por equipe</h2>
-                  <p className="text-xs text-muted-foreground">
+                <div className="min-w-0">
+                  <h2 className="text-sm sm:text-base font-semibold truncate">Integrantes por equipe</h2>
+                  <p className="text-xs text-muted-foreground truncate">
                     Divisões robóticas Harpia, Nautilus e Geral ({roster.active} ativos).
                   </p>
                 </div>
@@ -182,13 +182,13 @@ export default async function DashboardPage({
             </section>
 
             <section className={panel}>
-              <div className="flex items-center gap-2.5">
-                <div className="p-2 rounded-lg bg-emerald-500/10 text-emerald-500">
+              <div className="flex items-center gap-2.5 min-w-0">
+                <div className="p-2 rounded-lg bg-emerald-500/10 text-emerald-500 shrink-0">
                   <BarChart3 className="h-4 w-4" />
                 </div>
-                <div>
-                  <h2 className="text-base font-semibold">Integrantes por área</h2>
-                  <p className="text-xs text-muted-foreground">
+                <div className="min-w-0">
+                  <h2 className="text-sm sm:text-base font-semibold truncate">Integrantes por área</h2>
+                  <p className="text-xs text-muted-foreground truncate">
                     Distribuição pelas áreas técnicas e operacionais da iniciativa.
                   </p>
                 </div>
@@ -199,20 +199,19 @@ export default async function DashboardPage({
 
           {/* LINHA 2 (NOVO): MATRIZ ÁREA x DIVISÃO & ESTRUTURA DE CARGOS POR DIVISÃO */}
           {extended && (
-            <div className="grid items-start gap-6 lg:grid-cols-2">
+            <div className="grid items-start gap-6 lg:grid-cols-2 min-w-0 max-w-full overflow-hidden">
               <section className={panel}>
-                <div className="flex items-center justify-between gap-2">
-                  <div className="flex items-center gap-2.5">
-                    <div className="p-2 rounded-lg bg-purple-500/10 text-purple-500">
+                <div className="flex items-center justify-between gap-2 min-w-0">
+                  <div className="flex items-center gap-2.5 min-w-0">
+                    <div className="p-2 rounded-lg bg-purple-500/10 text-purple-500 shrink-0">
                       <Layers className="h-4 w-4" />
                     </div>
-                    <div>
-                      <h2 className="text-base font-semibold">
+                    <div className="min-w-0">
+                      <h2 className="text-sm sm:text-base font-semibold truncate">
                         Alocação de Áreas por Divisão (Harpia vs Nautilus)
                       </h2>
-                      <p className="text-xs text-muted-foreground">
-                        Identifique gargalos de engenharia comparando o efetivo de cada área entre
-                        as divisões.
+                      <p className="text-xs text-muted-foreground truncate">
+                        Identifique gargalos de engenharia comparando o efetivo.
                       </p>
                     </div>
                   </div>
@@ -221,18 +220,17 @@ export default async function DashboardPage({
               </section>
 
               <section className={panel}>
-                <div className="flex items-center justify-between gap-2">
-                  <div className="flex items-center gap-2.5">
-                    <div className="p-2 rounded-lg bg-amber-500/10 text-amber-500">
+                <div className="flex items-center justify-between gap-2 min-w-0">
+                  <div className="flex items-center gap-2.5 min-w-0">
+                    <div className="p-2 rounded-lg bg-amber-500/10 text-amber-500 shrink-0">
                       <Award className="h-4 w-4" />
                     </div>
-                    <div>
-                      <h2 className="text-base font-semibold">
+                    <div className="min-w-0">
+                      <h2 className="text-sm sm:text-base font-semibold truncate">
                         Pirâmide de Senioridade & Cargos por Divisão
                       </h2>
-                      <p className="text-xs text-muted-foreground">
-                        Equilíbrio entre Liderança (Capitães/Coordenadores), Membros Efetivos e
-                        Trainees.
+                      <p className="text-xs text-muted-foreground truncate">
+                        Liderança (Coordenação), Membros e Trainees.
                       </p>
                     </div>
                   </div>
@@ -244,19 +242,19 @@ export default async function DashboardPage({
 
           {/* LINHA 3 (NOVO): FREQUÊNCIA EM REUNIÕES POR ÁREA & PANORAMA DISCIPLINAR */}
           {extended && (
-            <div className="grid items-start gap-6 lg:grid-cols-2">
+            <div className="grid items-start gap-6 lg:grid-cols-2 min-w-0 max-w-full overflow-hidden">
               <section className={panel}>
-                <div className="flex items-center justify-between gap-2">
-                  <div className="flex items-center gap-2.5">
-                    <div className="p-2 rounded-lg bg-blue-500/10 text-blue-500">
+                <div className="flex items-center justify-between gap-2 min-w-0">
+                  <div className="flex items-center gap-2.5 min-w-0">
+                    <div className="p-2 rounded-lg bg-blue-500/10 text-blue-500 shrink-0">
                       <CalendarCheck className="h-4 w-4" />
                     </div>
-                    <div>
-                      <h2 className="text-base font-semibold">
+                    <div className="min-w-0">
+                      <h2 className="text-sm sm:text-base font-semibold truncate">
                         Taxa de Presença em Reuniões por Área (26.2)
                       </h2>
-                      <p className="text-xs text-muted-foreground">
-                        Comparativo de engajamento nas reuniões semanais de cada área.
+                      <p className="text-xs text-muted-foreground truncate">
+                        Comparativo de engajamento nas reuniões semanais.
                       </p>
                     </div>
                   </div>
@@ -277,17 +275,17 @@ export default async function DashboardPage({
               </section>
 
               <section className={panel}>
-                <div className="flex items-center justify-between gap-2">
-                  <div className="flex items-center gap-2.5">
-                    <div className="p-2 rounded-lg bg-red-500/10 text-red-500">
+                <div className="flex items-center justify-between gap-2 min-w-0">
+                  <div className="flex items-center gap-2.5 min-w-0">
+                    <div className="p-2 rounded-lg bg-red-500/10 text-red-500 shrink-0">
                       <ShieldAlert className="h-4 w-4" />
                     </div>
-                    <div>
-                      <h2 className="text-base font-semibold">
-                        Distribuição Disciplinar & Ocorrências por Área
+                    <div className="min-w-0">
+                      <h2 className="text-sm sm:text-base font-semibold truncate">
+                        Distribuição Disciplinar & Ocorrências
                       </h2>
-                      <p className="text-xs text-muted-foreground">
-                        Monitoramento de avisos e advertências consolidadas na equipe.
+                      <p className="text-xs text-muted-foreground truncate">
+                        Monitoramento de avisos e advertências consolidadas.
                       </p>
                     </div>
                   </div>
@@ -331,7 +329,7 @@ export default async function DashboardPage({
           )}
 
           {/* LINHA 4: QUALIDADE DO CADASTRO & CURSOS DE GRADUAÇÃO */}
-          <div className="grid items-start gap-6 lg:grid-cols-2">
+          <div className="grid items-start gap-6 lg:grid-cols-2 min-w-0 max-w-full overflow-hidden">
             <section className={panel}>
               <div className="flex items-center gap-2.5">
                 <div className="p-2 rounded-lg bg-emerald-500/10 text-emerald-500">

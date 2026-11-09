@@ -155,36 +155,36 @@ export function DivisionsSection({
 
           {/* GRÁFICOS COMPARATIVOS HEAD-TO-HEAD ENTRE AS DIVISÕES */}
           {deepAnalytics.headToHeadAreas.length > 0 && (
-            <div className="grid items-start gap-6 lg:grid-cols-2">
-              <div className="rounded-xl border border-border bg-card p-5 sm:p-6 shadow-xs">
-                <div className="flex items-center gap-2.5 border-b border-border/70 pb-3">
-                  <span className="p-2 rounded-lg bg-purple-500/10 text-purple-500">
+            <div className="grid items-start gap-6 lg:grid-cols-2 min-w-0 max-w-full overflow-hidden">
+              <div className="rounded-xl border border-border bg-card p-4 sm:p-6 shadow-xs min-w-0 max-w-full overflow-hidden">
+                <div className="flex items-center gap-2.5 border-b border-border/70 pb-3 min-w-0">
+                  <span className="p-2 rounded-lg bg-purple-500/10 text-purple-500 shrink-0">
                     <BarChart3 className="h-4 w-4" />
                   </span>
-                  <div>
-                    <h3 className="text-base font-semibold text-foreground">
-                      Comparativo de Efetivo por Área Técnica (Harpia vs Nautilus)
+                  <div className="min-w-0">
+                    <h3 className="text-sm sm:text-base font-semibold text-foreground truncate">
+                      Comparativo de Efetivo por Área Técnica
                     </h3>
-                    <p className="text-xs text-muted-foreground">
-                      Quantidade de integrantes ativos alocados em cada área de engenharia.
+                    <p className="text-xs text-muted-foreground truncate">
+                      Integrantes ativos alocados em cada área (Harpia vs Nautilus).
                     </p>
                   </div>
                 </div>
                 <DivisionsHeadToHeadChart data={deepAnalytics.headToHeadAreas} />
               </div>
 
-              <div className="rounded-xl border border-border bg-card p-5 sm:p-6 shadow-xs">
-                <div className="flex items-center justify-between gap-2 border-b border-border/70 pb-3">
-                  <div className="flex items-center gap-2.5">
-                    <span className="p-2 rounded-lg bg-sky-500/10 text-sky-500">
+              <div className="rounded-xl border border-border bg-card p-4 sm:p-6 shadow-xs min-w-0 max-w-full overflow-hidden">
+                <div className="flex items-center justify-between gap-2 border-b border-border/70 pb-3 min-w-0">
+                  <div className="flex items-center gap-2.5 min-w-0">
+                    <span className="p-2 rounded-lg bg-sky-500/10 text-sky-500 shrink-0">
                       <CalendarCheck className="h-4 w-4" />
                     </span>
-                    <div>
-                      <h3 className="text-base font-semibold text-foreground">
-                        Frequência em Reuniões por Área (Harpia vs Nautilus %)
+                    <div className="min-w-0">
+                      <h3 className="text-sm sm:text-base font-semibold text-foreground truncate">
+                        Frequência em Reuniões por Área (%)
                       </h3>
-                      <p className="text-xs text-muted-foreground">
-                        Comparativo de assiduidade entre as subáreas técnicas no período 26.2.
+                      <p className="text-xs text-muted-foreground truncate">
+                        Assiduidade entre as subáreas no período 26.2.
                       </p>
                     </div>
                   </div>

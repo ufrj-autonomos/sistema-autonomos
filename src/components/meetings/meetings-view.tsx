@@ -28,6 +28,8 @@ import {
   Sparkles,
   Smartphone,
   Table,
+  RotateCcw,
+  Archive,
 } from 'lucide-react';
 import {
   ResponsiveContainer,
@@ -42,6 +44,8 @@ import {
 import { cn } from '@/lib/utils';
 import { useRouter } from 'next/navigation';
 import type { SafeUser } from '@/contexts/auth-context';
+import { ExportGoogleSheetsButton } from '@/components/export/export-google-sheets-button';
+import type { MeetingPeriodSummary } from '@/lib/meetings/service';
 
 export type MeetingStatus = 'PRESENT' | 'ABSENT' | 'JUSTIFIED' | 'LATE' | 'NO_MEETING' | 'NOT_A_MEMBER';
 
@@ -113,6 +117,9 @@ export interface MeetingsData {
   period: string;
   isAdmin: boolean;
   canEdit?: boolean;
+  periods?: MeetingPeriodSummary[];
+  periodMeta?: MeetingPeriodSummary | null;
+  isArchived?: boolean;
   visibleAreas: {
     area: string;
     teamId: number | null;
@@ -253,7 +260,8 @@ export function MeetingsView({
 }) {
   const router = useRouter();
   const [data, setData] = useState<MeetingsData>(initialData);
-  const canEdit = Boolean(data.canEdit ?? data.isAdmin);
+  const canEdit = Boolean((data.canEdit ?? data.isAdmin) && !data.isArchived);
+  const canManageCycles = user.role === 'ADMIN' || user.role === 'COORDINATOR' || user.role === 'MANAGEMENT';
   const [activeTab, setActiveTab] = useState<string>(initialArea || 'painel');
   const [isPending, startTransition] = useTransition();
 
@@ -269,6 +277,13 @@ export function MeetingsView({
   const [newMeetingDescription, setNewMeetingDescription] = useState('');
   const [savingMeeting, setSavingMeeting] = useState(false);
 
+  // Modal de Novo Ciclo / Reiniciar Tabela
+  const [isNewCycleModalOpen, setIsNewCycleModalOpen] = useState(false);
+  const [newCycleCode, setNewCycleCode] = useState('');
+  const [newCycleName, setNewCycleName] = useState('');
+  const [newCycleDescription, setNewCycleDescription] = useState('');
+  const [savingCycle, setSavingCycle] = useState(false);
+
   const [minutesMeeting, setMinutesMeeting] = useState<MeetingMinuteCard | null>(() => openMinutes ? initialData.detailedAreas.flatMap(area => area.meetings).find(meeting => meeting.id === initialMeetingId) || null : null);
   const [tableAttendance, setTableAttendance] = useState<{ meetingId: string; meetingTitle: string; memberId: string; memberName: string; currentStatus: MeetingStatus; selectedStatus: MeetingStatus } | null>(null);
   const attendanceSaving = useRef(false);
@@ -277,7 +292,7 @@ export function MeetingsView({
 
   const refreshData = async () => {
     try {
-      const res = await fetch(`/api/reunioes?period=${data.period}`);
+      const res = await fetch(`/api/reunioes?period=${encodeURIComponent(data.period)}`);
       if (!res.ok) return false;
       const json = await res.json();
       setData(json);
@@ -285,6 +300,42 @@ export function MeetingsView({
     } catch (err) {
       console.error('Erro ao recarregar:', err);
       return false;
+    }
+  };
+
+  const handleCreateCycle = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newCycleCode.trim() || !newCycleName.trim()) return;
+
+    setSavingCycle(true);
+    try {
+      const res = await fetch('/api/reunioes/periodos', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          code: newCycleCode.trim(),
+          name: newCycleName.trim(),
+          description: newCycleDescription.trim() || undefined,
+        }),
+      });
+
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.error || 'Falha ao iniciar novo período.');
+      }
+
+      toast.success(`Novo ciclo ${newCycleCode} iniciado com sucesso! O período anterior foi arquivado com segurança.`);
+      setIsNewCycleModalOpen(false);
+      setNewCycleCode('');
+      setNewCycleName('');
+      setNewCycleDescription('');
+      router.push(`/reunioes?period=${encodeURIComponent(newCycleCode.trim())}`);
+      router.refresh();
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Erro ao iniciar ciclo.';
+      toast.error(msg);
+    } finally {
+      setSavingCycle(false);
     }
   };
 
@@ -407,19 +458,27 @@ export function MeetingsView({
   return (
     <div className="w-full max-w-[1720px] mx-auto px-2.5 sm:px-4 md:px-6 py-6 space-y-6 animate-in fade-in duration-300">
       {/* Top Header */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-border pb-6">
+      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 border-b border-border pb-6">
         <div>
           <div className="flex items-center gap-2.5">
-            <div className="h-10 w-10 rounded-xl bg-primary/10 text-primary flex items-center justify-center border border-primary/20">
+            <div className="h-10 w-10 rounded-xl bg-primary/10 text-primary flex items-center justify-center border border-primary/20 shrink-0">
               <CalendarCheck className="h-5 w-5" />
             </div>
             <div>
-              <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-foreground flex items-center gap-3">
-                Contabilidade de Reuniões & Presença
-                <span className="text-xs font-mono font-medium px-2.5 py-0.5 rounded-full bg-accent border border-border text-foreground">
-                  Período {data.period}
-                </span>
-              </h1>
+              <div className="flex flex-wrap items-center gap-2">
+                <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-foreground">
+                  Contabilidade de Reuniões & Presença
+                </h1>
+                {data.isArchived ? (
+                  <span className="text-xs font-mono font-medium px-2.5 py-0.5 rounded-full bg-amber-500/15 border border-amber-500/30 text-amber-700 dark:text-amber-400 flex items-center gap-1">
+                    <Archive className="h-3 w-3" /> Arquivado ({data.period})
+                  </span>
+                ) : (
+                  <span className="text-xs font-mono font-medium px-2.5 py-0.5 rounded-full bg-emerald-500/15 border border-emerald-500/30 text-emerald-700 dark:text-emerald-400">
+                    Ciclo Ativo ({data.period})
+                  </span>
+                )}
+              </div>
               <p className="text-sm text-muted-foreground mt-0.5">
                 Consolidado operacional e gestão de frequência das áreas da UFRJ Autônomos.
               </p>
@@ -427,32 +486,84 @@ export function MeetingsView({
           </div>
         </div>
 
-        {/* Team Indicator */}
-        <div className="flex items-center gap-2">
+        {/* Actions & Period Controls */}
+        <div className="flex flex-wrap items-center gap-2">
           {!data.isAdmin && user.teamSlug === 'harpia' && (
-            <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-purple-100 text-purple-800 border border-purple-200 dark:bg-purple-950/40 dark:text-purple-200 dark:border-purple-500/30 text-xs">
-              <span className="text-base">☁️</span>
-              <span>Divisão Harpia</span>
+            <div className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-purple-100 text-purple-800 border border-purple-200 dark:bg-purple-950/40 dark:text-purple-200 dark:border-purple-500/30 text-xs">
+              <span>☁️</span>
+              <span>Harpia</span>
             </div>
           )}
           {!data.isAdmin && user.teamSlug === 'nautilus' && (
-            <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-sky-100 text-sky-800 border border-sky-200 dark:bg-sky-950/40 dark:text-sky-200 dark:border-sky-500/30 text-xs">
-              <span className="text-base">🌊</span>
-              <span>Divisão Nautilus</span>
+            <div className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-sky-100 text-sky-800 border border-sky-200 dark:bg-sky-950/40 dark:text-sky-200 dark:border-sky-500/30 text-xs">
+              <span>🌊</span>
+              <span>Nautilus</span>
             </div>
           )}
-          {user.role === 'ADMIN' && (
-            <span className="text-xs font-mono font-semibold px-2.5 py-1 rounded-md bg-amber-500/15 text-amber-600 dark:text-amber-400 border border-amber-500/30">
-              Acesso ADMIN (Edição liberada)
-            </span>
+
+          {/* Seletor de Período */}
+          <div className="relative inline-flex items-center">
+            <label htmlFor="meeting-period-selector" className="sr-only">Selecionar Período</label>
+            <div className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-border bg-card shadow-xs text-xs sm:text-sm">
+              <Archive className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+              <select
+                id="meeting-period-selector"
+                value={data.period}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  router.push(`/reunioes?period=${encodeURIComponent(val)}`);
+                }}
+                className="bg-transparent font-medium text-foreground focus:outline-none cursor-pointer pr-1"
+              >
+                {data.periods && data.periods.length > 0 ? (
+                  data.periods.map((p) => (
+                    <option key={p.code} value={p.code} className="bg-popover text-popover-foreground">
+                      {p.name} {p.isCurrent ? '• Atual' : `(Histórico • ${p.coveredDatesLabel})`}
+                    </option>
+                  ))
+                ) : (
+                  <option value={data.period}>Período {data.period}</option>
+                )}
+              </select>
+            </div>
+          </div>
+
+          {/* Botão Novo Ciclo (Coordenadores, Gestão, Admin) */}
+          {canManageCycles && (
+            <button
+              type="button"
+              onClick={() => setIsNewCycleModalOpen(true)}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-border bg-card text-foreground text-xs sm:text-sm font-medium hover:bg-muted transition shadow-xs cursor-pointer"
+              title="Iniciar novo semestre ou ano e arquivar o período atual"
+            >
+              <RotateCcw className="h-3.5 w-3.5 text-primary" />
+              <span>Novo Ciclo</span>
+            </button>
           )}
-          {user.role === 'COORDINATOR' && (
-            <span className="text-xs font-mono font-semibold px-2.5 py-1 rounded-md bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30">
-              Acesso Coordenação (Edição da equipe)
-            </span>
-          )}
+
+          {/* Botão Exportar para Google Sheets */}
+          <ExportGoogleSheetsButton
+            type="meetings"
+            period={data.period}
+            userRole={user.role}
+          />
         </div>
       </div>
+
+      {/* Banner de Período Arquivado */}
+      {data.isArchived && (
+        <div className="flex items-start gap-3 p-4 rounded-xl border border-amber-500/30 bg-amber-500/10 text-amber-800 dark:text-amber-200 text-sm animate-in fade-in duration-200">
+          <AlertCircle className="h-5 w-5 shrink-0 text-amber-600 dark:text-amber-400 mt-0.5" />
+          <div className="space-y-1">
+            <div className="font-semibold text-amber-900 dark:text-amber-100 flex items-center gap-2">
+              Histórico Arquivado: Período {data.period} ({data.periodMeta?.name || data.period})
+            </div>
+            <p className="text-xs sm:text-sm text-amber-800/90 dark:text-amber-200/90">
+              Você está consultando os registros protegidos deste ciclo ({data.periodMeta?.coveredDatesLabel || 'Período encerrado'} • {data.periodMeta?.meetingsCount ?? data.overview.totalMeetings} reuniões). As reuniões passadas estão protegidas para auditoria e histórico permanente.
+            </p>
+          </div>
+        </div>
+      )}
 
       {/* Navegação de Abas */}
       <div className="flex items-center gap-1.5 overflow-x-auto pb-2 border-b border-border/60 scrollbar-none">
@@ -589,29 +700,29 @@ export function MeetingsView({
                 </div>
               </div>
 
-              <div className="h-56 w-full pt-2">
-                <ResponsiveContainer width="100%" height="100%">
+              <div className="h-56 w-full min-w-0 max-w-full overflow-hidden pt-2">
+                <ResponsiveContainer width="100%" height="100%" minWidth={0}>
                   <BarChart
                     data={data.overview.areaSummaries.map((s) => ({
                       name: s.label,
                       meetingsCount: s.meetingsCount,
                       icon: s.icon,
                     }))}
-                    margin={{ top: 10, right: 10, left: -20, bottom: 20 }}
+                    margin={{ top: 10, right: 10, left: -25, bottom: 20 }}
                   >
                     <XAxis
                       dataKey="name"
                       stroke="#888888"
-                      fontSize={11}
+                      fontSize={10}
                       tickLine={false}
                       axisLine={false}
                       interval={0}
-                      angle={data.overview.areaSummaries.length > 4 ? -25 : 0}
-                      textAnchor={data.overview.areaSummaries.length > 4 ? 'end' : 'middle'}
+                      angle={data.overview.areaSummaries.length > 3 ? -25 : 0}
+                      textAnchor={data.overview.areaSummaries.length > 3 ? 'end' : 'middle'}
                     />
                     <YAxis
                       stroke="#888888"
-                      fontSize={11}
+                      fontSize={10}
                       tickLine={false}
                       axisLine={false}
                       allowDecimals={false}
@@ -624,7 +735,7 @@ export function MeetingsView({
                       dataKey="meetingsCount"
                       name="Qtd. Reuniões"
                       fill="#387aef"
-                      radius={[6, 6, 0, 0]}
+                      radius={[4, 4, 0, 0]}
                     >
                       {data.overview.areaSummaries.map((entry, index) => {
                         const colors = ['#387aef', '#8b5cf6', '#10b981', '#f59e0b', '#ec4899', '#06b6d4'];
@@ -640,13 +751,13 @@ export function MeetingsView({
                 {data.overview.areaSummaries.map((area) => (
                   <div
                     key={area.label}
-                    className="p-2.5 rounded-lg border border-border/60 bg-muted/30 text-center"
+                    className="p-2.5 rounded-lg border border-border/60 bg-muted/30 text-center min-w-0"
                   >
                     <div className="flex items-center justify-center gap-1 text-xs font-semibold text-foreground">
                       <span>{area.icon}</span>
                       <span className="truncate" title={area.label}>{area.label}</span>
                     </div>
-                    <div className="text-lg font-bold font-mono text-foreground mt-1">
+                    <div className="text-base sm:text-lg font-bold font-mono text-foreground mt-1">
                       {area.meetingsCount} <span className="text-xs font-normal text-muted-foreground">reuniões</span>
                     </div>
                     <div className="text-[11px] font-mono text-muted-foreground mt-0.5">
@@ -658,7 +769,7 @@ export function MeetingsView({
             </div>
 
             {/* Gráfico 2: Presenças vs Faltas por Área Técnica */}
-            <div className="rounded-xl border border-border bg-card p-5 space-y-4 shadow-xs">
+            <div className="rounded-xl border border-border bg-card p-5 space-y-4 shadow-xs min-w-0 max-w-full overflow-hidden">
               <div className="flex items-center gap-2">
                 <div className="p-2 rounded-lg bg-emerald-500/10 text-emerald-500">
                   <Layers className="h-4 w-4" />
@@ -673,8 +784,8 @@ export function MeetingsView({
                 </div>
               </div>
 
-              <div className="h-56 w-full pt-2">
-                <ResponsiveContainer width="100%" height="100%">
+              <div className="h-56 w-full min-w-0 max-w-full overflow-hidden pt-2">
+                <ResponsiveContainer width="100%" height="100%" minWidth={0}>
                   <BarChart
                     data={data.overview.areaSummaries.map((s) => ({
                       name: s.label,
@@ -682,7 +793,7 @@ export function MeetingsView({
                       Faltas: s.absences,
                       Taxa: `${s.pct}%`,
                     }))}
-                    margin={{ top: 10, right: 10, left: -20, bottom: 0 }}
+                    margin={{ top: 10, right: 10, left: -25, bottom: 0 }}
                   >
                     <XAxis
                       dataKey="name"
@@ -697,7 +808,7 @@ export function MeetingsView({
                     />
                     <YAxis
                       stroke="#888888"
-                      fontSize={11}
+                      fontSize={10}
                       tickLine={false}
                       axisLine={false}
                     />
@@ -1564,6 +1675,97 @@ export function MeetingsView({
                   className="px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 disabled:opacity-50 cursor-pointer"
                 >
                   {savingMeeting ? 'Salvando...' : 'Confirmar e Criar'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL: NOVO CICLO / REINICIAR TABELA */}
+      {isNewCycleModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4 animate-in fade-in duration-200">
+          <div className="w-full max-w-md rounded-2xl border border-border bg-card p-6 shadow-xl space-y-5">
+            <div className="flex items-center justify-between border-b border-border pb-3">
+              <div className="flex items-center gap-2 text-foreground font-semibold">
+                <RotateCcw className="h-5 w-5 text-primary" />
+                <span>Iniciar Novo Ciclo / Reiniciar Tabela</span>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsNewCycleModalOpen(false)}
+                className="text-muted-foreground hover:text-foreground cursor-pointer"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            <div className="p-3 rounded-lg border border-amber-500/30 bg-amber-500/10 text-amber-800 dark:text-amber-200 text-xs leading-relaxed space-y-1">
+              <p className="font-semibold">O que acontecerá ao iniciar um novo ciclo?</p>
+              <p>
+                O período atual (<span className="font-mono font-bold">{data.period}</span>) será arquivado com segurança com todas as suas datas e presenças preservadas ({data.periodMeta?.coveredDatesLabel || 'datas registradas'} • {data.overview.totalMeetings} reuniões).
+              </p>
+              <p>
+                Uma tabela limpa será iniciada para o novo período, permitindo reiniciar as contagens e métricas de engajamento do próximo semestre ou ano sem perder nada do histórico.
+              </p>
+            </div>
+
+            <form onSubmit={handleCreateCycle} className="space-y-4">
+              <div>
+                <label className="block text-xs font-semibold uppercase text-muted-foreground mb-1">
+                  Código do Período (ex: 27.1, 27.2) <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  required
+                  placeholder="27.1"
+                  value={newCycleCode}
+                  onChange={(e) => setNewCycleCode(e.target.value)}
+                  className="w-full px-3 py-2 rounded-lg bg-background border border-border text-foreground text-sm font-mono focus:outline-hidden focus:ring-2 focus:ring-ring"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold uppercase text-muted-foreground mb-1">
+                  Nome do Ciclo <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  required
+                  placeholder="Semestre 2027.1"
+                  value={newCycleName}
+                  onChange={(e) => setNewCycleName(e.target.value)}
+                  className="w-full px-3 py-2 rounded-lg bg-background border border-border text-foreground text-sm focus:outline-hidden focus:ring-2 focus:ring-ring"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold uppercase text-muted-foreground mb-1">
+                  Observações / Descrição (Opcional)
+                </label>
+                <textarea
+                  rows={2}
+                  placeholder="Início do semestre 2027.1 com novos trainees e projetos..."
+                  value={newCycleDescription}
+                  onChange={(e) => setNewCycleDescription(e.target.value)}
+                  className="w-full px-3 py-2 rounded-lg bg-background border border-border text-foreground text-sm focus:outline-hidden focus:ring-2 focus:ring-ring resize-none"
+                />
+              </div>
+
+              <div className="flex items-center justify-end gap-3 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setIsNewCycleModalOpen(false)}
+                  className="px-4 py-2 rounded-lg border border-border text-foreground text-sm font-medium hover:bg-muted cursor-pointer"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  disabled={savingCycle || !newCycleCode.trim() || !newCycleName.trim()}
+                  className="px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 disabled:opacity-50 transition cursor-pointer"
+                >
+                  {savingCycle ? 'Iniciando ciclo…' : 'Iniciar Ciclo'}
                 </button>
               </div>
             </form>

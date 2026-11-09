@@ -12,6 +12,7 @@ import { deleteRecord } from '@/app/(gestao)/gestao/site/actions';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/institutional/ui/dialog';
 import { useInstitutionalAsset } from '@/components/institutional/site-context';
 import { filterMembers, INTERNAL_COLUMNS, MEMBER_COLUMNS, memberValue, SITE_COLUMNS, type MemberColumnKey, type MemberDirectoryRow, type MemberPreferences, type MemberView } from '@/lib/member-directory';
+import { ExportGoogleSheetsButton } from '@/components/export/export-google-sheets-button';
 
 const focus = 'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring';
 const secondary = `inline-flex min-h-11 items-center justify-center gap-2 rounded-lg border border-border px-3 text-sm text-secondary-foreground hover:bg-accent hover:text-foreground disabled:opacity-50 ${focus}`;
@@ -341,7 +342,10 @@ export function MemberDirectory({ rows, initialPreferences }: { rows: MemberDire
       <div className="inline-flex max-w-full flex-wrap gap-1 rounded-lg bg-muted p-1" role="group" aria-label="Visualização da tabela">
         {views.map(({ key, label, icon: Icon }) => <button key={key} type="button" aria-pressed={view === key} disabled={saving} onClick={() => void persist(key)} className={`inline-flex min-h-10 items-center gap-2 rounded-md px-3 text-sm font-medium transition-colors disabled:opacity-60 ${focus} ${view === key ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:text-foreground'}`}><Icon className="h-4 w-4" aria-hidden="true" />{label}</button>)}
       </div>
-      <button type="button" disabled={saving} onClick={() => { setDraft([...custom]); setConfiguring(!configuring); setError(''); setMessage(''); }} className={secondary} aria-expanded={configuring} aria-controls="member-column-settings"><SlidersHorizontal className="h-4 w-4" />Escolher colunas<ChevronDown className={`h-4 w-4 transition-transform ${configuring ? 'rotate-180' : ''}`} /></button>
+      <div className="flex flex-wrap items-center gap-2">
+        <ExportGoogleSheetsButton type="members" label="Exportar para Google Sheets" />
+        <button type="button" disabled={saving} onClick={() => { setDraft([...custom]); setConfiguring(!configuring); setError(''); setMessage(''); }} className={secondary} aria-expanded={configuring} aria-controls="member-column-settings"><SlidersHorizontal className="h-4 w-4" />Escolher colunas<ChevronDown className={`h-4 w-4 transition-transform ${configuring ? 'rotate-180' : ''}`} /></button>
+      </div>
     </div>
 
     {configuring && <div id="member-column-settings" className="space-y-6 rounded-xl border border-border bg-muted/50 p-4 sm:p-6">

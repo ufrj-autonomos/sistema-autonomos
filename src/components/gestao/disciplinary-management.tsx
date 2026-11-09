@@ -17,6 +17,7 @@ import {
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
+import { ExportGoogleSheetsButton } from '@/components/export/export-google-sheets-button';
 import type {
   DisciplinaryDashboardData,
   DisciplinaryRecord,
@@ -177,23 +178,29 @@ export function DisciplinaryManagement({
           </p>
         </div>
 
-        {data.canManage && (
-          <button
-            type="button"
-            onClick={() => {
-              setTargetMemberId('');
-              setMemberSearchQuery('');
-              setWarningType('AVISO');
-              setReason('');
-              setNotes('');
-              setIsModalOpen(true);
-            }}
-            className="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg bg-red-600 px-4 text-sm font-semibold text-white shadow-xs hover:bg-red-700 transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-red-600 cursor-pointer"
-          >
-            <Plus className="h-4 w-4" />
-            <span>Nova Ocorrência</span>
-          </button>
-        )}
+        <div className="flex flex-wrap items-center gap-2">
+          <ExportGoogleSheetsButton
+            type="disciplinary"
+            label="Exportar para Google Sheets"
+          />
+          {data.canManage && (
+            <button
+              type="button"
+              onClick={() => {
+                setTargetMemberId('');
+                setMemberSearchQuery('');
+                setWarningType('AVISO');
+                setReason('');
+                setNotes('');
+                setIsModalOpen(true);
+              }}
+              className="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg bg-red-600 px-4 text-sm font-semibold text-white shadow-xs hover:bg-red-700 transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-red-600 cursor-pointer"
+            >
+              <Plus className="h-4 w-4" />
+              <span>Nova Ocorrência</span>
+            </button>
+          )}
+        </div>
       </div>
 
       {/* Cartões Executivos de Resumo */}

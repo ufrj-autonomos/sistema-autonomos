@@ -493,6 +493,22 @@ model AttendanceJustification {
 // 7. MEETING ATTENDANCE & ACCOUNTING (Reuniões de Área e Gerais)
 // ---------------------------------------------------------------------------
 
+model MeetingPeriod {
+  id          String    @id @default(cuid())
+  code        String    @unique // ex: "26.2", "27.1"
+  name        String    // ex: "Semestre 26.2", "Ciclo 27.1"
+  description String?   @db.Text
+  startsAt    DateTime? @db.Date
+  endsAt      DateTime? @db.Date
+  isCurrent   Boolean   @default(false)
+  archivedAt  DateTime? @db.Timestamptz(3)
+  createdAt   DateTime  @default(now()) @db.Timestamptz(3)
+  updatedAt   DateTime  @updatedAt @db.Timestamptz(3)
+
+  @@index([code])
+  @@index([isCurrent])
+}
+
 model Meeting {
   id          String   @id @default(cuid())
   title       String

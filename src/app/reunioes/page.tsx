@@ -16,8 +16,7 @@ export default async function MeetingsPage({
 }) {
   const user = await requirePageUser();
   const params = await searchParams;
-  const { period = '26.2' } = params;
-  const initialData = await getMeetingsDashboardData(user, period);
+  const initialData = await getMeetingsDashboardData(user, params.period);
 
   return <><div className="mx-auto max-w-[1680px] px-4 pt-6"><PendingMinutesBanner user={user} /></div><MeetingsView initialData={initialData} user={user} initialArea={params.area} initialMeetingId={params.meeting} openMinutes={params.ata === '1'} /></>;
 }

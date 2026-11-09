@@ -2,7 +2,21 @@ import { meetingMinutesResponsibility } from './responsibility';
 import { db as institutionalDb } from '@/lib/institutional/db';
 import { prisma } from '@/lib/prisma';
 import type { SafeUser } from '@/lib/session';
+import { hasManagementAccess } from '@/lib/access-policy';
 import type { MeetingAttendanceStatus } from '@prisma/client';
+
+export interface MeetingPeriodSummary {
+  id: string;
+  code: string;
+  name: string;
+  description: string | null;
+  startsAt: string | null;
+  endsAt: string | null;
+  isCurrent: boolean;
+  archivedAt: string | null;
+  meetingsCount: number;
+  coveredDatesLabel: string;
+}
 
 export interface AreaDefinition {
   area: string;
@@ -103,8 +117,150 @@ export function getFrequencyStatus(pct: number, totalMeetings: number): { label:
   return { label: '🔴 Atenção', tone: 'red' };
 }
 
-export async function getMeetingsDashboardData(user: SafeUser, period = '26.2') {
+export async function listMeetingPeriods(): Promise<MeetingPeriodSummary[]> {
+  const periods = await prisma.meetingPeriod.findMany({
+    orderBy: [{ isCurrent: 'desc' }, { startsAt: 'desc' }, { createdAt: 'desc' }],
+  });
+
+  const distinctInMeetings = await prisma.meeting.findMany({
+    select: { period: true },
+    distinct: ['period'],
+  });
+
+  const existingCodes = new Set(periods.map((p) => p.code));
+  for (const m of distinctInMeetings) {
+    if (!existingCodes.has(m.period)) {
+      const dates = await prisma.meeting.aggregate({
+        where: { period: m.period },
+        _min: { date: true },
+        _max: { date: true },
+      });
+      const created = await prisma.meetingPeriod.create({
+        data: {
+          code: m.period,
+          name: `Semestre ${m.period}`,
+          startsAt: dates._min.date,
+          endsAt: dates._max.date,
+          isCurrent: false,
+        },
+      });
+      periods.push(created);
+      existingCodes.add(m.period);
+    }
+  }
+
+  const counts = await prisma.meeting.groupBy({
+    by: ['period'],
+    _count: { id: true },
+    _min: { date: true },
+    _max: { date: true },
+  });
+  const countMap = new Map(counts.map((c) => [c.period, c]));
+
+  return periods.map((p) => {
+    const stats = countMap.get(p.code);
+    const meetingsCount = stats?._count.id || 0;
+    const minDate = stats?._min.date || p.startsAt;
+    const maxDate = stats?._max.date || p.endsAt;
+
+    let coveredDatesLabel = 'Aguardando reuniões';
+    if (minDate && maxDate) {
+      const minStr = new Date(minDate).toLocaleDateString('pt-BR', { timeZone: 'UTC' });
+      const maxStr = new Date(maxDate).toLocaleDateString('pt-BR', { timeZone: 'UTC' });
+      coveredDatesLabel = minStr === maxStr ? minStr : `${minStr} a ${maxStr}`;
+    } else if (minDate) {
+      coveredDatesLabel = `A partir de ${new Date(minDate).toLocaleDateString('pt-BR', { timeZone: 'UTC' })}`;
+    }
+
+    return {
+      id: p.id,
+      code: p.code,
+      name: p.name,
+      description: p.description,
+      startsAt: minDate ? new Date(minDate).toISOString() : null,
+      endsAt: maxDate ? new Date(maxDate).toISOString() : null,
+      isCurrent: p.isCurrent,
+      archivedAt: p.archivedAt?.toISOString() || null,
+      meetingsCount,
+      coveredDatesLabel,
+    };
+  });
+}
+
+export async function createNewMeetingPeriod(
+  user: SafeUser,
+  input: { code: string; name?: string; description?: string }
+): Promise<MeetingPeriodSummary> {
+  if (!hasManagementAccess(user.role)) {
+    throw new Error('Apenas Coordenadores, Gestão e Administradores podem reiniciar ciclos de reuniões.');
+  }
+
+  const cleanCode = input.code.trim();
+  if (!cleanCode) {
+    throw new Error('O código do período é obrigatório (ex: 27.1).');
+  }
+
+  const existing = await prisma.meetingPeriod.findUnique({
+    where: { code: cleanCode },
+  });
+  if (existing) {
+    throw new Error(`O período "${cleanCode}" já existe.`);
+  }
+
+  return await prisma.$transaction(async (tx) => {
+    const current = await tx.meetingPeriod.findFirst({
+      where: { isCurrent: true },
+    });
+
+    if (current) {
+      const dates = await tx.meeting.aggregate({
+        where: { period: current.code },
+        _max: { date: true },
+      });
+      await tx.meetingPeriod.update({
+        where: { id: current.id },
+        data: {
+          isCurrent: false,
+          archivedAt: new Date(),
+          endsAt: dates._max.date || new Date(),
+        },
+      });
+    }
+
+    const created = await tx.meetingPeriod.create({
+      data: {
+        code: cleanCode,
+        name: input.name?.trim() || `Semestre ${cleanCode}`,
+        description: input.description?.trim() || null,
+        startsAt: new Date(),
+        isCurrent: true,
+      },
+    });
+
+    return {
+      id: created.id,
+      code: created.code,
+      name: created.name,
+      description: created.description,
+      startsAt: created.startsAt ? created.startsAt.toISOString() : null,
+      endsAt: null,
+      isCurrent: true,
+      archivedAt: null,
+      meetingsCount: 0,
+      coveredDatesLabel: 'Novo ciclo iniciado',
+    };
+  });
+}
+
+export async function getMeetingsDashboardData(user: SafeUser, requestedPeriod?: string) {
   const visibleAreas = getVisibleAreasForUser(user);
+  const periods = await listMeetingPeriods();
+
+  // Resolver período solicitado ou atual
+  const currentPeriodCode = periods.find((p) => p.isCurrent)?.code || '26.2';
+  const period = (!requestedPeriod || requestedPeriod === 'current') ? currentPeriodCode : requestedPeriod;
+  const periodMeta = periods.find((p) => p.code === period) || null;
+  const isArchived = Boolean(periodMeta && !periodMeta.isCurrent);
 
   // Buscar todas as reuniões do período no escopo da equipe do usuário (Admin vê todas)
   const meetingWhere: { period: string; teamId?: number | null } = { period };
@@ -448,6 +604,9 @@ export async function getMeetingsDashboardData(user: SafeUser, period = '26.2') 
 
   return {
     period,
+    periods,
+    periodMeta,
+    isArchived,
     isAdmin: user.role === 'ADMIN',
     canEdit: canUserManageMeetings(user),
     visibleAreas,
