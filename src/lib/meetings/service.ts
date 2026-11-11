@@ -282,13 +282,33 @@ export async function getMeetingsDashboardData(user: SafeUser, requestedPeriod?:
     orderBy: [{ date: 'asc' }, { createdAt: 'asc' }],
   });
 
-  // Buscar todos os membros ativos que pertencem a equipes
-  const allMembers = await prisma.member.findMany({
-    where: {
-      active: true,
-      status: { notIn: ['SUSPENDED', 'REJECTED'] },
-    },
-    select: { id: true, name: true, avatar: true, area: true, teamId: true, active: true, status: true },
+  // Buscar todos os membros ativos que pertencem a equipes (excluindo alumni / inativos)
+  let inactiveInstIds = new Set<number>();
+  if (process.env.INSTITUTIONAL_DATABASE_URL) {
+    try {
+      const inactiveInst = await institutionalDb.institutionalMember.findMany({
+        where: { OR: [{ active: false }, { role: 'Alumni' }] },
+        select: { id: true },
+      });
+      inactiveInstIds = new Set(inactiveInst.map((i) => i.id));
+    } catch (e) {
+      console.warn('Falha ao checar status de alumni no banco institucional:', e);
+    }
+  }
+
+  const allMembers = (
+    await prisma.member.findMany({
+      where: {
+        active: true,
+        status: { notIn: ['SUSPENDED', 'REJECTED'] },
+      },
+      select: { id: true, name: true, avatar: true, area: true, teamId: true, active: true, status: true, institutionalMemberId: true },
+    })
+  ).filter((m) => {
+    if (m.institutionalMemberId && inactiveInstIds.has(m.institutionalMemberId)) {
+      return false;
+    }
+    return true;
   });
 
   const activeMemberIds = new Set(allMembers.map((m) => m.id));

@@ -9,7 +9,6 @@ export const MEMBER_ROLES: MemberOption[] = [
   { value: 'Coordenador de Marketing', label: 'Coordenador(a) de Marketing', group: 'Coordenação' },
   { value: 'Membro', label: 'Membro / Integrante', group: 'Integrantes' },
   { value: 'Trainee', label: 'Trainee', group: 'Integrantes' },
-  { value: 'Alumni', label: 'Alumni', group: 'Integrantes' },
 ];
 export const MEMBER_AREAS = ['Gestão', 'Marketing', 'Mecânica', 'Eletrônica', 'Software'] as const;
 

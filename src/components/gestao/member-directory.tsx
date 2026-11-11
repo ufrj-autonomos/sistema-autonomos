@@ -6,7 +6,8 @@ import { ProfileChangeReview } from './profile-change-review';
 import { useMemo, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { ArrowDown, ArrowUp, ArrowUpDown, Check, ChevronDown, Clock, Columns3, Edit3, Globe, Loader2, LockKeyhole, Search, SlidersHorizontal, Trash2, X } from 'lucide-react';
+import { ArrowDown, ArrowUp, ArrowUpDown, Check, ChevronDown, Clock, Columns3, Download, Edit3, Globe, Loader2, LockKeyhole, Search, SlidersHorizontal, Trash2, User, X } from 'lucide-react';
+import { toast } from 'sonner';
 import { saveMemberPreferences, updateMemberQuickField } from '@/app/(gestao)/gestao/directory-actions';
 import { deleteRecord } from '@/app/(gestao)/gestao/site/actions';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/institutional/ui/dialog';
@@ -80,8 +81,8 @@ export function MemberDirectory({ rows, initialPreferences }: { rows: MemberDire
     const labels = {
       active: {
         label: 'Status',
-        cur: cur ? 'Ativo' : 'Inativo',
-        nxt: nxt ? 'Ativo' : 'Inativo',
+        cur: cur ? 'Ativo' : 'Inativo (Alumni)',
+        nxt: nxt ? 'Ativo' : 'Inativo (Alumni)',
       },
       showOnSite: {
         label: 'Exibição no site',
@@ -142,6 +143,51 @@ export function MemberDirectory({ rows, initialPreferences }: { rows: MemberDire
     });
   }
   const asset = useInstitutionalAsset();
+  const [downloadingPhotoId, setDownloadingPhotoId] = useState<number | null>(null);
+
+  async function handleDownloadPhoto(row: MemberDirectoryRow) {
+    if (!row.photo) {
+      toast.error('Este integrante não possui foto cadastrada.');
+      return;
+    }
+    const fullUrl = asset(String(row.photo));
+    setDownloadingPhotoId(row.id);
+    const cleanName = row.name
+      .toLowerCase()
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .replace(/[^a-z0-9]/g, '_');
+    const ext = String(row.photo).split('.').pop()?.split('?')[0] || 'webp';
+    const fileName = `foto_${cleanName}.${ext}`;
+
+    try {
+      const res = await fetch(fullUrl, { mode: 'cors' });
+      if (!res.ok) throw new Error('Falha na resposta do servidor.');
+      const blob = await res.blob();
+      const objectUrl = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = objectUrl;
+      link.download = fileName;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(objectUrl);
+      toast.success(`Foto de ${row.name} baixada!`);
+    } catch {
+      // Fallback para abrir a foto em nova aba se download direto for restrito
+      const link = document.createElement('a');
+      link.href = fullUrl;
+      link.target = '_blank';
+      link.rel = 'noopener noreferrer';
+      link.download = fileName;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    } finally {
+      setDownloadingPhotoId(null);
+    }
+  }
+
   const keys = view === 'site' ? SITE_COLUMNS : view === 'internal' ? INTERNAL_COLUMNS : custom;
   const columns = keys.map(key => MEMBER_COLUMNS.find(column => column.key === key)!);
   const teams = useMemo(() => [...new Map(rows.map(row => [String(row.teamId ?? 'general'), row.teamName])).entries()].sort((a, b) => a[1].localeCompare(b[1], 'pt-BR')), [rows]);
@@ -208,7 +254,7 @@ export function MemberDirectory({ rows, initialPreferences }: { rows: MemberDire
             title={`Clique para alterar ${key === 'active' ? 'status (ativo/inativo)' : 'visibilidade no site'}`}
           >
             <span className={`h-1.5 w-1.5 rounded-full ${boolVal ? 'bg-emerald-400' : 'bg-muted-foreground'}`} />
-            {key === 'active' ? (boolVal ? 'Ativo' : 'Inativo') : (boolVal ? 'Visível' : 'Oculto')}
+            {key === 'active' ? (boolVal ? 'Ativo' : 'Inativo (Alumni)') : (boolVal ? 'Visível' : 'Oculto')}
           </button>
           {badge}
         </div>
@@ -272,7 +318,6 @@ export function MemberDirectory({ rows, initialPreferences }: { rows: MemberDire
         'Membro': 'bg-accent text-foreground border-border',
         'Trainee': 'bg-indigo-500/10 text-indigo-700 dark:text-indigo-300 border-indigo-500/30',
         'Professor Orientador': 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border-emerald-500/30',
-        'Alumni': 'bg-accent text-muted-foreground border-border',
       };
       const areaColors: Record<string, string> = {
         'Gestão': 'bg-amber-500/10 text-amber-700 dark:text-amber-300 border-amber-500/30',
@@ -309,7 +354,52 @@ export function MemberDirectory({ rows, initialPreferences }: { rows: MemberDire
     if (key === 'email') return <a href={`mailto:${value}`} className={`rounded-sm text-foreground underline-offset-4 hover:underline ${focus}`}>{String(value)}</a>;
     if (key === 'phone') return <a href={`tel:${String(value).replace(/[^+\d]/g, '')}`} className={`rounded-sm underline-offset-4 hover:underline ${focus}`}>{String(value)}</a>;
     if (['linkedin', 'github', 'instagram'].includes(key) && /^https?:\/\//i.test(String(value))) return <div className="flex items-center gap-1.5"><a href={String(value)} target="_blank" rel="noopener noreferrer" className={`block max-w-64 truncate underline underline-offset-4 ${focus}`} title={String(value)}>{String(value).replace(/^https?:\/\/(www\.)?/, '')}</a>{badge}</div>;
-    if (key === 'name' || key === 'internalName') return <div className="flex flex-wrap items-center gap-1.5"><Link href={editUrl(row)} className={`block max-w-64 whitespace-normal rounded-sm font-medium leading-relaxed text-foreground underline-offset-4 hover:underline ${focus}`}>{String(value)}</Link>{row.pendingChange && <span className="inline-flex items-center gap-1 rounded bg-amber-100 dark:bg-amber-950/90 px-1.5 py-0.5 text-[10px] font-medium text-amber-700 dark:text-amber-300 border border-amber-700/60" title="Possui alterações de site aguardando aprovação"><Clock className="h-3 w-3" />Revisar site</span>}</div>;
+    if (key === 'name' || key === 'internalName') {
+      const photoUrl = row.photo ? asset(String(row.photo)) : null;
+      const initials = String(value)
+        .split(' ')
+        .filter(Boolean)
+        .slice(0, 2)
+        .map(w => w[0]?.toUpperCase())
+        .join('');
+
+      return (
+        <div className="flex items-center gap-2.5 min-w-44">
+          <div className="relative h-8 w-8 shrink-0 rounded-full overflow-hidden border border-border bg-muted flex items-center justify-center">
+            {photoUrl ? (
+              <img
+                src={photoUrl}
+                alt={`Foto de ${row.name}`}
+                className="h-full w-full object-cover"
+                width={32}
+                height={32}
+                loading="lazy"
+              />
+            ) : (
+              <span className="text-[11px] font-semibold text-muted-foreground select-none">
+                {initials || <User className="h-3.5 w-3.5" />}
+              </span>
+            )}
+          </div>
+          <div className="flex flex-wrap items-center gap-1.5">
+            <Link
+              href={editUrl(row)}
+              className={`block max-w-64 whitespace-normal rounded-sm font-medium leading-relaxed text-foreground underline-offset-4 hover:underline ${focus}`}
+            >
+              {String(value)}
+            </Link>
+            {row.pendingChange && (
+              <span
+                className="inline-flex items-center gap-1 rounded bg-amber-100 dark:bg-amber-950/90 px-1.5 py-0.5 text-[10px] font-medium text-amber-700 dark:text-amber-300 border border-amber-700/60"
+                title="Possui alterações de site aguardando aprovação"
+              >
+                <Clock className="h-3 w-3" />Revisar site
+              </span>
+            )}
+          </div>
+        </div>
+      );
+    }
     return <span className={`block max-w-80 whitespace-pre-line break-words leading-relaxed ${['bio', 'bioEn', 'bioFr', 'notes', 'projectNames'].includes(key) ? 'line-clamp-3' : ''}`} title={String(value)}>{String(value)}{badge}</span>;
   }
   const currentSort = keys.includes(sort.key) ? sort.key : keys[0];
@@ -362,14 +452,14 @@ export function MemberDirectory({ rows, initialPreferences }: { rows: MemberDire
       <div><label htmlFor="member-search" className="mb-1.5 block text-xs font-medium text-muted-foreground">Buscar nas colunas visíveis</label><div className="relative"><Search className="pointer-events-none absolute left-3 top-3.5 h-4 w-4 text-muted-foreground" /><input id="member-search" type="search" value={search} onChange={event => setSearch(event.target.value)} placeholder="Nome, área ou outra informação…" className={`min-h-11 w-full rounded-lg border border-input bg-background pl-10 pr-3 text-sm text-foreground placeholder:text-muted-foreground ${focus}`} /></div></div>
       <label className="block text-xs font-medium text-muted-foreground" htmlFor="member-area">Área<select id="member-area" value={area} onChange={event => setArea(event.target.value)} className={`mt-1.5 min-h-11 w-full rounded-lg border border-input bg-background px-3 text-sm text-foreground ${focus}`}><option value="all">Todas as áreas</option>{areas.map(value => <option key={value} value={value}>{value}</option>)}</select></label>
       <label className="block text-xs font-medium text-muted-foreground" htmlFor="member-team">Equipe<select id="member-team" value={team} onChange={event => setTeam(event.target.value)} className={`mt-1.5 min-h-11 w-full rounded-lg border border-input bg-background px-3 text-sm text-foreground ${focus}`}><option value="all">Todas as equipes</option>{teams.map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></label>
-      <label className="block text-xs font-medium text-muted-foreground" htmlFor="member-status">Status<select id="member-status" value={status} onChange={event => setStatus(event.target.value)} className={`mt-1.5 min-h-11 w-full rounded-lg border border-input bg-background px-3 text-sm text-foreground ${focus}`}><option value="all">Todos</option><option value="active">Ativos</option><option value="inactive">Inativos</option></select></label>
+      <label className="block text-xs font-medium text-muted-foreground" htmlFor="member-status">Status<select id="member-status" value={status} onChange={event => setStatus(event.target.value)} className={`mt-1.5 min-h-11 w-full rounded-lg border border-input bg-background px-3 text-sm text-foreground ${focus}`}><option value="all">Todos</option><option value="active">Ativos</option><option value="inactive">Inativos (Alumni)</option></select></label>
     </div>
     {error && <p role="alert" className="text-sm text-red-700 dark:text-red-300">{error}</p>}
     {message && <p role="status" className="text-sm text-emerald-700 dark:text-emerald-300">{message}</p>}
     <div className="flex flex-wrap items-center justify-between gap-3 text-xs text-muted-foreground"><p role="status" aria-live="polite"><span className="font-medium tabular-nums text-foreground">{filtered.length}</span> de {rows.length} integrantes · {columns.length} colunas{saving ? ' · Salvando visualização…' : ''}</p>{hasFilters ? <button type="button" onClick={clearFilters} className={`inline-flex min-h-10 items-center gap-1.5 rounded px-2 text-secondary-foreground hover:text-foreground ${focus}`}><X className="h-3.5 w-3.5" />Limpar filtros</button> : <span>Role para o lado para ver todas as informações</span>}</div>
     <div className="overflow-hidden rounded-xl border border-border">
       {filtered.length ? <div tabIndex={0} role="region" aria-label={`Tabela de integrantes, visão ${views.find(item => item.key === view)!.label}`} className={`max-h-[70vh] overflow-auto overscroll-x-contain ${focus}`}>
-        <table className="w-full border-separate border-spacing-0 text-left text-sm"><caption className="sr-only">Integrantes — visão {views.find(item => item.key === view)!.label}. Cabeçalhos permitem ordenar os dados.</caption><thead><tr>{columns.map((column, index) => <th key={column.key} scope="col" aria-sort={currentSort === column.key ? sort.direction === 'asc' ? 'ascending' : 'descending' : 'none'} className={`sticky top-0 z-20 border-b border-border bg-muted text-xs font-medium text-secondary-foreground ${index === 0 ? 'sm:left-0 sm:z-30' : ''}`} style={{ minWidth: column.width }}><button type="button" onClick={() => setSort({ key: column.key, direction: currentSort === column.key && sort.direction === 'asc' ? 'desc' : 'asc' })} className={`flex min-h-12 w-full items-center justify-between gap-3 px-4 py-3 text-left hover:text-foreground ${focus}`}>{view === 'custom' ? column.label : column.label.replace(/ \((site|interno|interna)\)/, '')}{currentSort === column.key ? sort.direction === 'asc' ? <ArrowUp className="h-3.5 w-3.5 shrink-0" /> : <ArrowDown className="h-3.5 w-3.5 shrink-0" /> : <ArrowUpDown className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />}</button></th>)}<th scope="col" className="sticky sm:right-0 top-0 z-30 w-28 min-w-28 border-b border-border bg-muted px-4 py-3 text-xs font-medium text-secondary-foreground">Ações</th></tr></thead><tbody>{filtered.map(row => <tr key={row.id} className="group">{columns.map((column, index) => <td key={column.key} className={`border-b border-border bg-background px-4 py-3 text-secondary-foreground group-hover:bg-muted ${index === 0 ? 'sm:sticky sm:left-0 sm:z-10 sm:border-r sm:border-r-border' : ''}`}>{cell(row, column.key)}</td>)}<td className="sm:sticky sm:right-0 z-10 border-b border-l border-border bg-background px-2 py-2 group-hover:bg-muted"><div className="flex items-center justify-end gap-1"><Link href={editUrl(row)} title={`Editar ${row.name}`} aria-label={`Editar ${row.name}`} className={`inline-flex h-11 w-11 items-center justify-center rounded-lg text-secondary-foreground hover:bg-accent hover:text-foreground ${focus}`}><Edit3 className="h-4 w-4" /></Link><button type="button" title={`Excluir ${row.name}`} aria-label={`Excluir ${row.name}`} onClick={() => { setTarget(row); setError(''); }} className={`inline-flex h-11 w-11 items-center justify-center rounded-lg text-muted-foreground hover:bg-red-950 hover:text-red-300 ${focus}`}><Trash2 className="h-4 w-4" /></button></div></td></tr>)}</tbody></table>
+        <table className="w-full border-separate border-spacing-0 text-left text-sm"><caption className="sr-only">Integrantes — visão {views.find(item => item.key === view)!.label}. Cabeçalhos permitem ordenar os dados.</caption><thead><tr><th scope="col" className="sticky sm:left-0 top-0 z-30 w-12 min-w-12 border-b border-border bg-muted px-2 py-3 text-center text-xs font-medium text-secondary-foreground" title="Baixar foto do integrante"><Download className="h-4 w-4 mx-auto text-muted-foreground" /><span className="sr-only">Baixar foto</span></th>{columns.map((column, index) => <th key={column.key} scope="col" aria-sort={currentSort === column.key ? sort.direction === 'asc' ? 'ascending' : 'descending' : 'none'} className="sticky top-0 z-20 border-b border-border bg-muted text-xs font-medium text-secondary-foreground" style={{ minWidth: column.width }}><button type="button" onClick={() => setSort({ key: column.key, direction: currentSort === column.key && sort.direction === 'asc' ? 'desc' : 'asc' })} className={`flex min-h-12 w-full items-center justify-between gap-3 px-4 py-3 text-left hover:text-foreground ${focus}`}>{view === 'custom' ? column.label : column.label.replace(/ \((site|interno|interna)\)/, '')}{currentSort === column.key ? sort.direction === 'asc' ? <ArrowUp className="h-3.5 w-3.5 shrink-0" /> : <ArrowDown className="h-3.5 w-3.5 shrink-0" /> : <ArrowUpDown className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />}</button></th>)}<th scope="col" className="sticky sm:right-0 top-0 z-30 w-28 min-w-28 border-b border-border bg-muted px-4 py-3 text-xs font-medium text-secondary-foreground">Ações</th></tr></thead><tbody>{filtered.map(row => <tr key={row.id} className="group"><td className="sticky sm:left-0 z-10 border-b border-r border-border bg-background px-2 py-2 text-center group-hover:bg-muted">{row.photo ? (<button type="button" onClick={() => handleDownloadPhoto(row)} disabled={downloadingPhotoId === row.id} title={`Baixar foto de ${row.name}`} className={`inline-flex h-9 w-9 items-center justify-center rounded-lg text-muted-foreground hover:bg-accent hover:text-foreground transition-colors cursor-pointer disabled:opacity-50 ${focus}`}><Download className={`h-4 w-4 ${downloadingPhotoId === row.id ? 'animate-bounce text-primary' : ''}`} /></button>) : (<span title="Integrante sem foto cadastrada" className="inline-flex h-9 w-9 items-center justify-center text-muted-foreground/30 cursor-not-allowed"><Download className="h-4 w-4" /></span>)}</td>{columns.map((column, index) => <td key={column.key} className="border-b border-border bg-background px-4 py-3 text-secondary-foreground group-hover:bg-muted">{cell(row, column.key)}</td>)}<td className="sm:sticky sm:right-0 z-10 border-b border-l border-border bg-background px-2 py-2 group-hover:bg-muted"><div className="flex items-center justify-end gap-1"><Link href={editUrl(row)} title={`Editar ${row.name}`} aria-label={`Editar ${row.name}`} className={`inline-flex h-11 w-11 items-center justify-center rounded-lg text-secondary-foreground hover:bg-accent hover:text-foreground ${focus}`}><Edit3 className="h-4 w-4" /></Link><button type="button" title={`Excluir ${row.name}`} aria-label={`Excluir ${row.name}`} onClick={() => { setTarget(row); setError(''); }} className={`inline-flex h-11 w-11 items-center justify-center rounded-lg text-muted-foreground hover:bg-red-950 hover:text-red-300 ${focus}`}><Trash2 className="h-4 w-4" /></button></div></td></tr>)}</tbody></table>
       </div> : <div className="flex min-h-56 flex-col items-center justify-center px-6 py-12 text-center"><Search className="mb-3 h-6 w-6 text-muted-foreground" /><h2 className="text-base font-medium text-foreground">{rows.length ? 'Nenhum integrante corresponde à busca' : 'Seu diretório ainda está vazio'}</h2><p className="mt-2 max-w-sm text-sm text-muted-foreground">{rows.length ? 'Ajuste a busca, a área, a equipe ou o status para encontrar outras pessoas.' : 'Cadastre o primeiro integrante para organizar os dados da equipe.'}</p>{hasFilters && <button type="button" onClick={clearFilters} className={`mt-4 text-sm text-foreground underline underline-offset-4 ${focus}`}>Limpar filtros</button>}</div>}
     </div>
     <Dialog open={Boolean(target)} onOpenChange={open => { if (!open && !deleting) setTarget(null); }}><DialogContent className="border-border bg-background text-foreground"><DialogHeader><DialogTitle>Excluir integrante?</DialogTitle></DialogHeader><DialogDescription className="text-sm leading-relaxed text-muted-foreground">O cadastro de <strong className="font-medium text-foreground">{target?.name}</strong> será removido da gestão e do site. O histórico de presença será preservado. Para retirar apenas do site, edite o cadastro e desmarque “Exibir no site”.</DialogDescription>{error && <p role="alert" className="text-sm text-red-700 dark:text-red-300">{error}</p>}<DialogFooter><button type="button" disabled={deleting} onClick={() => setTarget(null)} className={secondary}>Cancelar</button><button type="button" disabled={deleting} onClick={() => void remove()} className={`min-h-11 rounded-lg bg-red-900 px-4 text-sm font-medium text-white hover:bg-red-800 disabled:opacity-50 ${focus}`}>{deleting ? 'Excluindo…' : 'Excluir cadastro'}</button></DialogFooter></DialogContent></Dialog>
