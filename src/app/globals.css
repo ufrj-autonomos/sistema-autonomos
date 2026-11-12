@@ -259,6 +259,42 @@
   ::-webkit-scrollbar-thumb:hover {
     background: var(--muted-foreground);
   }
+
+  /* Barra de rolagem horizontal com estética Engineering Studio / Autônomos */
+  .scrollbar-areas {
+    scrollbar-width: thin;
+    scrollbar-color: var(--hairline-strong) transparent;
+  }
+
+  .scrollbar-areas::-webkit-scrollbar {
+    height: 6px;
+  }
+
+  .scrollbar-areas::-webkit-scrollbar-track {
+    background: rgba(255, 255, 255, 0.04);
+    border-radius: 9999px;
+    margin: 0 4px;
+  }
+
+  :root.light .scrollbar-areas::-webkit-scrollbar-track,
+  .light .scrollbar-areas::-webkit-scrollbar-track {
+    background: rgba(0, 0, 0, 0.05);
+  }
+
+  .scrollbar-areas::-webkit-scrollbar-thumb {
+    background: var(--hairline-strong);
+    border-radius: 9999px;
+    border: 1px solid var(--background);
+    transition: background-color 0.2s ease;
+  }
+
+  .scrollbar-areas::-webkit-scrollbar-thumb:hover {
+    background: var(--team-primary, var(--muted-foreground));
+  }
+
+  .scrollbar-areas::-webkit-scrollbar-thumb:active {
+    background: var(--foreground);
+  }
 }
 
 @layer utilities {

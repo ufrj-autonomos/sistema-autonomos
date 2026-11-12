@@ -14,8 +14,15 @@ não é alterada e seu histórico não é importado.
 
 O QR é fixo e funciona com contas aprovadas e acompanhamento ativo. O horário e a
 identidade vêm do servidor, não do formulário nem do relógio do celular. Leituras
-repetidas em menos de 60 segundos retornam a confirmação anterior; atualizar a
-página também não deve alternar entrada e saída. Se esquecer a saída, peça ajuste
+repetidas em menos de 2 minutos retornam a confirmação anterior; atualizar a
+página também não deve alternar entrada e saída. Cada abertura do QR fixo recebe
+um identificador próprio na URL de confirmação. Atualizar essa URL, voltar pelo
+histórico ou tentar novamente após uma falha mantém o identificador e não cria
+outro registro. Uma nova leitura do QR fixo recebe outro identificador, inclusive
+quando o celular reutiliza a mesma aba; não depende de armazenamento da sessão.
+Se a confirmação demorar mais de 20 segundos, a tela permite tentar novamente com
+o mesmo identificador, pois o servidor pode já ter salvo a presença.
+Se esquecer a saída, peça ajuste
 à gestão. O QR fixo pode ser fotografado/compartilhado: ele não comprova localização
 física. Mantenha-o dentro do laboratório e confira registros suspeitos na gestão.
 

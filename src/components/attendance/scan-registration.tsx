@@ -4,39 +4,24 @@ import Link from 'next/link';
 import { CheckCircle2, Loader2, AlertCircle } from 'lucide-react';
 import type { ScanResult } from '@/lib/attendance/types';
 import { formatLabDate } from '@/lib/attendance/format';
+import { submitAttendanceScan } from '@/lib/attendance/scan-client';
 
-export function ScanRegistration({ code }: { code: string }) {
+export function ScanRegistration({ code, requestId }: { code: string; requestId: string }) {
   const started = useRef(false);
-  const requestId = useRef('');
   const [result, setResult] = useState<ScanResult | null>(null);
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(true);
   const submit = useCallback(async () => {
     setBusy(true); setError('');
     try {
-      const response = await fetch('/api/attendance/scan', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ code, requestId: requestId.current }) });
-      const data = await response.json();
-      if (!response.ok) throw new Error(data.error || 'Não foi possível registrar sua presença.');
-      setResult(data);
+      setResult(await submitAttendanceScan(code, requestId));
     } catch (err) { setError(err instanceof Error ? err.message : 'Falha de conexão. Tente novamente.'); }
     finally { setBusy(false); }
-  }, [code]);
+  }, [code, requestId]);
   useEffect(() => {
     if (started.current) return;
     started.current = true;
     if (!/^[a-f0-9]{64}$/.test(code)) { setBusy(false); setError('Leia o QR code disponível no laboratório para registrar sua presença.'); return; }
-    const navigation = performance.getEntriesByType('navigation')[0] as PerformanceNavigationTiming | undefined;
-    const reload = navigation?.type === 'reload' || navigation?.type === 'back_forward';
-    try {
-      const stored = sessionStorage.getItem(`attendance:${code}`);
-      const previous = stored ? JSON.parse(stored) : null;
-      if (reload && !previous) { setBusy(false); setError('Para fazer um novo registro, leia novamente o QR code do laboratório.'); return; }
-      requestId.current = previous && (reload || Date.now() - previous.createdAt < 60_000) ? previous.id : crypto.randomUUID();
-      sessionStorage.setItem(`attendance:${code}`, JSON.stringify({ id: requestId.current, createdAt: Date.now() }));
-    } catch {
-      if (reload) { setBusy(false); setError('Para fazer um novo registro, leia novamente o QR code do laboratório.'); return; }
-      requestId.current = crypto.randomUUID();
-    }
     void submit();
   }, [code, submit]);
   const voided = result?.visit.status === 'VOID';
@@ -48,10 +33,10 @@ export function ScanRegistration({ code }: { code: string }) {
         <p className="mt-3 text-secondary-foreground">{formatLabDate(result.registeredAt, true)} · horário de Brasília</p>
         {result.duplicate && <p className="mt-3 text-sm text-muted-foreground">Esta leitura já foi processada. Nenhum registro duplicado foi criado.</p>}
         <p className="mt-4 leading-relaxed text-muted-foreground">{voided ? 'Esse registro foi desconsiderado pela gestão. Leia o QR code novamente para um novo registro.' : result.visit.needsReview ? 'O registro ficou para revisão da gestão. As horas serão contabilizadas após a conferência.' : result.action === 'IN' ? 'Ao sair do laboratório, leia este mesmo QR code novamente para fechar sua presença.' : 'Suas horas foram contabilizadas. Você pode conferir o saldo semanal na página inicial.'}</p>
-      </> : <><AlertCircle className="h-8 w-8 text-amber-700 dark:text-amber-300" /><h1 className="mt-5 font-display text-2xl font-semibold">Presença não registrada</h1></>}
+      </> : <><AlertCircle className="h-8 w-8 text-amber-700 dark:text-amber-300" /><h1 className="mt-5 font-display text-2xl font-semibold">Não foi possível confirmar a presença</h1></>}
       {error && <p role="alert" className="mt-4 text-amber-700 dark:text-amber-300">{error}</p>}
       <div className="mt-7 flex flex-wrap gap-3">
-        {error && requestId.current && <button type="button" onClick={() => void submit()} disabled={busy} className="min-h-11 rounded-lg bg-primary px-5 py-3 font-semibold text-primary-foreground disabled:opacity-50">Tentar novamente</button>}
+        {error && requestId && <button type="button" onClick={() => void submit()} disabled={busy} className="min-h-11 rounded-lg bg-primary px-5 py-3 font-semibold text-primary-foreground disabled:opacity-50">Tentar novamente</button>}
         <Link href="/" prefetch={false} className="inline-flex min-h-11 items-center rounded-lg border border-border px-5 py-3 text-foreground hover:bg-accent focus-visible:outline-2 focus-visible:outline-offset-4">Voltar ao início</Link>
       </div>
     </div>

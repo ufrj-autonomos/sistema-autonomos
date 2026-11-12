@@ -81,7 +81,11 @@ export async function registerAttendance(memberId: string, input: unknown): Prom
       const period = await tx.attendancePeriod.findFirst({ where: { memberId: member.id, startsOn: { lte: today }, OR: [{ endsOn: null }, { endsOn: { gt: today } }] } });
       if (!period) throw new AttendanceError('Você não está em um período ativo de acompanhamento. Procure a gestão.', 403);
       const last = await tx.attendancePunch.findFirst({ where: { memberId: member.id }, orderBy: { registeredAt: 'desc' }, include: { visit: true } });
-      if (last && now.getTime() - last.registeredAt.getTime() < 60_000) {
+      if (last && now.getTime() - last.registeredAt.getTime() < 120_000) {
+        // Remember this attempt too: refreshing its confirmation after the
+        // cooldown must replay the same punch, never turn it into a checkout.
+        // Keep the original timestamp so repeated scans do not extend the window.
+        await tx.attendancePunch.create({ data: { requestId, memberId: member.id, visitId: last.visitId, type: last.type, registeredAt: last.registeredAt } });
         return { action: last.type, registeredAt: last.registeredAt.toISOString(), duplicate: true, visit: visitDto(last.visit, now, settings.maxSessionSeconds) };
       }
       const open = await tx.attendanceVisit.findFirst({ where: { memberId: member.id, status: 'OPEN' } });

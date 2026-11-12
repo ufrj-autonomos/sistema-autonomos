@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useRef, useState, useTransition } from 'react';
+import { useMemo, useRef, useState, useTransition, useEffect } from 'react';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/institutional/ui/dialog';
 import { meetingCalendarDate } from '@/lib/meetings/calendar';
 import { MeetingFeed } from './meeting-feed';
@@ -268,6 +268,31 @@ export function MeetingsView({
   // Alternador de visualização para áreas detalhadas: 'matrix' (planilha) ou 'cards' (chamada por reunião / mobile)
   const [areaViewMode, setAreaViewMode] = useState<'feed' | 'matrix' | 'cards'>('feed');
   const [selectedMeetingIndex, setSelectedMeetingIndex] = useState<number>(0);
+
+  // Rolagem horizontal das abas de áreas (com estética do site e controle quando não couber na tela)
+  const tabsRef = useRef<HTMLDivElement>(null);
+  const [canScrollLeft, setCanScrollLeft] = useState(false);
+  const [canScrollRight, setCanScrollRight] = useState(false);
+
+  const checkTabsScroll = () => {
+    const el = tabsRef.current;
+    if (!el) return;
+    setCanScrollLeft(el.scrollLeft > 4);
+    setCanScrollRight(el.scrollLeft < el.scrollWidth - el.clientWidth - 4);
+  };
+
+  useEffect(() => {
+    checkTabsScroll();
+    const handleResize = () => checkTabsScroll();
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, [data.detailedAreas]);
+
+  const scrollTabs = (direction: 'left' | 'right') => {
+    const el = tabsRef.current;
+    if (!el) return;
+    el.scrollBy({ left: direction === 'left' ? -260 : 260, behavior: 'smooth' });
+  };
 
   // Modal para Nova Reunião
   const [isNewMeetingModalOpen, setIsNewMeetingModalOpen] = useState(false);
@@ -565,47 +590,87 @@ export function MeetingsView({
         </div>
       )}
 
-      {/* Navegação de Abas */}
-      <div className="flex items-center gap-1.5 overflow-x-auto pb-2 border-b border-border/60 scrollbar-none">
-        <button
-          type="button"
-          onClick={() => setActiveTab('painel')}
-          className={cn(
-            'flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium transition-all whitespace-nowrap cursor-pointer',
-            activeTab === 'painel'
-              ? 'bg-primary text-primary-foreground shadow-sm'
-              : 'text-muted-foreground hover:text-foreground hover:bg-muted'
-          )}
-        >
-          <span>📊</span>
-          <span>Painel Executivo Geral</span>
-        </button>
-
-        <div className="h-4 w-px bg-border mx-1" />
-
-        {data.detailedAreas.map((da) => {
-          const tabKey = `${da.def.area}-${da.def.teamId}`;
-          const isSelected = activeTab === tabKey;
-          return (
+      {/* Navegação de Abas com Rolagem Horizontal com Estética do Site */}
+      <div className="relative border-b border-border/60 pb-1">
+        <div className="flex items-center gap-1.5">
+          {/* Botão de rolagem para a esquerda quando houver overflow no computador */}
+          {canScrollLeft && (
             <button
-              key={tabKey}
               type="button"
-              onClick={() => setActiveTab(tabKey)}
+              onClick={() => scrollTabs('left')}
+              title="Rolar abas para a esquerda"
+              aria-label="Rolar abas para a esquerda"
+              className="hidden md:flex h-9 w-7 shrink-0 items-center justify-center rounded-lg border border-border bg-card/90 text-muted-foreground hover:text-foreground hover:bg-muted transition-colors shadow-xs cursor-pointer"
+            >
+              <ChevronLeft className="h-4 w-4" />
+            </button>
+          )}
+
+          {/* Container das áreas com barra de rolagem horizontal estilizada */}
+          <div
+            ref={tabsRef}
+            onScroll={checkTabsScroll}
+            onWheel={(e) => {
+              if (e.deltaY !== 0 && !e.shiftKey) {
+                e.currentTarget.scrollLeft += e.deltaY;
+              }
+            }}
+            className="flex-1 flex items-center gap-1.5 overflow-x-auto pb-2.5 pt-0.5 scrollbar-areas"
+          >
+            <button
+              type="button"
+              onClick={() => setActiveTab('painel')}
               className={cn(
-                'flex items-center gap-2 px-3.5 py-2.5 rounded-lg text-sm font-medium transition-all whitespace-nowrap cursor-pointer border',
-                isSelected
-                  ? 'bg-accent text-foreground border-border shadow-xs'
-                  : 'text-muted-foreground hover:text-foreground hover:bg-muted/50 border-transparent'
+                'flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium transition-all whitespace-nowrap cursor-pointer shrink-0',
+                activeTab === 'painel'
+                  ? 'bg-primary text-primary-foreground shadow-sm'
+                  : 'text-muted-foreground hover:text-foreground hover:bg-muted'
               )}
             >
-              <span>{da.def.icon}</span>
-              <span>{da.def.label}</span>
-              <span className="text-xs opacity-75 font-mono">
-                ({da.meetings.length})
-              </span>
+              <span>📊</span>
+              <span>Painel Executivo Geral</span>
             </button>
-          );
-        })}
+
+            <div className="h-4 w-px bg-border mx-1 shrink-0" />
+
+            {data.detailedAreas.map((da) => {
+              const tabKey = `${da.def.area}-${da.def.teamId}`;
+              const isSelected = activeTab === tabKey;
+              return (
+                <button
+                  key={tabKey}
+                  type="button"
+                  onClick={() => setActiveTab(tabKey)}
+                  className={cn(
+                    'flex items-center gap-2 px-3.5 py-2.5 rounded-lg text-sm font-medium transition-all whitespace-nowrap cursor-pointer border shrink-0',
+                    isSelected
+                      ? 'bg-accent text-foreground border-border shadow-xs'
+                      : 'text-muted-foreground hover:text-foreground hover:bg-muted/50 border-transparent'
+                  )}
+                >
+                  <span>{da.def.icon}</span>
+                  <span>{da.def.label}</span>
+                  <span className="text-xs opacity-75 font-mono">
+                    ({da.meetings.length})
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+
+          {/* Botão de rolagem para a direita quando houver overflow no computador */}
+          {canScrollRight && (
+            <button
+              type="button"
+              onClick={() => scrollTabs('right')}
+              title="Rolar abas para a direita"
+              aria-label="Rolar abas para a direita"
+              className="hidden md:flex h-9 w-7 shrink-0 items-center justify-center rounded-lg border border-border bg-card/90 text-muted-foreground hover:text-foreground hover:bg-muted transition-colors shadow-xs cursor-pointer"
+            >
+              <ChevronRight className="h-4 w-4" />
+            </button>
+          )}
+        </div>
       </div>
 
       {/* ABA: PAINEL EXECUTIVO */}
