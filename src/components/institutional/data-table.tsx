@@ -18,6 +18,12 @@ import {
   XCircle,
   Clock,
   Layers,
+  LayoutGrid,
+  Table2,
+  Trophy,
+  MapPin,
+  Home,
+  Calendar,
 } from "lucide-react";
 import type { AdminModel } from "@/lib/institutional/admin-config";
 import { deleteRecord, updateRecord } from "@/app/(gestao)/gestao/site/actions";
@@ -27,19 +33,41 @@ import { useInstitutionalAsset } from "./site-context";
 import { directoryPath } from "@/lib/institutional/routes";
 import { cn } from "@/lib/utils";
 
+const VISUAL_TABLES = new Set(["timelineevent", "galleryimage", "competition", "sponsor"]);
+
+function getRowTeamKey(row: any): "geral" | "harpia" | "nautilus" {
+  if (row.teamId === 1 || row.team?.slug === "nautilus" || row.teamSlug === "nautilus") return "nautilus";
+  if (row.teamId === 2 || row.team?.slug === "harpia" || row.teamSlug === "harpia") return "harpia";
+  return "geral";
+}
+
+function teamPillProps(teamKey: "geral" | "harpia" | "nautilus") {
+  if (teamKey === "harpia") {
+    return { label: "☁️ Harpia", cls: "bg-purple-500/10 text-purple-700 dark:text-purple-300 border-purple-500/30" };
+  }
+  if (teamKey === "nautilus") {
+    return { label: "🌊 Nautilus", cls: "bg-sky-500/10 text-sky-700 dark:text-sky-300 border-sky-500/30" };
+  }
+  return { label: "🤖 UFRJ Autônomos (Geral)", cls: "bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border-emerald-500/30" };
+}
+
 export function DataTable({
   config,
   data,
   tableSlug,
+  initialTeamFilter = "all",
 }: {
   config: AdminModel;
   data: any[];
   tableSlug: string;
+  initialTeamFilter?: "all" | "geral" | "harpia" | "nautilus";
 }) {
   const assetUrl = useInstitutionalAsset();
   const router = useRouter();
+  const supportsVisual = VISUAL_TABLES.has(tableSlug);
+  const [displayMode, setDisplayMode] = useState<"visual" | "table">(supportsVisual ? "visual" : "table");
   const [search, setSearch] = useState("");
-  const [teamFilter, setTeamFilter] = useState<string>("all");
+  const [teamFilter, setTeamFilter] = useState<string>(initialTeamFilter);
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [categoryFilter, setCategoryFilter] = useState<string>("all");
   const [areaFilter, setAreaFilter] = useState<string>("all");
@@ -184,8 +212,81 @@ export function DataTable({
     });
   }, [data, hasAreaField]);
 
+  const teamCounts = useMemo(() => {
+    const counts = { all: data.length, geral: 0, harpia: 0, nautilus: 0 };
+    for (const row of data) {
+      counts[getRowTeamKey(row)] += 1;
+    }
+    return counts;
+  }, [data]);
+
   return (
     <div className="w-full">
+      {/* Division / Team Prominent Tabs */}
+      {hasTeamField && (
+        <div className="border-b border-border bg-muted/35 px-4 py-3 flex flex-wrap items-center justify-between gap-3">
+          <div className="flex flex-wrap items-center gap-1.5" role="tablist" aria-label="Filtrar por divisão/equipe">
+            {[
+              { value: "all", label: "Todas as Equipes", count: teamCounts.all },
+              { value: "geral", label: "🤖 UFRJ Autônomos (Geral)", count: teamCounts.geral },
+              { value: "harpia", label: "☁️ Divisão Harpia", count: teamCounts.harpia },
+              { value: "nautilus", label: "🌊 Divisão Nautilus", count: teamCounts.nautilus },
+            ].map((tab) => (
+              <button
+                key={tab.value}
+                type="button"
+                role="tab"
+                aria-selected={teamFilter === tab.value}
+                onClick={() => setTeamFilter(tab.value)}
+                className={cn(
+                  "inline-flex items-center gap-2 rounded-lg px-3 py-1.5 text-xs font-medium transition-all cursor-pointer border",
+                  teamFilter === tab.value
+                    ? "bg-primary text-primary-foreground border-primary shadow-2xs"
+                    : "bg-background/70 text-muted-foreground border-border hover:bg-accent hover:text-foreground"
+                )}
+              >
+                <span>{tab.label}</span>
+                <span
+                  className={cn(
+                    "rounded-full px-1.5 py-0.2 font-mono text-[10px]",
+                    teamFilter === tab.value ? "bg-primary-foreground/20 text-primary-foreground" : "bg-muted text-muted-foreground"
+                  )}
+                >
+                  {tab.count}
+                </span>
+              </button>
+            ))}
+          </div>
+
+          {supportsVisual && (
+            <div className="inline-flex rounded-lg bg-muted p-1 border border-border/60">
+              <button
+                type="button"
+                onClick={() => setDisplayMode("visual")}
+                className={cn(
+                  "inline-flex items-center gap-1.5 rounded-md px-2.5 py-1 text-xs font-medium cursor-pointer transition-colors",
+                  displayMode === "visual" ? "bg-background text-foreground shadow-2xs" : "text-muted-foreground hover:text-foreground"
+                )}
+              >
+                <LayoutGrid className="h-3.5 w-3.5" />
+                Visual
+              </button>
+              <button
+                type="button"
+                onClick={() => setDisplayMode("table")}
+                className={cn(
+                  "inline-flex items-center gap-1.5 rounded-md px-2.5 py-1 text-xs font-medium cursor-pointer transition-colors",
+                  displayMode === "table" ? "bg-background text-foreground shadow-2xs" : "text-muted-foreground hover:text-foreground"
+                )}
+              >
+                <Table2 className="h-3.5 w-3.5" />
+                Tabela
+              </button>
+            </div>
+          )}
+        </div>
+      )}
+
       {/* Top Filter & Search Bar */}
       <div className="border-b border-border bg-muted/20 p-4 space-y-3">
         <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
@@ -233,31 +334,8 @@ export function DataTable({
         </div>
 
         {/* Quick Filter Pills */}
-        <div className="flex flex-wrap items-center gap-2 pt-1 text-xs">
-          {hasTeamField && (
-            <div className="flex items-center gap-1 bg-background/50 border border-border rounded-md p-1">
-              <span className="px-2 font-mono text-[10px] uppercase text-muted-foreground">Equipe:</span>
-              {[
-                { label: "Todas", value: "all" },
-                { label: "Geral", value: "geral" },
-                { label: "Nautilus", value: "nautilus" },
-                { label: "Harpia", value: "harpia" },
-              ].map((pill) => (
-                <button
-                  key={pill.value}
-                  onClick={() => setTeamFilter(pill.value)}
-                  className={cn(
-                    "rounded px-2 py-0.5 text-xs transition-colors cursor-pointer",
-                    teamFilter === pill.value
-                      ? "bg-primary text-primary-foreground font-medium"
-                      : "text-muted-foreground hover:text-foreground"
-                  )}
-                >
-                  {pill.label}
-                </button>
-              ))}
-            </div>
-          )}
+        {(hasAreaField && uniqueAreas.length > 0) || hasActiveField || hasCategoryField ? (
+          <div className="flex flex-wrap items-center gap-2 pt-1 text-xs">
 
           {hasAreaField && uniqueAreas.length > 0 && (
             <div className="flex flex-wrap items-center gap-1 bg-background/50 border border-border rounded-md p-1">
@@ -340,9 +418,10 @@ export function DataTable({
             </div>
           )}
         </div>
+        ) : null}
       </div>
 
-      {/* Main Table View */}
+      {/* Main Visual or Table View */}
       {filteredData.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-16 px-4 text-center">
           <div className="flex h-12 w-12 items-center justify-center rounded-full bg-muted/60 text-muted-foreground mb-3">
@@ -356,6 +435,294 @@ export function DataTable({
               ? "Tente ajustar ou limpar seus filtros de pesquisa para visualizar outros dados."
               : "Não há dados cadastrados nesta tabela ainda. Crie um novo registro acima."}
           </p>
+        </div>
+      ) : displayMode === "visual" && tableSlug === "timelineevent" ? (
+        <div className="p-4 sm:p-6">
+          <div className="relative pl-6 border-l-2 border-border space-y-5">
+            {filteredData.map((row) => {
+              const tPill = teamPillProps(getRowTeamKey(row));
+              const cat = String(row.category || "marco").toLowerCase();
+              const catColors: Record<string, string> = {
+                marco: "bg-muted text-secondary-foreground border-border",
+                projeto: "bg-blue-500/10 text-blue-700 dark:text-blue-400 border-blue-500/30",
+                premio: "bg-rose-500/10 text-rose-700 dark:text-rose-400 border-rose-500/30",
+                competicao: "bg-amber-500/10 text-amber-700 dark:text-amber-400 border-amber-500/30",
+              };
+              return (
+                <article
+                  key={row.id}
+                  className="relative rounded-xl border border-border bg-background/70 p-4 sm:p-5 shadow-2xs hover:border-primary/40 transition-colors"
+                >
+                  <span className="absolute -left-[31px] top-5 h-3.5 w-3.5 rounded-full border-2 border-background bg-primary" />
+                  <div className="flex flex-wrap items-start justify-between gap-3">
+                    <div className="space-y-1.5 min-w-0 flex-1">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span className="inline-flex items-center gap-1 rounded-md bg-muted px-2 py-0.5 font-mono text-xs font-semibold text-foreground">
+                          <Calendar className="h-3 w-3 text-muted-foreground" />
+                          {row.date}
+                        </span>
+                        <span className={cn("inline-flex items-center rounded-full border px-2 py-0.5 font-mono text-[10px] uppercase", catColors[cat] || catColors.marco)}>
+                          {row.category}
+                        </span>
+                        <span className={cn("inline-flex items-center rounded-full border px-2 py-0.5 font-mono text-[10px]", tPill.cls)}>
+                          {tPill.label}
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setQuickConfirm({
+                              row,
+                              field: "showOnHome",
+                              fieldLabel: "Exibir na Home",
+                              currentValLabel: row.showOnHome ? "Sim" : "Não",
+                              newVal: !row.showOnHome,
+                              newValLabel: !row.showOnHome ? "Sim" : "Não",
+                            })
+                          }
+                          className={cn(
+                            "inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[10px] font-medium cursor-pointer transition-colors",
+                            row.showOnHome
+                              ? "bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border-emerald-500/30"
+                              : "bg-muted/60 text-muted-foreground border-border"
+                          )}
+                          title="Alternar destaque na Home"
+                        >
+                          <Home className="h-2.5 w-2.5" />
+                          {row.showOnHome ? "Na Home" : "Oculto na Home"}
+                        </button>
+                      </div>
+                      <h3 className="font-display text-base font-semibold text-foreground">{row.title}</h3>
+                      {row.description && (
+                        <p className="text-xs text-muted-foreground leading-relaxed">{row.description}</p>
+                      )}
+                      {row.details && (
+                        <p className="text-[11px] text-secondary-foreground/80 bg-muted/40 rounded-md p-2.5 border border-border/60 line-clamp-3 whitespace-pre-line">
+                          {row.details}
+                        </p>
+                      )}
+                    </div>
+                    <div className="flex items-center gap-1.5 shrink-0">
+                      <Link
+                        href={`${directoryPath(tableSlug)}/${row.id}`}
+                        className="inline-flex items-center gap-1 rounded-md border border-border bg-card px-2.5 py-1.5 text-xs font-medium text-foreground hover:bg-muted"
+                      >
+                        <Edit className="h-3.5 w-3.5" />
+                        Editar
+                      </Link>
+                      <button
+                        type="button"
+                        onClick={() => setDeleteConfirmTarget(row)}
+                        disabled={isDeleting === row.id}
+                        className="inline-flex items-center justify-center rounded-md border border-red-500/20 bg-red-500/5 p-1.5 text-red-700 dark:text-red-400 hover:bg-red-800/20 cursor-pointer"
+                        title="Excluir marco"
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </button>
+                    </div>
+                  </div>
+                </article>
+              );
+            })}
+          </div>
+        </div>
+      ) : displayMode === "visual" && tableSlug === "galleryimage" ? (
+        <div className="p-4 sm:p-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+          {filteredData.map((row) => {
+            const tPill = teamPillProps(getRowTeamKey(row));
+            const linkedLabel = row.project?.name || row.competition?.name || row.timelineEvent?.title || null;
+            return (
+              <article key={row.id} className="group/card flex flex-col overflow-hidden rounded-xl border border-border bg-background/70 shadow-2xs hover:border-primary/40 transition-all">
+                <button
+                  type="button"
+                  onClick={() =>
+                    setPreviewImage({
+                      url: row.url,
+                      title: row.caption || `Foto #${row.id}`,
+                    })
+                  }
+                  className="relative aspect-[4/3] w-full overflow-hidden bg-muted cursor-pointer"
+                >
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={assetUrl(row.url)}
+                    alt={row.caption || "Foto da galeria"}
+                    className="h-full w-full object-cover transition-transform duration-300 group-hover/card:scale-105"
+                    loading="lazy"
+                  />
+                  <span className={cn("absolute left-2.5 top-2.5 inline-flex items-center rounded-full border backdrop-blur-md bg-background/85 px-2 py-0.5 font-mono text-[10px]", tPill.cls)}>
+                    {tPill.label}
+                  </span>
+                  {(row.year || row.month) && (
+                    <span className="absolute right-2.5 top-2.5 rounded-md bg-black/65 px-2 py-0.5 font-mono text-[10px] text-white">
+                      {row.month ? `${String(row.month).padStart(2, "0")}/` : ""}{row.year || ""}
+                    </span>
+                  )}
+                </button>
+                <div className="flex-1 p-3.5 space-y-2">
+                  <p className="text-xs font-medium text-foreground line-clamp-2 leading-snug" title={row.caption}>
+                    {row.caption || "Sem legenda"}
+                  </p>
+                  {linkedLabel && (
+                    <p className="text-[11px] text-muted-foreground truncate">
+                      Vinculado a: <strong className="text-foreground">{linkedLabel}</strong>
+                    </p>
+                  )}
+                </div>
+                <div className="border-t border-border/60 px-3.5 py-2.5 flex items-center justify-between gap-2 bg-muted/20">
+                  <span className="font-mono text-[10px] text-muted-foreground">#{row.id}</span>
+                  <div className="flex items-center gap-1.5">
+                    <Link
+                      href={`${directoryPath(tableSlug)}/${row.id}`}
+                      className="inline-flex items-center gap-1 rounded-md border border-border bg-card px-2.5 py-1 text-xs text-foreground hover:bg-muted"
+                    >
+                      <Edit className="h-3 w-3" /> Editar
+                    </Link>
+                    <button
+                      type="button"
+                      onClick={() => setDeleteConfirmTarget(row)}
+                      className="inline-flex items-center justify-center rounded-md border border-red-500/20 bg-red-500/5 p-1 text-red-700 dark:text-red-400 hover:bg-red-800/20 cursor-pointer"
+                      title="Excluir foto"
+                    >
+                      <Trash2 className="h-3 w-3" />
+                    </button>
+                  </div>
+                </div>
+              </article>
+            );
+          })}
+        </div>
+      ) : displayMode === "visual" && tableSlug === "competition" ? (
+        <div className="p-4 sm:p-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          {filteredData.map((row) => {
+            const tPill = teamPillProps(getRowTeamKey(row));
+            return (
+              <article key={row.id} className="flex flex-col justify-between rounded-xl border border-border bg-background/70 p-4 shadow-2xs hover:border-primary/40 transition-colors space-y-3">
+                <div className="space-y-2">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <span className={cn("inline-flex items-center rounded-full border px-2 py-0.5 font-mono text-[10px]", tPill.cls)}>
+                      {tPill.label}
+                    </span>
+                    <span className="font-mono text-xs font-bold text-foreground bg-muted px-2 py-0.5 rounded">
+                      {row.year}
+                    </span>
+                  </div>
+                  <h3 className="font-display text-base font-semibold text-foreground">{row.name}</h3>
+                  {row.result && (
+                    <div className="inline-flex items-center gap-1.5 rounded-lg bg-amber-500/10 border border-amber-500/30 px-2.5 py-1 text-xs font-medium text-amber-700 dark:text-amber-300">
+                      <Trophy className="h-3.5 w-3.5 shrink-0" />
+                      <span>{row.result}</span>
+                    </div>
+                  )}
+                  <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                    <MapPin className="h-3.5 w-3.5 shrink-0" />
+                    <span>{row.location}{row.country ? `, ${row.country}` : ""}</span>
+                  </p>
+                  {row.details && (
+                    <p className="text-xs text-muted-foreground line-clamp-2">{row.details}</p>
+                  )}
+                </div>
+                <div className="border-t border-border/60 pt-3 flex items-center justify-between gap-2">
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setQuickConfirm({
+                        row,
+                        field: "showOnHome",
+                        fieldLabel: "Exibir na Home",
+                        currentValLabel: row.showOnHome ? "Sim" : "Não",
+                        newVal: !row.showOnHome,
+                        newValLabel: !row.showOnHome ? "Sim" : "Não",
+                      })
+                    }
+                    className={cn(
+                      "inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[10px] font-medium cursor-pointer",
+                      row.showOnHome
+                        ? "bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border-emerald-500/30"
+                        : "bg-muted text-muted-foreground border-border"
+                    )}
+                  >
+                    <Home className="h-2.5 w-2.5" />
+                    {row.showOnHome ? "Na Home" : "Oculto na Home"}
+                  </button>
+                  <div className="flex items-center gap-1.5">
+                    <Link
+                      href={`${directoryPath(tableSlug)}/${row.id}`}
+                      className="inline-flex items-center gap-1 rounded-md border border-border bg-card px-2.5 py-1 text-xs text-foreground hover:bg-muted"
+                    >
+                      <Edit className="h-3.5 w-3.5" /> Editar
+                    </Link>
+                    <button
+                      type="button"
+                      onClick={() => setDeleteConfirmTarget(row)}
+                      className="inline-flex items-center justify-center rounded-md border border-red-500/20 bg-red-500/5 p-1 text-red-700 dark:text-red-400 hover:bg-red-800/20 cursor-pointer"
+                    >
+                      <Trash2 className="h-3.5 w-3.5" />
+                    </button>
+                  </div>
+                </div>
+              </article>
+            );
+          })}
+        </div>
+      ) : displayMode === "visual" && tableSlug === "sponsor" ? (
+        <div className="p-4 sm:p-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+          {filteredData.map((row) => {
+            const tPill = teamPillProps(getRowTeamKey(row));
+            const tierColors: Record<string, string> = {
+              ouro: "bg-amber-500/15 text-amber-700 dark:text-amber-300 border-amber-500/40",
+              prata: "bg-slate-500/15 text-slate-700 dark:text-slate-300 border-slate-500/40",
+              bronze: "bg-orange-500/15 text-orange-700 dark:text-orange-300 border-orange-500/40",
+              apoio: "bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border-emerald-500/40",
+            };
+            return (
+              <article key={row.id} className="flex flex-col justify-between rounded-xl border border-border bg-background/70 p-4 shadow-2xs space-y-3">
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between gap-2">
+                    <span className={cn("inline-flex rounded-full border px-2 py-0.5 font-mono text-[10px] uppercase font-semibold", tierColors[String(row.tier || "").toLowerCase()] || "bg-muted text-foreground border-border")}>
+                      {row.tier}
+                    </span>
+                    <span className={cn("inline-flex items-center rounded-full border px-2 py-0.5 font-mono text-[10px]", tPill.cls)}>
+                      {tPill.label}
+                    </span>
+                  </div>
+                  <div className="h-24 rounded-lg border border-border bg-muted/40 flex items-center justify-center p-3 overflow-hidden">
+                    {row.logo ? (
+                      /* eslint-disable-next-line @next/next/no-img-element */
+                      <img src={assetUrl(row.logo)} alt={row.name} className="max-h-full max-w-full object-contain" />
+                    ) : (
+                      <span className="font-display text-sm font-semibold text-muted-foreground">{row.name}</span>
+                    )}
+                  </div>
+                  <div>
+                    <h3 className="font-display text-sm font-semibold text-foreground">{row.name}</h3>
+                    {row.benefit && <p className="text-xs text-muted-foreground mt-0.5 line-clamp-2">{row.benefit}</p>}
+                  </div>
+                </div>
+                <div className="border-t border-border/60 pt-2.5 flex items-center justify-between gap-2">
+                  {row.website ? (
+                    <a href={row.website} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-[11px] text-primary hover:underline truncate max-w-28">
+                      <ExternalLink className="h-3 w-3 shrink-0" /> Site
+                    </a>
+                  ) : <span />}
+                  <div className="flex items-center gap-1.5">
+                    <Link
+                      href={`${directoryPath(tableSlug)}/${row.id}`}
+                      className="inline-flex items-center gap-1 rounded-md border border-border bg-card px-2.5 py-1 text-xs text-foreground hover:bg-muted"
+                    >
+                      <Edit className="h-3.5 w-3.5" /> Editar
+                    </Link>
+                    <button
+                      type="button"
+                      onClick={() => setDeleteConfirmTarget(row)}
+                      className="inline-flex items-center justify-center rounded-md border border-red-500/20 bg-red-500/5 p-1 text-red-700 dark:text-red-400 hover:bg-red-800/20 cursor-pointer"
+                    >
+                      <Trash2 className="h-3.5 w-3.5" />
+                    </button>
+                  </div>
+                </div>
+              </article>
+            );
+          })}
         </div>
       ) : (
         <div className="overflow-x-auto">

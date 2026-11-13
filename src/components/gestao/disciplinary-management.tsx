@@ -41,7 +41,7 @@ export function DisciplinaryManagement({
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [targetMemberId, setTargetMemberId] = useState('');
   const [memberSearchQuery, setMemberSearchQuery] = useState('');
-  const [warningType, setWarningType] = useState<'AVISO' | 'ADVERTENCIA_DIRETA'>('AVISO');
+  const [warningType, setWarningType] = useState<'AVISO' | 'ADVERTENCIA_DIRETA' | 'EXPULSAO_DIRETA'>('AVISO');
   const [reason, setReason] = useState('');
   const [notes, setNotes] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -97,7 +97,9 @@ export function DisciplinaryManagement({
       toast.success(
         warningType === 'AVISO'
           ? 'Aviso registrado com sucesso!'
-          : 'Advertência direta registrada com sucesso!'
+          : warningType === 'ADVERTENCIA_DIRETA'
+          ? 'Advertência direta registrada com sucesso!'
+          : 'Integrante expulso com sucesso! Cadastro transferido para a tabela de Ex-Membros.'
       );
       setIsModalOpen(false);
       setTargetMemberId('');
@@ -734,12 +736,12 @@ export function DisciplinaryManagement({
                 <label className="block text-xs font-semibold uppercase text-muted-foreground mb-1.5">
                   Tipo de Ocorrência
                 </label>
-                <div className="grid grid-cols-2 gap-3">
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
                   <label
                     className={cn(
-                      'flex items-center gap-2 p-3 rounded-xl border text-sm font-medium cursor-pointer transition',
+                      'flex items-center gap-2 p-3 rounded-xl border text-xs sm:text-sm font-medium cursor-pointer transition',
                       warningType === 'AVISO'
-                        ? 'border-amber-500 bg-amber-500/10 text-amber-700 dark:text-amber-300'
+                        ? 'border-amber-500 bg-amber-500/10 text-amber-700 dark:text-amber-300 ring-1 ring-amber-500'
                         : 'border-border text-muted-foreground hover:bg-muted/50'
                     )}
                   >
@@ -756,9 +758,9 @@ export function DisciplinaryManagement({
 
                   <label
                     className={cn(
-                      'flex items-center gap-2 p-3 rounded-xl border text-sm font-medium cursor-pointer transition',
+                      'flex items-center gap-2 p-3 rounded-xl border text-xs sm:text-sm font-medium cursor-pointer transition',
                       warningType === 'ADVERTENCIA_DIRETA'
-                        ? 'border-red-500 bg-red-500/10 text-red-700 dark:text-red-300'
+                        ? 'border-red-500 bg-red-500/10 text-red-700 dark:text-red-300 ring-1 ring-red-500'
                         : 'border-border text-muted-foreground hover:bg-muted/50'
                     )}
                   >
@@ -770,14 +772,39 @@ export function DisciplinaryManagement({
                       onChange={() => setWarningType('ADVERTENCIA_DIRETA')}
                       className="sr-only"
                     />
-                    <span>🔴 Advertência Direta</span>
+                    <span>🔴 Advertência</span>
+                  </label>
+
+                  <label
+                    className={cn(
+                      'flex items-center gap-2 p-3 rounded-xl border text-xs sm:text-sm font-semibold cursor-pointer transition',
+                      warningType === 'EXPULSAO_DIRETA'
+                        ? 'border-red-600 bg-red-600/15 text-red-700 dark:text-red-300 ring-2 ring-red-600'
+                        : 'border-border text-muted-foreground hover:bg-muted/50'
+                    )}
+                  >
+                    <input
+                      type="radio"
+                      name="warningType"
+                      value="EXPULSAO_DIRETA"
+                      checked={warningType === 'EXPULSAO_DIRETA'}
+                      onChange={() => setWarningType('EXPULSAO_DIRETA')}
+                      className="sr-only"
+                    />
+                    <span>⛔ Expulsão Direta</span>
                   </label>
                 </div>
-                <p className="mt-1.5 text-xs text-muted-foreground">
-                  {warningType === 'AVISO'
-                    ? '2 Avisos se convertem automaticamente em 1 Advertência consolidada.'
-                    : 'Conta imediatamente como 1 Advertência no histórico disciplinar.'}
-                </p>
+                {warningType === 'EXPULSAO_DIRETA' ? (
+                  <div className="mt-2.5 rounded-lg border border-red-500/30 bg-red-500/10 p-3 text-xs leading-relaxed text-red-700 dark:text-red-300">
+                    ⚠️ <strong>Atenção:</strong> Esta ação desligará imediatamente o integrante da equipe, movendo seu cadastro para a tabela de <strong>Ex-Membros</strong> com o motivo registrado de <em>Expulsão</em> e desativando seus acessos operacionais.
+                  </div>
+                ) : (
+                  <p className="mt-1.5 text-xs text-muted-foreground">
+                    {warningType === 'AVISO'
+                      ? '2 Avisos se convertem automaticamente em 1 Advertência consolidada.'
+                      : 'Conta imediatamente como 1 Advertência no histórico disciplinar.'}
+                  </p>
+                )}
               </div>
 
               {/* Motivo / Infração */}
@@ -820,9 +847,18 @@ export function DisciplinaryManagement({
                 <button
                   type="submit"
                   disabled={isSubmitting}
-                  className="px-4 py-2 rounded-lg bg-red-600 text-sm font-semibold text-white hover:bg-red-700 disabled:opacity-50 transition cursor-pointer"
+                  className={cn(
+                    'px-4 py-2 rounded-lg text-sm font-semibold text-white disabled:opacity-50 transition cursor-pointer',
+                    warningType === 'EXPULSAO_DIRETA'
+                      ? 'bg-red-700 hover:bg-red-800'
+                      : 'bg-red-600 hover:bg-red-700'
+                  )}
                 >
-                  {isSubmitting ? 'Salvando...' : 'Registrar Ocorrência'}
+                  {isSubmitting
+                    ? 'Processando...'
+                    : warningType === 'EXPULSAO_DIRETA'
+                    ? 'Confirmar Expulsão Direta'
+                    : 'Registrar Ocorrência'}
                 </button>
               </div>
             </form>

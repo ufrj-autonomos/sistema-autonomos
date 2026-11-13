@@ -2,7 +2,14 @@ import { Temporal } from '@js-temporal/polyfill';
 
 export const ATTENDANCE_TIME_ZONE = 'America/Sao_Paulo';
 export const DEFAULT_WEEKLY_SECONDS = 7200;
+export const DEFAULT_MONTHLY_SECONDS = 14400; // 4 horas mensais para Marketing e Gestão
 export const MAX_SESSION_SECONDS = 12 * 60 * 60;
+
+export function isMonthlyAttendanceArea(area?: string | null): boolean {
+  if (!area) return false;
+  const norm = area.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim();
+  return norm === 'marketing' || norm === 'gestao';
+}
 
 export function dateKey(date: Date) { return date.toISOString().slice(0, 10); }
 export function calendarDate(key: string) {
@@ -26,6 +33,16 @@ export function weekRange(key: string = weekKey()) {
 }
 export function weekDate(now: Date = new Date()) { return new Date(`${weekKey(now)}T00:00:00.000Z`); }
 export function nextWeek(key: string, amount = 1) { return calendarDate(key).add({ weeks: amount }).toString(); }
+export function monthRange(key: string = weekKey()) {
+  const date = calendarDate(key);
+  const firstDay = date.subtract({ days: date.day - 1 });
+  const nextMonth = firstDay.add({ months: 1 });
+  return {
+    key: firstDay.toString().slice(0, 7),
+    start: new Date(firstDay.toZonedDateTime(ATTENDANCE_TIME_ZONE).epochMilliseconds),
+    end: new Date(nextMonth.toZonedDateTime(ATTENDANCE_TIME_ZONE).epochMilliseconds),
+  };
+}
 export function localDateTime(value: unknown): Date {
   if (typeof value !== 'string' || !/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(:\d{2})?$/.test(value)) throw new Error('Informe data e horário de Brasília válidos.');
   return new Date(Temporal.PlainDateTime.from(value).toZonedDateTime(ATTENDANCE_TIME_ZONE, { disambiguation: 'reject' }).epochMilliseconds);

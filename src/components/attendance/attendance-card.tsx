@@ -32,12 +32,12 @@ export function AttendanceCard({ initial }: { initial: AttendanceReport | null }
     </div>
     {member ? <>
       <div className="mt-4 flex flex-wrap items-baseline gap-x-5 gap-y-2">
-        <p className="text-lg font-medium tabular-nums">{formatDuration(member.completedSeconds)} <span className="text-sm font-normal text-muted-foreground">validados nesta semana{member.requiredSeconds ? ` · meta de ${formatDuration(member.requiredSeconds)}` : ''}</span></p>
+        <p className="text-lg font-medium tabular-nums">{formatDuration(member.completedSeconds)} <span className="text-sm font-normal text-muted-foreground">{member.isMonthly ? 'validados neste mês' : 'validados nesta semana'}{member.requiredSeconds ? ` · meta ${member.isMonthly ? 'mensal' : 'semanal'} de ${formatDuration(member.requiredSeconds)}` : ''}</span></p>
         <span className={`text-sm ${member.status === 'MET' ? 'text-emerald-700 dark:text-emerald-300' : 'text-secondary-foreground'}`}>{GOAL_LABELS[member.status]}</span>
       </div>
       {member.requiredSeconds > 0 && <>
-        <progress aria-label="Meta semanal de presença" value={member.completedSeconds} max={member.requiredSeconds} className="mt-4 h-2 w-full overflow-hidden rounded-full accent-emerald-500" />
-        <p className="mt-2 text-sm text-muted-foreground">{member.remainingSeconds ? `Faltam ${formatDuration(member.remainingSeconds)} para cumprir a meta.` : 'Você cumpriu a meta desta semana.'} Semana de segunda a domingo, no horário de Brasília.</p>
+        <progress aria-label={member.isMonthly ? 'Meta mensal de presença' : 'Meta semanal de presença'} value={member.completedSeconds} max={member.requiredSeconds} className="mt-4 h-2 w-full overflow-hidden rounded-full accent-emerald-500" />
+        <p className="mt-2 text-sm text-muted-foreground">{member.remainingSeconds ? `Faltam ${formatDuration(member.remainingSeconds)} para cumprir a meta.` : member.isMonthly ? 'Você cumpriu a meta deste mês!' : 'Você cumpriu a meta desta semana.'} {member.isMonthly ? 'Meta mensal para as áreas de Marketing e Gestão.' : 'Semana de segunda a domingo, no horário de Brasília.'}</p>
       </>}
       {!!member.justifiedSeconds && <p className="mt-3 text-sm text-muted-foreground">Inclui {formatDuration(member.justifiedSeconds)} por justificativa aprovada.</p>}
       {member.openVisit && <p className={`mt-4 text-sm ${member.openVisit.needsReview ? 'text-amber-700 dark:text-amber-300' : 'text-emerald-700 dark:text-emerald-300'}`}>{member.openVisit.needsReview ? 'Sua entrada está sem saída há mais de 12 horas. Registre a saída e procure a gestão para revisar.' : `Entrada registrada às ${formatLabTime(member.openVisit.checkedInAt)}. Leia o QR code novamente ao sair.`}</p>}

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getCurrentUser } from '@/lib/session';
 import { prisma } from '@/lib/prisma';
+import { db as institutionalDb } from '@/lib/institutional/db';
 import {
   canUserManageDisciplinary,
   getDisciplinaryDashboardData,
@@ -40,7 +41,8 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Membro, tipo e motivo são obrigatórios.' }, { status: 400 });
     }
 
-    const validTypes: DisciplinaryWarningType[] = ['AVISO', 'ADVERTENCIA_DIRETA'];
+    const isDirectExpulsion = type === 'EXPULSAO_DIRETA';
+    const validTypes = ['AVISO', 'ADVERTENCIA_DIRETA', 'EXPULSAO_DIRETA'];
     if (!validTypes.includes(type)) {
       return NextResponse.json({ error: 'Tipo de ocorrência inválido.' }, { status: 400 });
     }
@@ -48,7 +50,7 @@ export async function POST(req: NextRequest) {
     // Verificar se o membro alvo existe
     const targetMember = await prisma.member.findUnique({
       where: { id: memberId },
-      select: { id: true, name: true, teamId: true },
+      select: { id: true, name: true, teamId: true, institutionalMemberId: true },
     });
 
     if (!targetMember) {
@@ -63,8 +65,8 @@ export async function POST(req: NextRequest) {
     const created = await prisma.disciplinaryWarning.create({
       data: {
         memberId,
-        type,
-        reason: reason.trim(),
+        type: isDirectExpulsion ? 'ADVERTENCIA_DIRETA' : (type as DisciplinaryWarningType),
+        reason: isDirectExpulsion ? `[EXPULSÃO DIRETA] ${reason.trim()}` : reason.trim(),
         notes: notes ? notes.trim() : null,
         issuedById: user.id,
       },
@@ -74,7 +76,33 @@ export async function POST(req: NextRequest) {
       },
     });
 
-    return NextResponse.json({ success: true, warning: created }, { status: 201 });
+    if (isDirectExpulsion) {
+      const now = new Date();
+      await prisma.member.update({
+        where: { id: memberId },
+        data: {
+          active: false,
+          inactivatedAt: now,
+          inactivationReason: `Expulsão: ${reason.trim()}`,
+        },
+      });
+
+      if (targetMember.institutionalMemberId && process.env.INSTITUTIONAL_DATABASE_URL) {
+        try {
+          await institutionalDb.institutionalMember.update({
+            where: { id: targetMember.institutionalMemberId },
+            data: {
+              active: false,
+              leftYear: String(now.getFullYear()),
+            },
+          });
+        } catch (instError) {
+          console.warn('Falha ao atualizar status de inativação no banco institucional:', instError);
+        }
+      }
+    }
+
+    return NextResponse.json({ success: true, expelled: isDirectExpulsion, warning: created }, { status: 201 });
   } catch (error) {
     console.error('Erro ao registrar ocorrência disciplinar:', error);
     return NextResponse.json({ error: 'Erro interno ao registrar ocorrência.' }, { status: 500 });

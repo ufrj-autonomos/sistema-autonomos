@@ -1,4 +1,4 @@
-import { dateKey, nextWeek, overlapSeconds, weekKey, weekRange, MAX_SESSION_SECONDS, DEFAULT_WEEKLY_SECONDS } from './time';
+import { dateKey, nextWeek, overlapSeconds, weekKey, weekRange, monthRange, isMonthlyAttendanceArea, MAX_SESSION_SECONDS, DEFAULT_WEEKLY_SECONDS, DEFAULT_MONTHLY_SECONDS } from './time';
 import type { AttendanceMemberDto, AttendanceReport, AttendanceVisitDto, MemberIdentifier, VisitStatus } from './types';
 
 export interface PeriodRecord { startsOn: Date; endsOn: Date | null; targetSeconds: number }
@@ -14,6 +14,7 @@ export function visitDto(visit: VisitRecord, now = new Date(), maxSeconds = MAX_
 export function memberSummary(member: { id: MemberIdentifier; name: string; area: string; email: string | null }, periods: PeriodRecord[], visits: VisitRecord[], selected: string, now = new Date(), maxSeconds = MAX_SESSION_SECONDS, justifications: { weekStartsOn: Date }[] = []): AttendanceMemberDto {
   const range = weekRange(selected);
   const current = weekRange(weekKey(now));
+  const isMonthly = isMonthlyAttendanceArea(member.area);
   const completedCutoff = range.end <= current.start ? nextWeek(selected) : current.key;
   const requiredWeeks = new Map<string, number>();
   for (const period of periods) {
@@ -22,6 +23,83 @@ export function memberSummary(member: { id: MemberIdentifier; name: string; area
       requiredWeeks.set(key, Math.max(requiredWeeks.get(key) || 0, period.targetSeconds));
     }
   }
+
+  const selectedVisits = visits.filter(visit => visit.checkedInAt < range.end && (!visit.checkedOutAt || visit.checkedOutAt > range.start));
+  const details = selectedVisits.map(visit => visitDto(visit, now, maxSeconds)).sort((a, b) => b.checkedInAt.localeCompare(a.checkedInAt));
+  const open = range.key === current.key ? visits.find(visit => visit.status === 'OPEN') : undefined;
+
+  if (isMonthly) {
+    const mRange = monthRange(selected);
+    const hasActivePeriodInMonth = Boolean(requiredWeeks.get(selected));
+    const requiredSeconds = hasActivePeriodInMonth ? DEFAULT_MONTHLY_SECONDS : 0;
+
+    let monthlyPhysicalSeconds = 0;
+    for (const visit of visits) {
+      if (visit.status !== 'CLOSED' || !visit.checkedOutAt) continue;
+      monthlyPhysicalSeconds += overlapSeconds(visit.checkedInAt, visit.checkedOutAt, mRange.start, mRange.end);
+    }
+
+    let monthlyJustifiedSeconds = 0;
+    for (const justification of justifications) {
+      const jKey = dateKey(justification.weekStartsOn);
+      const jDate = new Date(`${jKey}T00:00:00Z`);
+      if (jDate >= mRange.start && jDate < mRange.end) {
+        monthlyJustifiedSeconds += DEFAULT_WEEKLY_SECONDS;
+      }
+    }
+
+    const completedSeconds = monthlyPhysicalSeconds + monthlyJustifiedSeconds;
+    const isMonthClosed = mRange.end <= now;
+
+    // Calcular meses fechados anteriores abaixo da meta
+    let missedMonths = 0;
+    if (hasActivePeriodInMonth) {
+      const currentMonthRange = monthRange(weekKey(now));
+      let iterDate = new Date(mRange.start);
+      // Avaliar meses passados que já fecharam
+      const firstPeriodStart = periods.length ? new Date(Math.min(...periods.map(p => p.startsOn.getTime()))) : null;
+      if (firstPeriodStart) {
+        const startMonth = monthRange(dateKey(firstPeriodStart));
+        let check = new Date(startMonth.start);
+        while (check < currentMonthRange.start) {
+          const nextCheck = new Date(check.getFullYear(), check.getMonth() + 1, 1);
+          const checkRange = { start: check, end: nextCheck };
+          let checkSeconds = 0;
+          for (const visit of visits) {
+            if (visit.status === 'CLOSED' && visit.checkedOutAt) {
+              checkSeconds += overlapSeconds(visit.checkedInAt, visit.checkedOutAt, checkRange.start, checkRange.end);
+            }
+          }
+          for (const justification of justifications) {
+            const jDate = new Date(`${dateKey(justification.weekStartsOn)}T00:00:00Z`);
+            if (jDate >= checkRange.start && jDate < checkRange.end) {
+              checkSeconds += DEFAULT_WEEKLY_SECONDS;
+            }
+          }
+          if (checkSeconds < DEFAULT_MONTHLY_SECONDS) {
+            missedMonths++;
+          }
+          check = nextCheck;
+        }
+      }
+    }
+
+    return {
+      ...member,
+      isMonthly: true,
+      requiredSeconds,
+      completedSeconds,
+      justifiedSeconds: monthlyJustifiedSeconds,
+      remainingSeconds: Math.max(0, requiredSeconds - completedSeconds),
+      percentage: requiredSeconds ? Math.min(100, Math.floor(completedSeconds / requiredSeconds * 100)) : 0,
+      status: !requiredSeconds ? 'NOT_REQUIRED' : completedSeconds >= requiredSeconds ? 'MET' : isMonthClosed ? 'MISSED' : 'PENDING',
+      missedWeeks: missedMonths,
+      openVisit: open ? visitDto(open, now, maxSeconds) : null,
+      pendingReviews: details.filter(visit => visit.needsReview).length,
+      visits: details,
+    };
+  }
+
   const validatedWeeks = new Map<string, number>();
   for (const visit of visits) {
     if (visit.status !== 'CLOSED' || !visit.checkedOutAt) continue;
@@ -38,11 +116,10 @@ export function memberSummary(member: { id: MemberIdentifier; name: string; area
   }
   const requiredSeconds = requiredWeeks.get(selected) || 0;
   const completedSeconds = validatedWeeks.get(selected) || 0;
-  const selectedVisits = visits.filter(visit => visit.checkedInAt < range.end && (!visit.checkedOutAt || visit.checkedOutAt > range.start));
-  const details = selectedVisits.map(visit => visitDto(visit, now, maxSeconds)).sort((a, b) => b.checkedInAt.localeCompare(a.checkedInAt));
-  const open = range.key === current.key ? visits.find(visit => visit.status === 'OPEN') : undefined;
   return {
-    ...member, requiredSeconds, completedSeconds, justifiedSeconds: Math.max(0, completedSeconds - physicalSeconds), remainingSeconds: Math.max(0, requiredSeconds - completedSeconds),
+    ...member,
+    isMonthly: false,
+    requiredSeconds, completedSeconds, justifiedSeconds: Math.max(0, completedSeconds - physicalSeconds), remainingSeconds: Math.max(0, requiredSeconds - completedSeconds),
     percentage: requiredSeconds ? Math.min(100, Math.floor(completedSeconds / requiredSeconds * 100)) : 0,
     status: !requiredSeconds ? 'NOT_REQUIRED' : completedSeconds >= requiredSeconds ? 'MET' : range.end <= now ? 'MISSED' : 'PENDING',
     missedWeeks: [...requiredWeeks].filter(([key, target]) => key < completedCutoff && (validatedWeeks.get(key) || 0) < target).length,

@@ -25,10 +25,15 @@ export type MemberDirectoryRow = {
   photo: string | null; bio: string | null; course: string | null;
   linkedin: string | null; github: string | null; instagram: string | null;
   joinedYear: string | null; leftYear: string | null; projectNames: string; isFemale: boolean;
+  inactivatedAt?: string | null;
+  inactivationReason?: string | null;
   roleEn: string | null; roleFr: string | null; bioEn: string | null; bioFr: string | null;
   courseEn: string | null; courseFr: string | null;
   internal: Record<OperationalKey, string | null> & { notes: string | null; missedWeeks: number | null };
   pendingChange?: PendingProfileChangeDto | null;
+  hasPlatformAccount?: boolean;
+  profileCompletedAt?: string | null;
+  missingProfileFields?: string[];
 };
 export const MEMBER_COLUMNS = [
   { key: 'name', label: 'Nome (site)', group: 'Site', width: 240 },
@@ -66,11 +71,14 @@ export const MEMBER_COLUMNS = [
   { key: 'emergencyContact', label: 'Contato de emergência', group: 'Interno', width: 260 },
   { key: 'notes', label: 'Observações internas', group: 'Interno', width: 300 },
   { key: 'missedWeeks', label: 'Semanas abaixo da meta', group: 'Presença', width: 220 },
+  { key: 'inactivatedAt', label: 'Data de saída', group: 'Histórico', width: 140 },
+  { key: 'inactivationReason', label: 'Motivo da saída', group: 'Histórico', width: 240 },
 ] as const;
 export type MemberColumnKey = typeof MEMBER_COLUMNS[number]['key'];
 export type MemberView = 'site' | 'internal' | 'custom';
 export type MemberPreferences = { view: MemberView; columns: MemberColumnKey[] };
-export const SITE_COLUMNS: MemberColumnKey[] = ['name', 'role', 'area', 'age', 'teamName', 'active', 'showOnSite'];
+export const SITE_COLUMNS: MemberColumnKey[] = ['name', 'role', 'area', 'teamName', 'course', 'joinedYear', 'age', 'active'];
+export const ALUMNI_COLUMNS: MemberColumnKey[] = ['name', 'role', 'area', 'teamName', 'course', 'joinedYear', 'inactivatedAt', 'inactivationReason', 'linkedin', 'active'];
 export const INTERNAL_COLUMNS: MemberColumnKey[] = ['internalName', 'internalArea', 'email', 'phone', 'dre', 'cpf', 'birthDate', 'internalCourse', 'academicPeriod', 'emergencyContact'];
 export function memberPreferences(input: unknown): MemberPreferences {
   if (!input || typeof input !== 'object' || Array.isArray(input)) throw new Error('Visualização inválida.');
@@ -88,6 +96,8 @@ export function memberValue(row: MemberDirectoryRow, key: MemberColumnKey): stri
     case 'internalArea': return row.internal.area || row.area;
     case 'internalCourse': return row.internal.course || row.course;
     case 'emergencyContact': return [row.internal.emergencyContactName, row.internal.emergencyContactPhone].filter(Boolean).join('\n') || null;
+    case 'inactivatedAt': return row.inactivatedAt || (row.leftYear ? `Ano ${row.leftYear}` : null);
+    case 'inactivationReason': return row.inactivationReason || null;
     case 'email': case 'phone': case 'dre': case 'cpf': case 'birthDate': case 'academicPeriod': case 'notes': case 'missedWeeks': return row.internal[key];
     default: return row[key];
   }

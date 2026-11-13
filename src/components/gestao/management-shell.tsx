@@ -3,14 +3,29 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
-import { ChartNoAxesCombined, ScrollText, ArrowLeft, ArrowUpRight, ChevronRight, Clock3, LayoutDashboard, Globe, LogOut, Menu, Network, Server, ShieldAlert, ShieldCheck, Users, X } from 'lucide-react';
+import { ChartNoAxesCombined, ScrollText, ArrowLeft, ArrowUpRight, ChevronRight, ChevronDown, Clock3, LayoutDashboard, Globe, LogOut, Menu, Network, Server, ShieldAlert, ShieldCheck, Users, UserMinus, Wallet, Eye, FolderKanban, X } from 'lucide-react';
 import { ThemeToggle } from '@/components/layout/theme-toggle';
 import { hasManagementAccess, ROLE_LABELS } from '@/lib/access-policy';
 import { useSession } from '@/contexts/auth-context';
 import type { SafeUser } from '@/lib/session';
 import { getManagementSection, managementSectionsForRole, INSTITUTIONAL_LINKS } from '@/lib/management-navigation';
 
-const icons = { analytics: ChartNoAxesCombined, logs: ScrollText, overview: LayoutDashboard, accounts: ShieldCheck, members: Users, disciplinary: ShieldAlert, attendance: Clock3, divisions: Network, system: Server, institutional: Globe };
+const icons = {
+  analytics: ChartNoAxesCombined,
+  logs: ScrollText,
+  overview: LayoutDashboard,
+  accounts: ShieldCheck,
+  members: Users,
+  alumni: UserMinus,
+  disciplinary: ShieldAlert,
+  attendance: Clock3,
+  divisions: Network,
+  finance: Wallet,
+  siteMembers: Eye,
+  projects: FolderKanban,
+  system: Server,
+  institutional: Globe,
+};
 const focus = 'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring';
 
 export function ManagementShell({ children, initialUser }: { children: ReactNode; initialUser: SafeUser }) {
@@ -21,8 +36,13 @@ export function ManagementShell({ children, initialUser }: { children: ReactNode
   const mobileMenu = useRef<HTMLDialogElement>(null);
   const menuTrigger = useRef<HTMLButtonElement>(null);
   const [leaving, setLeaving] = useState(false);
+  const [collapsedGroups, setCollapsedGroups] = useState<Record<string, boolean>>({});
   const currentUser = user || initialUser;
   const isQr = pathname === '/gestao/presenca/qr';
+
+  function toggleGroup(group: string) {
+    setCollapsedGroups(prev => ({ ...prev, [group]: !prev[group] }));
+  }
   useEffect(() => { mobileMenu.current?.close(); }, [pathname]);
   useEffect(() => {
     const desktop = window.matchMedia('(min-width: 1024px)');
@@ -43,16 +63,95 @@ export function ManagementShell({ children, initialUser }: { children: ReactNode
         {mobile && <button type="button" onClick={closeMenu} aria-label="Fechar menu da gestão" className={`flex h-11 w-11 items-center justify-center rounded-lg text-secondary-foreground hover:bg-accent ${focus}`}><X className="h-5 w-5" /></button>}
       </div>
       <nav aria-label="Sistemas de gestão" className="flex-1 overflow-y-auto px-3 py-6">
-        {['Principal', 'Pessoas', 'Operação', 'Plataforma'].map(group => <div key={group} className="mb-6 last:mb-0">
-          <p className="mb-2 px-3 text-xs font-medium text-muted-foreground">{group}</p>
-          <ul className="space-y-1">{managementSectionsForRole(currentUser.role).filter(item => item.group === group).map(item => {
-            const active = section?.href === item.href;
-            const Icon = icons[item.icon];
-            return <li key={item.href}><Link href={item.href} onClick={() => mobile && closeMenu()} aria-current={active && !isQr ? 'page' : undefined} className={`flex min-h-11 items-center gap-3 rounded-lg px-3 py-2.5 text-sm ${focus} ${active ? 'bg-accent font-medium text-foreground' : 'text-muted-foreground hover:bg-accent/50 hover:text-foreground'}`}><Icon aria-hidden="true" className="h-[18px] w-[18px] shrink-0" /><span>{item.label}</span></Link>
-            {active && item.icon === 'institutional' && <ul className="ml-8 mt-1 border-l border-border pl-2">{INSTITUTIONAL_LINKS.map(([label, path]) => <li key={path}><Link href={`/gestao/site${path}`} onClick={() => mobile && closeMenu()} aria-current={pathname === `/gestao/site${path}` ? 'page' : undefined} className={`flex min-h-10 items-center rounded-md px-3 py-2 text-sm ${focus} ${pathname === `/gestao/site${path}` ? 'text-foreground underline underline-offset-4' : 'text-muted-foreground hover:text-foreground'}`}>{label}</Link></li>)}</ul>}
-            {active && item.icon === 'attendance' && <ul className="ml-8 mt-1 border-l border-border pl-2"><li><Link href="/gestao/presenca/qr" onClick={() => mobile && closeMenu()} aria-current={isQr ? 'page' : undefined} className={`flex min-h-11 items-center rounded-md px-3 text-sm ${focus} ${isQr ? 'text-foreground underline underline-offset-4' : 'text-muted-foreground hover:text-foreground'}`}>QR para impressão</Link></li></ul>}</li>;
-          })}</ul>
-        </div>)}
+        {['Principal', 'Pessoas', 'Financeiro', 'Site', 'Sistema'].map(group => {
+          const items = managementSectionsForRole(currentUser.role).filter(item => item.group === group);
+          if (!items.length) return null;
+          const isPrincipal = group === 'Principal';
+          const isGroupActive = items.some(item => section?.href === item.href);
+          // If user hasn't explicitly toggled, keep active group open; collapsed by default if not active and not Principal
+          const isCollapsed = !isPrincipal && (collapsedGroups[group] ?? !isGroupActive);
+
+          return (
+            <div key={group} className="mb-5 last:mb-0">
+              {isPrincipal ? (
+                <p className="mb-2 px-3 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">{group}</p>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => toggleGroup(group)}
+                  aria-expanded={!isCollapsed}
+                  className={`flex w-full items-center justify-between rounded-md px-3 py-1.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground hover:bg-accent/40 hover:text-foreground transition-colors cursor-pointer ${focus}`}
+                >
+                  <span>{group}</span>
+                  <ChevronDown className={`h-3.5 w-3.5 transition-transform duration-200 ${isCollapsed ? '-rotate-90 text-muted-foreground/60' : 'rotate-0 text-muted-foreground'}`} />
+                </button>
+              )}
+              {!isCollapsed && (
+                <ul className="mt-1 space-y-1">
+                  {items.map(item => {
+                    const active = section?.href === item.href;
+                    const Icon = icons[item.icon];
+                    return (
+                      <li key={item.href}>
+                        <Link
+                          href={item.href}
+                          onClick={() => mobile && closeMenu()}
+                          aria-current={active && !isQr ? 'page' : undefined}
+                          className={`flex min-h-10 items-center gap-3 rounded-lg px-3 py-2 text-sm ${focus} ${
+                            active
+                              ? 'bg-accent font-medium text-foreground'
+                              : 'text-muted-foreground hover:bg-accent/50 hover:text-foreground'
+                          }`}
+                        >
+                          <Icon aria-hidden="true" className="h-[18px] w-[18px] shrink-0" />
+                          <span>{item.label}</span>
+                        </Link>
+                        {active && item.icon === 'institutional' && (
+                          <ul className="ml-8 mt-1 border-l border-border pl-2">
+                            {INSTITUTIONAL_LINKS.map(([label, path]) => (
+                              <li key={path}>
+                                <Link
+                                  href={`/gestao/site${path}`}
+                                  onClick={() => mobile && closeMenu()}
+                                  aria-current={pathname === `/gestao/site${path}` ? 'page' : undefined}
+                                  className={`flex min-h-9 items-center rounded-md px-3 py-1.5 text-xs ${focus} ${
+                                    pathname === `/gestao/site${path}`
+                                      ? 'font-medium text-foreground underline underline-offset-4'
+                                      : 'text-muted-foreground hover:text-foreground'
+                                  }`}
+                                >
+                                  {label}
+                                </Link>
+                              </li>
+                            ))}
+                          </ul>
+                        )}
+                        {active && item.icon === 'attendance' && (
+                          <ul className="ml-8 mt-1 border-l border-border pl-2">
+                            <li>
+                              <Link
+                                href="/gestao/presenca/qr"
+                                onClick={() => mobile && closeMenu()}
+                                aria-current={isQr ? 'page' : undefined}
+                                className={`flex min-h-11 items-center rounded-md px-3 text-sm ${focus} ${
+                                  isQr
+                                    ? 'text-foreground underline underline-offset-4'
+                                    : 'text-muted-foreground hover:text-foreground'
+                                }`}
+                              >
+                                QR para impressão
+                              </Link>
+                            </li>
+                          </ul>
+                        )}
+                      </li>
+                    );
+                  })}
+                </ul>
+              )}
+            </div>
+          );
+        })}
       </nav>
       <div className="border-t border-border p-3">
         <Link href="/" className={`flex min-h-11 items-center gap-3 rounded-lg px-3 text-sm text-secondary-foreground hover:bg-accent ${focus}`}><ArrowLeft className="h-[18px] w-[18px]" />Área do membro<ArrowUpRight className="ml-auto h-4 w-4 text-muted-foreground" /></Link>

@@ -7,34 +7,34 @@ import {
   Clock,
   Image as ImageIcon,
   Briefcase,
-  Layers,
   Plus,
   ArrowRight,
   Sparkles,
   FileText,
   CheckCircle2,
-  Database,
-  ExternalLink,
+  Eye,
+  Mail,
+  Settings,
 } from "lucide-react";
 import { db } from "@/lib/institutional/db";
 
 export default async function AdminDashboard() {
   await requirePageUser(true);
-  // Fetch real counts from the database
   const [
-    totalMembers,
-    activeMembers,
-    totalTeams,
+    visibleMembers,
+    visibleAlumni,
     totalProjects,
     totalCompetitions,
     totalEvents,
     totalImages,
     totalSponsors,
     recentEvents,
+    harpiaCounts,
+    nautilusCounts,
+    geralCounts,
   ] = await Promise.all([
-    db.member.count(),
-    db.member.count({ where: { active: true } }),
-    db.team.count(),
+    db.institutionalMember.count({ where: { active: true, showOnSite: true } }),
+    db.institutionalMember.count({ where: { active: false, showOnSite: true } }),
     db.project.count(),
     db.competition.count(),
     db.timelineEvent.count(),
@@ -42,25 +42,58 @@ export default async function AdminDashboard() {
     db.sponsor.count(),
     db.timelineEvent.findMany({
       take: 4,
-      orderBy: { id: "desc" },
+      orderBy: { date: "desc" },
       select: { id: true, title: true, date: true, category: true, teamId: true },
     }),
+    Promise.all([
+      db.timelineEvent.count({ where: { teamId: 2 } }),
+      db.galleryImage.count({ where: { teamId: 2 } }),
+      db.competition.count({ where: { teamId: 2 } }),
+      db.project.count({ where: { teamId: 2 } }),
+    ]),
+    Promise.all([
+      db.timelineEvent.count({ where: { teamId: 1 } }),
+      db.galleryImage.count({ where: { teamId: 1 } }),
+      db.competition.count({ where: { teamId: 1 } }),
+      db.project.count({ where: { teamId: 1 } }),
+    ]),
+    Promise.all([
+      db.timelineEvent.count({ where: { teamId: null } }),
+      db.sponsor.count({ where: { teamId: null } }),
+      db.institutionalMember.count({ where: { teamId: null, showOnSite: true } }),
+    ]),
   ]);
 
   const STATS = [
     {
+      title: "Exibição de Membros",
+      count: visibleMembers + visibleAlumni,
+      sub: `${visibleMembers} ativos e ${visibleAlumni} alumni no site`,
+      href: "/gestao/site/membros",
+      icon: Eye,
+      color: "from-emerald-500/20 to-emerald-500/5 text-emerald-700 dark:text-emerald-400 border-emerald-500/30",
+    },
+    {
       title: "Eventos na História",
       count: totalEvents,
-      sub: "Marcos históricos com suporte a .md",
-      path: "timelineevent",
+      sub: "Linha do tempo visual por equipe",
+      href: "/gestao/site/timelineevent",
       icon: Clock,
       color: "from-purple-500/20 to-purple-500/5 text-purple-700 dark:text-purple-400 border-purple-500/30",
+    },
+    {
+      title: "Galeria de Fotos",
+      count: totalImages,
+      sub: "Álbuns visuais filtrados por divisão",
+      href: "/gestao/site/galleryimage",
+      icon: ImageIcon,
+      color: "from-cyan-500/20 to-cyan-500/5 text-cyan-700 dark:text-cyan-400 border-cyan-500/30",
     },
     {
       title: "Competições",
       count: totalCompetitions,
       sub: "Nacionais e Internacionais",
-      path: "competition",
+      href: "/gestao/site/competition",
       icon: Trophy,
       color: "from-amber-500/20 to-amber-500/5 text-amber-700 dark:text-amber-400 border-amber-500/30",
     },
@@ -68,66 +101,151 @@ export default async function AdminDashboard() {
       title: "Patrocinadores",
       count: totalSponsors,
       sub: "Empresas e parceiros de fomento",
-      path: "sponsor",
+      href: "/gestao/site/sponsor",
       icon: Briefcase,
       color: "from-rose-500/20 to-rose-500/5 text-rose-700 dark:text-rose-400 border-rose-500/30",
     },
     {
-      title: "Galeria de Fotos",
-      count: totalImages,
-      sub: "Imagens públicas de alta resolução",
-      path: "galleryimage",
-      icon: ImageIcon,
-      color: "from-cyan-500/20 to-cyan-500/5 text-cyan-700 dark:text-cyan-400 border-cyan-500/30",
+      title: "Projetos Públicos",
+      count: totalProjects,
+      sub: "Robôs e sistemas expostos no site",
+      href: "/gestao/projetos",
+      icon: Rocket,
+      color: "from-blue-500/20 to-blue-500/5 text-blue-700 dark:text-blue-400 border-blue-500/30",
+    },
+  ];
+
+  const TEAM_HUBS = [
+    {
+      name: "UFRJ Autônomos (Geral)",
+      slug: "geral",
+      desc: "Marcos institucionais do grupo, diretoria/capitania e patrocínios gerais.",
+      accent: "border-emerald-500/30 bg-emerald-500/5",
+      badge: "text-emerald-700 dark:text-emerald-300",
+      links: [
+        { label: `História (${geralCounts[0]})`, href: "/gestao/site/timelineevent?team=geral" },
+        { label: `Patrocinadores (${geralCounts[1]})`, href: "/gestao/site/sponsor?team=geral" },
+        { label: `Membros Gerais (${geralCounts[2]})`, href: "/gestao/site/membros" },
+      ],
+    },
+    {
+      name: "☁️ Divisão Harpia",
+      slug: "harpia",
+      desc: "Aeronaves autônomas: linha do tempo, galeria de voos, competições e drones.",
+      accent: "border-purple-500/30 bg-purple-500/5",
+      badge: "text-purple-700 dark:text-purple-300",
+      links: [
+        { label: `História (${harpiaCounts[0]})`, href: "/gestao/site/timelineevent?team=harpia" },
+        { label: `Fotos (${harpiaCounts[1]})`, href: "/gestao/site/galleryimage?team=harpia" },
+        { label: `Competições (${harpiaCounts[2]})`, href: "/gestao/site/competition?team=harpia" },
+        { label: `Projetos (${harpiaCounts[3]})`, href: "/gestao/projetos" },
+      ],
+    },
+    {
+      name: "🌊 Divisão Nautilus",
+      slug: "nautilus",
+      desc: "Veículos subaquáticos (AUVs/ROVs): história, fotos de piscina/RoboSub e troféus.",
+      accent: "border-sky-500/30 bg-sky-500/5",
+      badge: "text-sky-700 dark:text-sky-300",
+      links: [
+        { label: `História (${nautilusCounts[0]})`, href: "/gestao/site/timelineevent?team=nautilus" },
+        { label: `Fotos (${nautilusCounts[1]})`, href: "/gestao/site/galleryimage?team=nautilus" },
+        { label: `Competições (${nautilusCounts[2]})`, href: "/gestao/site/competition?team=nautilus" },
+        { label: `Projetos (${nautilusCounts[3]})`, href: "/gestao/projetos" },
+      ],
     },
   ];
 
   return (
-    <div className="max-w-6xl space-y-8">
+    <div className="max-w-7xl space-y-8">
       {/* Header Banner */}
       <div className="relative overflow-hidden rounded-xl border border-border bg-gradient-to-r from-card via-card/80 to-muted/20 p-6 sm:p-8">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-6">
           <div className="space-y-1.5 max-w-2xl">
             <div className="inline-flex items-center gap-2 rounded-full border border-primary/30 bg-primary/10 px-3 py-1 font-mono text-xs text-primary">
               <Sparkles className="h-3.5 w-3.5" />
-              <span>Painel de Controle Central</span>
+              <span>Central do Site Institucional</span>
             </div>
             <h1 className="font-display text-2xl sm:text-4xl font-semibold tracking-tight text-foreground">
-              Site institucional
+              Conteúdo &amp; Vitrine Pública
             </h1>
             <p className="text-sm text-muted-foreground leading-relaxed">
-              Gerencie equipes, competições, patrocinadores, fotos e marcos da história da UFRJ Autônomos. Integrantes e projetos têm seções próprias na gestão. Suporte completo a formatação em Markdown (.md).
+              Navegue pelas abas acima para alternar rapidamente entre História, Galeria de Fotos, Competições, Patrocinadores e Exibição de Membros — tudo organizado por equipe.
             </p>
           </div>
 
           <div className="flex flex-wrap items-center gap-2.5 shrink-0">
             <Link
-              href="/gestao/site/timelineevent/new"
+              href="/gestao/site/membros"
               className="inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2.5 text-xs font-semibold text-primary-foreground shadow-sm hover:bg-primary/90 transition-colors"
             >
-              <Plus className="h-4 w-4" />
-              <span>Novo Evento (.md)</span>
+              <Eye className="h-4 w-4" />
+              <span>Exibição de Membros</span>
             </Link>
             <Link
-              href="/gestao/integrantes/new"
+              href="/gestao/site/timelineevent/new"
               className="inline-flex items-center gap-2 rounded-lg border border-border bg-card px-4 py-2.5 text-xs font-medium text-foreground hover:bg-muted transition-colors"
             >
               <Plus className="h-4 w-4" />
-              <span>Novo Membro</span>
+              <span>Novo Marco (.md)</span>
+            </Link>
+            <Link
+              href="/gestao/site/galleryimage/new"
+              className="inline-flex items-center gap-2 rounded-lg border border-border bg-card px-4 py-2.5 text-xs font-medium text-foreground hover:bg-muted transition-colors"
+            >
+              <Plus className="h-4 w-4" />
+              <span>Nova Foto</span>
             </Link>
           </div>
         </div>
       </div>
 
+      {/* Organização por Equipe / Divisão */}
+      <section className="space-y-3">
+        <div className="flex items-center justify-between">
+          <h2 className="font-display text-lg font-semibold text-foreground">
+            Explorar Conteúdo por Equipe
+          </h2>
+          <span className="font-mono text-xs text-muted-foreground">Acesso direto filtrado</span>
+        </div>
+        <div className="grid gap-4 lg:grid-cols-3">
+          {TEAM_HUBS.map((hub) => (
+            <div key={hub.slug} className={`rounded-xl border p-5 space-y-4 ${hub.accent}`}>
+              <div>
+                <h3 className={`font-display text-base font-semibold ${hub.badge}`}>{hub.name}</h3>
+                <p className="mt-1 text-xs text-muted-foreground leading-relaxed">{hub.desc}</p>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                {hub.links.map((item) => (
+                  <Link
+                    key={item.label}
+                    href={item.href}
+                    className="inline-flex items-center gap-1 rounded-lg border border-border bg-background/85 px-2.5 py-1.5 text-xs font-medium text-foreground hover:bg-accent transition-colors"
+                  >
+                    <span>{item.label}</span>
+                    <ArrowRight className="h-3 w-3 text-muted-foreground" />
+                  </Link>
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
+      </section>
+
       {/* Real Stats Grid */}
       <div>
         <div className="flex items-center justify-between mb-4">
           <h2 className="font-display text-lg font-semibold text-foreground">
-            Estatísticas do Banco de Dados
+            Seções do Site Institucional
           </h2>
-          <span className="font-mono text-xs text-muted-foreground">
-            Sincronização em tempo real
-          </span>
+          <div className="flex items-center gap-3 text-xs">
+            <Link href="/gestao/site/mensagens" className="inline-flex items-center gap-1 text-muted-foreground hover:text-foreground">
+              <Mail className="h-3.5 w-3.5" /> Mensagens
+            </Link>
+            <Link href="/gestao/site/settings" className="inline-flex items-center gap-1 text-muted-foreground hover:text-foreground">
+              <Settings className="h-3.5 w-3.5" /> Configurações Globais
+            </Link>
+          </div>
         </div>
 
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
@@ -135,8 +253,8 @@ export default async function AdminDashboard() {
             const Icon = stat.icon;
             return (
               <Link
-                key={stat.path}
-                href={`/gestao/site/${stat.path}`}
+                key={stat.title}
+                href={stat.href}
                 className="group relative flex flex-col justify-between rounded-lg border border-border bg-card/60 p-5 transition-all duration-200 hover:border-hairline-strong hover:bg-card hover:-translate-y-0.5"
               >
                 <div>
@@ -156,7 +274,7 @@ export default async function AdminDashboard() {
                 </div>
 
                 <div className="mt-4 flex items-center gap-1 font-mono text-[11px] text-muted-foreground group-hover:text-primary transition-colors border-t border-border/40 pt-3">
-                  <span>Gerenciar registros</span>
+                  <span>Gerenciar</span>
                   <ArrowRight className="h-3 w-3 transition-transform group-hover:translate-x-1" />
                 </div>
               </Link>
@@ -167,7 +285,6 @@ export default async function AdminDashboard() {
 
       {/* Two Column Section: Recent History & Markdown Guide */}
       <div className="grid gap-6 lg:grid-cols-2">
-        {/* Recent Events Card */}
         <div className="rounded-lg border border-border bg-card p-6 flex flex-col justify-between">
           <div>
             <div className="flex items-center justify-between pb-4 border-b border-border">
@@ -181,7 +298,7 @@ export default async function AdminDashboard() {
                 href="/gestao/site/timelineevent"
                 className="font-mono text-xs text-primary hover:underline"
               >
-                Ver todos ({totalEvents})
+                Abrir timeline ({totalEvents})
               </Link>
             </div>
 
@@ -223,7 +340,6 @@ export default async function AdminDashboard() {
           </div>
         </div>
 
-        {/* Markdown & Content Guide */}
         <div className="rounded-lg border border-border bg-card p-6">
           <div className="flex items-center gap-2 pb-4 border-b border-border">
             <FileText className="h-4 w-4 text-amber-700 dark:text-amber-400" />

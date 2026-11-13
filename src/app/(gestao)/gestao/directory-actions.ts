@@ -15,12 +15,25 @@ export async function updateMemberQuickField(id: number, field: string, value: u
   await requirePageUser(true);
   try {
     if (!Number.isSafeInteger(id) || id < 1) throw new Error('Integrante inválido.');
-    const allowedFields = ['active', 'showOnSite', 'isFemale', 'role', 'area', 'teamId'];
+    const allowedFields = ['active', 'showOnSite', 'isFemale', 'role', 'area', 'teamId', 'course', 'joinedYear', 'leftYear'];
     if (!allowedFields.includes(field)) throw new Error('Campo não permitido para edição rápida.');
     activityTarget(`/gestao/integrantes/${id}`, field);
 
     const result = await updateRecord('member', id, { [field]: value });
     if (!result.success) throw new Error(result.error || 'Erro ao atualizar campo.');
+    if (field === 'active' && value === true) {
+      await prisma.member.updateMany({
+        where: { institutionalMemberId: id },
+        data: {
+          active: true,
+          inactivatedAt: null,
+          inactivationReason: null,
+        },
+      });
+    }
+    revalidatePath('/gestao/integrantes');
+    revalidatePath('/gestao/ex-membros');
+    revalidatePath('/gestao/site/membros');
     return { success: true as const, warning: result.warning };
   } catch (error) {
     return {
@@ -62,5 +75,53 @@ export async function saveMemberPreferences(input: unknown) {
     return { success: false as const, error: 'Não foi possível salvar sua visualização. Tente novamente.' };
   }
 
+  });
+}
+
+export async function inactivateMember(
+  id: number,
+  input: { inactivatedAt?: string; inactivationReason: string }
+) {
+  return traceServerAction("inactivateMember", async () => {
+    await requirePageUser(true);
+    try {
+      if (!Number.isSafeInteger(id) || id < 1) throw new Error('Integrante inválido.');
+      if (!input || !input.inactivationReason?.trim()) {
+        throw new Error('Informe o motivo da inativação.');
+      }
+
+      const date = input.inactivatedAt ? new Date(`${input.inactivatedAt}T12:00:00Z`) : new Date();
+      const year = String(date.getFullYear());
+      const reason = input.inactivationReason.trim();
+
+      activityTarget(`/gestao/integrantes/${id}`, 'inactivate');
+
+      // 1. Atualizar banco institucional: active: false, leftYear: year
+      const result = await updateRecord('member', id, {
+        active: false,
+        leftYear: year,
+      });
+      if (!result.success) throw new Error(result.error || 'Erro ao inativar integrante.');
+
+      // 2. Atualizar prisma.member: active: false, inactivatedAt: date, inactivationReason: reason
+      await prisma.member.updateMany({
+        where: { institutionalMemberId: id },
+        data: {
+          active: false,
+          inactivatedAt: date,
+          inactivationReason: reason,
+        },
+      });
+
+      revalidatePath('/gestao/integrantes');
+      revalidatePath('/gestao/ex-membros');
+      revalidatePath('/gestao/site/membros');
+      return { success: true as const, warning: result.warning };
+    } catch (error) {
+      return {
+        success: false as const,
+        error: error instanceof Error ? error.message : 'Não foi possível inativar o integrante.',
+      };
+    }
   });
 }

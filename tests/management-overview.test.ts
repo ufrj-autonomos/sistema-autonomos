@@ -14,7 +14,7 @@ let failRequests = false, failPrevious = false, empty = false;
 function stub(object: any, key: string, fn: (...args: any[]) => any) { object[key] = fn; }
 const period = (start = '2026-10-19', end: string | null = null) => [{ startsOn: new Date(`${start}T00:00:00Z`), endsOn: end ? new Date(`${end}T00:00:00Z`) : null, targetSeconds: 7200 }];
 const visit = (id: string, start: string, end: string, status = 'CLOSED') => ({ id, memberId: id, checkedInAt: new Date(start), checkedOutAt: new Date(end), status, source: 'QR' });
-const member = (id: string, visits: any[], periods = period()) => ({ id, name: id, area: 'Gestão', email: null, institutionalMemberId: null, attendancePeriods: periods, attendanceVisits: visits });
+const member = (id: string, visits: any[], periods = period()) => ({ id, name: id, area: 'Software', email: null, institutionalMemberId: null, attendancePeriods: periods, attendanceVisits: visits });
 const members = [
   member('Ana', [visit('ana-previous', '2026-10-28T13:00:00Z', '2026-10-28T14:00:00Z'), visit('ana-current', '2026-11-03T13:00:00Z', '2026-11-03T15:00:00Z')]),
   member('Bia', [visit('bia-previous', '2026-10-29T13:00:00Z', '2026-10-29T15:00:00Z')]),

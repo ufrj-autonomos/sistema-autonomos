@@ -10,6 +10,7 @@ export interface AttendanceMemberDto {
   requiredSeconds: number; completedSeconds: number; remainingSeconds: number;
   justifiedSeconds?: number;
   percentage: number; status: GoalStatus; missedWeeks: number;
+  isMonthly?: boolean;
   openVisit: AttendanceVisitDto | null; pendingReviews: number; visits: AttendanceVisitDto[];
 }
 export interface AttendanceReport {

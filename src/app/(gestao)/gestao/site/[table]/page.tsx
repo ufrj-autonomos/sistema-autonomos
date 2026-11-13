@@ -6,9 +6,16 @@ import { adminModels } from "@/lib/institutional/admin-config";
 import { db } from "@/lib/institutional/db";
 import { DataTable } from "@/components/institutional/data-table";
 
-export default async function AdminTablePage(props: { params: Promise<{ table: string }> }) {
+export default async function AdminTablePage(props: {
+  params: Promise<{ table: string }>;
+  searchParams?: Promise<{ team?: string }>;
+}) {
   await requirePageUser(true);
   const params = await props.params;
+  const searchParams = props.searchParams ? await props.searchParams : {};
+  const initialTeam = ['all', 'geral', 'harpia', 'nautilus'].includes(searchParams.team || '')
+    ? (searchParams.team as 'all' | 'geral' | 'harpia' | 'nautilus')
+    : 'all';
   const tableSlug = params.table;
   if (tableSlug === "member") redirect("/gestao/integrantes");
   if (tableSlug === "project") redirect("/gestao/projetos");
@@ -22,7 +29,7 @@ export default async function AdminTablePage(props: { params: Promise<{ table: s
   const model = (db as any)[config.table];
 
   const query: any = {
-    orderBy: { id: "desc" },
+    orderBy: tableSlug === "timelineevent" ? { date: "desc" } : { id: "desc" },
   };
 
   if (tableSlug === "galleryimage") {
@@ -78,7 +85,7 @@ export default async function AdminTablePage(props: { params: Promise<{ table: s
 
       {/* Main Table Card */}
       <div className="rounded-xl border border-border bg-card overflow-hidden shadow-xs">
-        <DataTable config={config} data={plainRecords} tableSlug={tableSlug} />
+        <DataTable config={config} data={plainRecords} tableSlug={tableSlug} initialTeamFilter={initialTeam} />
       </div>
     </div>
   );

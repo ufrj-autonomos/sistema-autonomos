@@ -35,7 +35,7 @@ export function presenceAnalytics(operational: AnalyticsMember[], directory: Dir
   const keys = Array.from({ length: weeks + 1 }, (_, index) => nextWeek(start, index));
   // Clipping periods bounds work to the selected window; historical totals outside it
   // are intentionally not computed or exposed as if they were complete.
-  const normalized = operational.filter(member => member.attendancePeriods.length).map(member => {
+  const normalized = operational.filter(member => member.active && member.attendancePeriods.length).map(member => {
     const identity = member.institutionalMemberId ? byId.get(member.institutionalMemberId) : null;
     const periods = member.attendancePeriods.filter(period => !period.endsOn || dateKey(period.endsOn) > start).map(period => ({ ...period, startsOn: new Date(`${dateKey(period.startsOn) < start ? start : dateKey(period.startsOn)}T00:00:00Z`) }));
     const profile = { id: member.id, name: identity?.name || member.name, area: resolveMemberAreas(identity?.area, member.area).internal || 'Não informada', email: null };
@@ -53,7 +53,7 @@ export function presenceAnalytics(operational: AnalyticsMember[], directory: Dir
   const required = currentRows.filter(row => row.requiredSeconds > 0).length;
   const met = currentRows.filter(row => row.status === 'MET').length;
   const previous = trend.at(-1)!;
-  const review = new Set(operational.flatMap(member => member.attendanceVisits.filter(visit => visit.status === 'REVIEW' || (visit.status === 'OPEN' && now.getTime() - visit.checkedInAt.getTime() > maxSeconds * 1000)).map(visit => visit.id))).size;
+  const review = new Set(operational.filter(member => member.active).flatMap(member => member.attendanceVisits.filter(visit => visit.status === 'REVIEW' || (visit.status === 'OPEN' && now.getTime() - visit.checkedInAt.getTime() > maxSeconds * 1000)).map(visit => visit.id))).size;
   const totalRequired = trend.reduce((sum, week) => sum + week.required, 0);
   const totalMet = trend.reduce((sum, week) => sum + week.met, 0);
   const attention = normalized.filter(member => member.requiredWeeks > 0).map(({ summaries, ...member }) => ({ ...member, percentage: Math.round(member.metWeeks / member.requiredWeeks * 100) })).sort((a, b) => b.missedWeeks - a.missedWeeks || a.percentage - b.percentage || a.name.localeCompare(b.name, 'pt-BR'));

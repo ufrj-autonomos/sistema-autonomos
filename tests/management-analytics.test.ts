@@ -3,14 +3,14 @@ import { test } from 'node:test';
 import { rosterAnalytics, presenceAnalytics } from '../src/lib/management-analytics-core';
 import { analysisWeeks } from '../src/lib/management-analytics';
 const now = new Date('2026-11-04T15:00:00Z');
-function member(id: string, periods: any[] = [], visits: any[] = []): any {
-  return { id, name: id, institutionalMemberId: id === 'Ana' ? 1 : null, area: 'Gestão', email: 'private@example.invalid', status: 'APPROVED', role: 'MEMBER', active: true, course: 'Engenharia', phone: '21999999999', dre: '123456789', emergencyContactPhone: '21888888888', profileCompletedAt: now, credential: { memberId: id }, attendancePeriods: periods, attendanceVisits: visits };
+function member(id: string, periods: any[] = [], visits: any[] = [], area = 'Software'): any {
+  return { id, name: id, institutionalMemberId: id === 'Ana' ? 1 : null, area, email: 'private@example.invalid', status: 'APPROVED', role: 'MEMBER', active: true, course: 'Engenharia', phone: '21999999999', dre: '123456789', emergencyContactPhone: '21888888888', profileCompletedAt: now, credential: { memberId: id }, attendancePeriods: periods, attendanceVisits: visits };
 }
 const period = (start: string, end: string | null = null) => ({ startsOn: new Date(`${start}T00:00:00Z`), endsOn: end ? new Date(`${end}T00:00:00Z`) : null, targetSeconds: 7200 });
 function visit(id: string, start: string, end: string, status = 'CLOSED'): any { return { id, memberId: id, checkedInAt: new Date(start), checkedOutAt: new Date(end), status, source: 'QR' }; }
 const directory: any[] = [{ id: 1, name: 'Ana pública', area: 'Selecione uma opção', active: true, course: null, team: null }, { id: 2, name: 'Bia', area: 'Software', active: true, course: 'Computação', team: { name: 'Harpia', slug: 'harpia' } }, { id: 3, name: 'Inativo', area: 'Marketing', active: false, course: null, team: null }];
 test('distribution uses active public identities, explicit Autônomos and real internal areas', () => {
-  const data = rosterAnalytics(directory, [member('Ana')]);
+  const data = rosterAnalytics(directory, [member('Ana', [], [], 'Gestão')]);
   assert.equal(data.total, 3); assert.equal(data.active, 2); assert.equal(data.inactive, 1);
   assert.deepEqual(data.teams.map(row => row.label).sort(), ['Autônomos', 'Harpia']);
   assert.ok(data.areas.some(row => row.label === 'Gestão' && row.count === 1));

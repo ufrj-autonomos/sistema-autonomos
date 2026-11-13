@@ -107,6 +107,8 @@ model Member {
   emergencyContactPhone      String?
   notes                      String?       @db.Text
   active                     Boolean       @default(true)
+  inactivatedAt              DateTime?     @db.Date
+  inactivationReason         String?
   profileCompletedAt         DateTime?     @db.Timestamptz(3)
   memberDirectoryPreferences Json?
   createdAt                  DateTime      @default(now()) @db.Timestamptz(3)

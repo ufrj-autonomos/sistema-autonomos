@@ -265,7 +265,7 @@ export async function ManagementOverview({
               </p>
             </div>
             <Link
-              href="/gestao/integrantes#alteracoes-do-site"
+              href="/gestao/site/membros#alteracoes-do-site"
               className="mt-3 pt-2 border-t border-border/60 text-xs font-medium text-purple-600 dark:text-purple-400 hover:underline inline-flex items-center justify-between"
             >
               <span>Aprovar alterações</span>
@@ -436,7 +436,7 @@ export async function ManagementOverview({
                         </time>
                       </div>
                       <Link
-                        href="/gestao/integrantes#alteracoes-do-site"
+                        href="/gestao/site/membros#alteracoes-do-site"
                         className="inline-flex min-h-11 items-center gap-2 rounded-md px-2 text-sm font-medium hover:bg-accent"
                       >
                         Revisar
@@ -460,13 +460,13 @@ export async function ManagementOverview({
           )}
           <div className="border-t border-border px-5 py-3 sm:px-6">
             <Link
-              href="/gestao/integrantes#alteracoes-do-site"
+              href="/gestao/site/membros#alteracoes-do-site"
               className="inline-flex min-h-11 items-center gap-2 text-sm font-medium hover:underline underline-offset-4"
             >
               {overview.siteRequests &&
               overview.siteRequests.total > overview.siteRequests.rows.length
                 ? `Ver todas as ${overview.siteRequests.total} solicitações`
-                : 'Abrir integrantes e aprovações'}
+                : 'Abrir vitrine e aprovações do site'}
               <ArrowRight size={15} aria-hidden="true" />
             </Link>
           </div>

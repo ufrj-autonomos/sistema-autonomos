@@ -5,7 +5,7 @@ import { memberSummary } from '../src/lib/attendance/summary';
 import { presenceAnalytics, type AnalyticsMember } from '../src/lib/management-analytics-core';
 import { MAX_SESSION_SECONDS } from '../src/lib/attendance/time';
 const now = new Date('2026-11-18T12:00:00Z');
-const member = { id: 'member', name: 'Membro', email: null, area: 'Gestão' };
+const member = { id: 'member', name: 'Membro', email: null, area: 'Software' };
 const periods = [{ startsOn: new Date('2026-11-02T00:00:00Z'), endsOn: null, targetSeconds: 7200 }];
 const credits = [{ weekStartsOn: new Date('2026-11-02T00:00:00Z') }];
 const visit = { id: 'visit', memberId: 'member', checkedInAt: new Date('2026-11-03T12:00:00Z'), checkedOutAt: new Date('2026-11-03T13:00:00Z'), status: 'CLOSED' as const, source: 'QR' };
