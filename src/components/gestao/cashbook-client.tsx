@@ -5,6 +5,7 @@ import { useMemo, useState } from 'react';
 import {
   ArrowDownCircle,
   ArrowUpCircle,
+  Calendar,
   Check,
   Copy,
   Download,
@@ -16,6 +17,7 @@ import {
   Plus,
   Search,
   Trash2,
+  Upload,
   Wallet,
 } from 'lucide-react';
 import { toast } from 'sonner';
@@ -38,6 +40,7 @@ import {
   type FinancialEntryDTO,
   type FinancialEntryStatusValue,
   type FinancialEntryTypeValue,
+  type FinancialStatementDTO,
 } from '@/lib/finance/constants';
 import {
   AttachmentGallery,
@@ -50,19 +53,33 @@ import {
 } from '@/components/finance/finance-charts';
 import { cn } from '@/lib/utils';
 
-const DRIVE_ROOT_URL = 'https://drive.google.com/drive/folders/1L0WJaQEsREt34nkgMxuy6-mj21cW_vBb';
-
 export function CashbookClient({
   initialData,
 }: {
   initialData: FinancialDashboardData;
 }) {
   const [data, setData] = useState<FinancialDashboardData>(initialData);
+  const [activeTab, setActiveTab] = useState<'ledger' | 'statements'>('ledger');
   const [typeFilter, setTypeFilter] = useState<'ALL' | FinancialEntryTypeValue>('ALL');
   const [fundFilter, setFundFilter] = useState<'ALL' | string>('ALL');
   const [categoryFilter, setCategoryFilter] = useState<'ALL' | string>('ALL');
   const [statusFilter, setStatusFilter] = useState<'ALL' | FinancialEntryStatusValue>('ALL');
   const [search, setSearch] = useState('');
+
+  const [statementFundFilter, setStatementFundFilter] = useState<'ALL' | (typeof FINANCE_FUNDS)[number]>('ALL');
+  const [statementSearch, setStatementSearch] = useState('');
+  const [statementModalOpen, setStatementModalOpen] = useState(false);
+  const [stmtTitle, setStmtTitle] = useState('');
+  const [stmtFund, setStmtFund] = useState<(typeof FINANCE_FUNDS)[number]>('Dinheiro Livre');
+  const [stmtDate, setStmtDate] = useState(() => new Date().toISOString().slice(0, 10));
+  const [stmtNotes, setStmtNotes] = useState('');
+  const [stmtUploadedFile, setStmtUploadedFile] = useState<{
+    name: string;
+    url: string;
+    mimeType: string;
+  } | null>(null);
+  const [uploadingStmtFile, setUploadingStmtFile] = useState(false);
+  const [savingStmt, setSavingStmt] = useState(false);
 
   const [selectedEntry, setSelectedEntry] = useState<FinancialEntryDTO | null>(null);
   const [editAmount, setEditAmount] = useState('');
@@ -96,7 +113,12 @@ export function CashbookClient({
     const res = await fetch('/api/financeiro?scope=management', { cache: 'no-store' });
     if (!res.ok) return;
     const json = (await res.json()) as FinancialDashboardData & { scope?: string };
-    setData({ entries: json.entries, summary: json.summary, members: json.members });
+    setData({
+      entries: json.entries,
+      statements: json.statements || [],
+      summary: json.summary,
+      members: json.members,
+    });
     if (reopenId) {
       const updated = json.entries.find(e => e.id === reopenId) || null;
       setSelectedEntry(updated);
@@ -148,13 +170,114 @@ export function CashbookClient({
     });
   }, [data.entries, typeFilter, fundFilter, categoryFilter, statusFilter, search]);
 
-  const statementAttachment = useMemo(() => {
-    for (const entry of data.entries) {
-      const found = entry.attachments.find(a => a.kind === 'STATEMENT');
-      if (found) return found;
+  const statementCounts = useMemo(() => {
+    const livre = data.statements.filter(s => s.fundSource === 'Dinheiro Livre').length;
+    const coppetec = data.statements.filter(s => s.fundSource === 'Conta Coppetec').length;
+    const latest = data.statements[0] || null;
+    return { total: data.statements.length, livre, coppetec, latest };
+  }, [data.statements]);
+
+  const filteredStatements = useMemo(() => {
+    const q = statementSearch.trim().toLocaleLowerCase('pt-BR');
+    return [...data.statements]
+      .filter(st => {
+        if (statementFundFilter !== 'ALL' && st.fundSource !== statementFundFilter) return false;
+        if (q) {
+          const hay = `${st.title} ${st.fundSource} ${st.referenceDate} ${st.fileName} ${st.notes || ''}`.toLocaleLowerCase('pt-BR');
+          if (!hay.includes(q)) return false;
+        }
+        return true;
+      })
+      .sort((a, b) => b.referenceDate.localeCompare(a.referenceDate));
+  }, [data.statements, statementFundFilter, statementSearch]);
+
+  function openStatementModal(defaultFund?: (typeof FINANCE_FUNDS)[number]) {
+    setStmtTitle('');
+    setStmtFund(defaultFund || (statementFundFilter === 'ALL' ? 'Dinheiro Livre' : statementFundFilter));
+    setStmtDate(new Date().toISOString().slice(0, 10));
+    setStmtNotes('');
+    setStmtUploadedFile(null);
+    setStatementModalOpen(true);
+  }
+
+  async function handleStatementFileUpload(file: File) {
+    setUploadingStmtFile(true);
+    try {
+      const fd = new FormData();
+      fd.append('file', file);
+      const res = await fetch('/api/financeiro/upload', { method: 'POST', body: fd });
+      const json = await res.json();
+      if (!res.ok) {
+        throw new Error(json.error || 'Erro ao enviar arquivo do extrato.');
+      }
+      setStmtUploadedFile({
+        name: json.name || file.name,
+        url: json.url,
+        mimeType: json.mimeType || file.type || 'application/pdf',
+      });
+      if (!stmtTitle.trim()) {
+        setStmtTitle(file.name.replace(/\.[^.]+$/, ''));
+      }
+      toast.success('Arquivo enviado! Preencha a data e salve o extrato.');
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Falha no upload.');
+    } finally {
+      setUploadingStmtFile(false);
     }
-    return null;
-  }, [data.entries]);
+  }
+
+  async function handleCreateStatement(e: React.FormEvent) {
+    e.preventDefault();
+    if (!stmtUploadedFile) {
+      toast.error('Envie o arquivo do extrato (PDF, imagem, CSV ou OFX).');
+      return;
+    }
+    if (!stmtTitle.trim() || !stmtDate) {
+      toast.error('Informe o título e a data de referência do extrato.');
+      return;
+    }
+    setSavingStmt(true);
+    try {
+      const res = await fetch('/api/financeiro/extratos', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          title: stmtTitle.trim(),
+          fundSource: stmtFund,
+          referenceDate: stmtDate,
+          fileName: stmtUploadedFile.name,
+          fileUrl: stmtUploadedFile.url,
+          mimeType: stmtUploadedFile.mimeType,
+          notes: stmtNotes.trim() || null,
+        }),
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error || 'Erro ao registrar extrato.');
+      toast.success('Extrato salvo no histórico da conta.');
+      setStatementModalOpen(false);
+      setActiveTab('statements');
+      await refreshDashboard();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Erro ao salvar extrato.');
+    } finally {
+      setSavingStmt(false);
+    }
+  }
+
+  async function handleDeleteStatement(stmt: FinancialStatementDTO) {
+    if (!window.confirm(`Remover o extrato "${stmt.title}" (${formatFinanceDate(stmt.referenceDate)})?`)) {
+      return;
+    }
+    try {
+      const res = await fetch(`/api/financeiro/extratos/${stmt.id}`, { method: 'DELETE' });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error || 'Erro ao remover extrato.');
+      toast.success('Extrato removido.');
+      await refreshDashboard();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Erro ao remover extrato.');
+    }
+  }
 
   async function handleSaveEdit(e: React.FormEvent) {
     e.preventDefault();
@@ -368,35 +491,84 @@ export function CashbookClient({
 
         <div className="rounded-xl border border-border bg-card p-4 shadow-xs">
           <div className="flex items-center justify-between text-muted-foreground">
-            <span className="text-xs font-semibold uppercase tracking-wider">Extratos & Documentos</span>
+            <span className="text-xs font-semibold uppercase tracking-wider">Extratos das Contas</span>
             <FileText className="h-4 w-4 text-primary" />
           </div>
-          <div className="mt-2.5 flex flex-col gap-1.5">
-            {statementAttachment && (
-              <a
-                href={statementAttachment.url}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex items-center justify-between rounded-lg border border-border bg-muted/40 px-2.5 py-1.5 text-xs font-medium text-foreground hover:bg-accent"
-              >
-                <span className="truncate">{statementAttachment.name}</span>
-                <Download className="h-3.5 w-3.5 shrink-0 text-primary" />
-              </a>
-            )}
-            <a
-              href={DRIVE_ROOT_URL}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-flex items-center gap-1.5 text-xs font-medium text-primary hover:underline"
+          <p className="mt-1.5 font-mono text-2xl font-bold text-foreground tabular-nums">
+            {statementCounts.total}
+          </p>
+          <p className="mt-0.5 text-[11px] text-muted-foreground">
+            {statementCounts.livre} Livre · {statementCounts.coppetec} Coppetec
+            {statementCounts.latest
+              ? ` · Último: ${formatFinanceDate(statementCounts.latest.referenceDate)}`
+              : ''}
+          </p>
+          <div className="mt-2.5 flex flex-wrap items-center gap-2">
+            <button
+              type="button"
+              onClick={() => setActiveTab('statements')}
+              className="inline-flex items-center gap-1 text-xs font-medium text-primary hover:underline cursor-pointer"
             >
-              <ExternalLink className="h-3.5 w-3.5" />
-              Pasta de Comprovantes no Drive
-            </a>
+              Ver por data
+            </button>
+            <span className="text-muted-foreground text-xs">·</span>
+            <button
+              type="button"
+              onClick={() => openStatementModal()}
+              className="inline-flex items-center gap-1 text-xs font-medium text-foreground hover:text-primary cursor-pointer"
+            >
+              <Upload className="h-3 w-3" /> Enviar extrato
+            </button>
           </div>
         </div>
       </div>
 
-      {/* Gráficos Responsivos */}
+      {/* Navegação entre Livro Caixa e Extratos das Contas */}
+      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border pb-3">
+        <div className="inline-flex rounded-xl border border-border bg-muted/40 p-1">
+          <button
+            type="button"
+            onClick={() => setActiveTab('ledger')}
+            className={cn(
+              'min-h-9 rounded-lg px-3.5 text-xs font-semibold transition-colors cursor-pointer inline-flex items-center gap-1.5',
+              activeTab === 'ledger'
+                ? 'bg-background text-foreground shadow-xs'
+                : 'text-muted-foreground hover:text-foreground'
+            )}
+          >
+            <FileSpreadsheet className="h-3.5 w-3.5" />
+            Livro Caixa & Gráficos ({data.entries.length})
+          </button>
+          <button
+            type="button"
+            onClick={() => setActiveTab('statements')}
+            className={cn(
+              'min-h-9 rounded-lg px-3.5 text-xs font-semibold transition-colors cursor-pointer inline-flex items-center gap-1.5',
+              activeTab === 'statements'
+                ? 'bg-background text-foreground shadow-xs'
+                : 'text-muted-foreground hover:text-foreground'
+            )}
+          >
+            <FileText className="h-3.5 w-3.5" />
+            Extratos das Contas ({statementCounts.total})
+          </button>
+        </div>
+
+        {activeTab === 'statements' && (
+          <button
+            type="button"
+            onClick={() => openStatementModal()}
+            className="inline-flex min-h-9 items-center gap-1.5 rounded-lg bg-primary px-3.5 text-xs font-semibold text-primary-foreground shadow-xs hover:bg-primary/90 cursor-pointer"
+          >
+            <Plus className="h-3.5 w-3.5" />
+            Enviar Extrato
+          </button>
+        )}
+      </div>
+
+      {activeTab === 'ledger' ? (
+        <>
+          {/* Gráficos Responsivos */}
       <div className="grid gap-4 lg:grid-cols-2">
         <div className="min-w-0 rounded-xl border border-border bg-card p-4 shadow-xs">
           <h2 className="font-display text-base font-semibold text-foreground">
@@ -606,6 +778,150 @@ export function CashbookClient({
           </table>
         </div>
       </div>
+        </>
+      ) : (
+        <div className="rounded-xl border border-border bg-card overflow-hidden shadow-xs">
+          <div className="border-b border-border bg-muted/35 px-4 py-3 flex flex-wrap items-center justify-between gap-3">
+            <div className="flex flex-wrap items-center gap-1.5">
+              {[
+                { value: 'ALL' as const, label: `Todas as contas (${statementCounts.total})` },
+                { value: 'Dinheiro Livre' as const, label: `Dinheiro Livre (${statementCounts.livre})` },
+                { value: 'Conta Coppetec' as const, label: `Conta Coppetec (${statementCounts.coppetec})` },
+              ].map(tab => (
+                <button
+                  key={tab.value}
+                  type="button"
+                  onClick={() => setStatementFundFilter(tab.value)}
+                  className={cn(
+                    'min-h-8 rounded-lg px-3 text-xs font-medium transition-colors cursor-pointer',
+                    statementFundFilter === tab.value
+                      ? 'bg-primary text-primary-foreground shadow-xs'
+                      : 'bg-background text-muted-foreground hover:text-foreground border border-border'
+                  )}
+                >
+                  {tab.label}
+                </button>
+              ))}
+            </div>
+
+            <div className="relative min-w-[220px] flex-1 max-w-xs">
+              <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+              <input
+                type="search"
+                value={statementSearch}
+                onChange={e => setStatementSearch(e.target.value)}
+                placeholder="Buscar extrato por data, nome ou conta…"
+                className="min-h-9 w-full rounded-lg border border-input bg-background pl-9 pr-3 text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/30"
+              />
+            </div>
+          </div>
+
+          {filteredStatements.length === 0 ? (
+            <div className="px-6 py-12 text-center space-y-3">
+              <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-muted text-muted-foreground">
+                <FileText className="h-6 w-6" />
+              </div>
+              <div className="space-y-1">
+                <p className="text-sm font-medium text-foreground">
+                  {statementFundFilter === 'ALL'
+                    ? 'Nenhum extrato encontrado para esse filtro.'
+                    : `Nenhum extrato registrado ainda para ${statementFundFilter}.`}
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  Envie extratos bancários ou relatórios da conta em PDF, imagem, CSV ou OFX organizados por data.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() =>
+                  openStatementModal(
+                    statementFundFilter === 'ALL' ? 'Dinheiro Livre' : statementFundFilter
+                  )
+                }
+                className="inline-flex min-h-9 items-center gap-1.5 rounded-lg bg-primary px-3.5 text-xs font-semibold text-primary-foreground hover:bg-primary/90 cursor-pointer"
+              >
+                <Upload className="h-3.5 w-3.5" />
+                Enviar primeiro extrato
+                {statementFundFilter !== 'ALL' ? ` (${statementFundFilter})` : ''}
+              </button>
+            </div>
+          ) : (
+            <div className="divide-y divide-border">
+              {filteredStatements.map(stmt => {
+                const isCoppetec = stmt.fundSource === 'Conta Coppetec';
+                return (
+                  <div
+                    key={stmt.id}
+                    className="flex flex-wrap items-center justify-between gap-4 px-4 py-3.5 hover:bg-muted/20"
+                  >
+                    <div className="flex items-start gap-3 min-w-0 flex-1">
+                      <div className="flex flex-col items-center justify-center rounded-lg border border-border bg-muted/40 px-2.5 py-1.5 text-center shrink-0 min-w-[78px]">
+                        <span className="inline-flex items-center gap-1 text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
+                          <Calendar className="h-3 w-3" />
+                          Data
+                        </span>
+                        <span className="font-mono text-xs font-semibold text-foreground tabular-nums">
+                          {formatFinanceDate(stmt.referenceDate)}
+                        </span>
+                      </div>
+
+                      <div className="min-w-0 flex-1 space-y-1">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <span className="font-medium text-sm text-foreground">
+                            {stmt.title}
+                          </span>
+                          <span
+                            className={cn(
+                              'inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-medium border',
+                              isCoppetec
+                                ? 'border-sky-500/30 bg-sky-500/10 text-sky-600 dark:text-sky-400'
+                                : 'border-emerald-500/30 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400'
+                            )}
+                          >
+                            {isCoppetec ? (
+                              <Landmark className="h-3 w-3" />
+                            ) : (
+                              <Wallet className="h-3 w-3" />
+                            )}
+                            {stmt.fundSource}
+                          </span>
+                        </div>
+                        <p className="text-xs text-muted-foreground truncate">
+                          Arquivo: <span className="font-mono">{stmt.fileName}</span>
+                          {stmt.uploadedByName ? ` · Enviado por ${stmt.uploadedByName}` : ''}
+                        </p>
+                        {stmt.notes && (
+                          <p className="text-xs text-muted-foreground">{stmt.notes}</p>
+                        )}
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-2 shrink-0">
+                      <a
+                        href={stmt.fileUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex min-h-9 items-center gap-1.5 rounded-lg border border-border bg-background px-3 text-xs font-medium text-foreground hover:bg-accent"
+                      >
+                        <ExternalLink className="h-3.5 w-3.5 text-primary" />
+                        Abrir / Baixar
+                      </a>
+                      <button
+                        type="button"
+                        onClick={() => handleDeleteStatement(stmt)}
+                        className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-border text-destructive hover:bg-destructive/10 cursor-pointer"
+                        title="Remover extrato"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </button>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Modal de Detalhe & Edição de Lançamento */}
       <Dialog open={Boolean(selectedEntry)} onOpenChange={open => !open && setSelectedEntry(null)}>
@@ -1047,6 +1363,126 @@ export function CashbookClient({
               >
                 <Check className="h-4 w-4" />
                 {savingCreate ? 'Registrando…' : 'Registrar lançamento'}
+              </button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Modal de Upload de Extrato */}
+      <Dialog open={statementModalOpen} onOpenChange={setStatementModalOpen}>
+        <DialogContent className="sm:max-w-lg border-border bg-card text-foreground">
+          <DialogHeader>
+            <DialogTitle className="font-display">Enviar Extrato de Conta</DialogTitle>
+            <DialogDescription>
+              Registre um extrato bancário ou relatório da conta (Dinheiro Livre ou Conta Coppetec) ordenado por data.
+            </DialogDescription>
+          </DialogHeader>
+
+          <form onSubmit={handleCreateStatement} className="space-y-4">
+            <div className="grid gap-3 sm:grid-cols-2">
+              <div>
+                <label className="mb-1 block text-xs font-medium text-muted-foreground">
+                  Conta / Origem
+                </label>
+                <select
+                  value={stmtFund}
+                  onChange={e => setStmtFund(e.target.value as (typeof FINANCE_FUNDS)[number])}
+                  className="min-h-10 w-full rounded-lg border border-input bg-background px-3 text-sm text-foreground"
+                >
+                  {FINANCE_FUNDS.map(fund => (
+                    <option key={fund} value={fund}>
+                      {fund}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="mb-1 block text-xs font-medium text-muted-foreground">
+                  Data de referência
+                </label>
+                <input
+                  type="date"
+                  required
+                  value={stmtDate}
+                  onChange={e => setStmtDate(e.target.value)}
+                  className="min-h-10 w-full rounded-lg border border-input bg-background px-3 text-sm text-foreground"
+                />
+              </div>
+            </div>
+
+            <div>
+              <label className="mb-1 block text-xs font-medium text-muted-foreground">
+                Título do extrato
+              </label>
+              <input
+                type="text"
+                required
+                value={stmtTitle}
+                onChange={e => setStmtTitle(e.target.value)}
+                placeholder="Ex: Extrato Itaú — Fevereiro/2026 ou Relatório Coppetec Q1"
+                className="min-h-10 w-full rounded-lg border border-input bg-background px-3 text-sm text-foreground"
+              />
+            </div>
+
+            <div>
+              <label className="mb-1 block text-xs font-medium text-muted-foreground">
+                Arquivo do extrato (PDF, imagem, CSV ou OFX)
+              </label>
+              <label className="flex min-h-12 cursor-pointer items-center justify-between gap-3 rounded-lg border border-dashed border-border bg-muted/30 px-3 py-2 text-xs hover:bg-muted/50">
+                <span className="truncate text-foreground">
+                  {uploadingStmtFile
+                    ? 'Enviando arquivo para o Supabase…'
+                    : stmtUploadedFile
+                      ? `Anexado: ${stmtUploadedFile.name}`
+                      : 'Clique para selecionar o arquivo (máx. 10 MB)'}
+                </span>
+                <span className="inline-flex shrink-0 items-center gap-1 rounded-md bg-primary/10 px-2.5 py-1 font-medium text-primary">
+                  <Upload className="h-3.5 w-3.5" />
+                  {stmtUploadedFile ? 'Trocar' : 'Selecionar'}
+                </span>
+                <input
+                  type="file"
+                  accept="image/*,.pdf,.csv,.ofx"
+                  className="sr-only"
+                  disabled={uploadingStmtFile}
+                  onChange={e => {
+                    const file = e.target.files?.[0];
+                    if (file) void handleStatementFileUpload(file);
+                    e.target.value = '';
+                  }}
+                />
+              </label>
+            </div>
+
+            <div>
+              <label className="mb-1 block text-xs font-medium text-muted-foreground">
+                Observações (opcional)
+              </label>
+              <textarea
+                rows={2}
+                value={stmtNotes}
+                onChange={e => setStmtNotes(e.target.value)}
+                placeholder="Ex: Fechamento mensal conferido com o saldo em conta"
+                className="w-full rounded-lg border border-input bg-background p-2.5 text-sm text-foreground"
+              />
+            </div>
+
+            <DialogFooter className="gap-2">
+              <button
+                type="button"
+                onClick={() => setStatementModalOpen(false)}
+                className="min-h-10 rounded-lg border border-border px-4 text-xs font-medium text-muted-foreground hover:bg-accent cursor-pointer"
+              >
+                Cancelar
+              </button>
+              <button
+                type="submit"
+                disabled={savingStmt || uploadingStmtFile || !stmtUploadedFile}
+                className="inline-flex min-h-10 items-center gap-1.5 rounded-lg bg-primary px-4 text-xs font-semibold text-primary-foreground hover:bg-primary/90 disabled:opacity-60 cursor-pointer"
+              >
+                <Check className="h-4 w-4" />
+                {savingStmt ? 'Salvando…' : 'Salvar extrato'}
               </button>
             </DialogFooter>
           </form>

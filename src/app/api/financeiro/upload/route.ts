@@ -15,6 +15,8 @@ const ALLOWED_EXTENSIONS = new Map<string, string>([
   ['webp', 'image/webp'],
   ['heic', 'image/heic'],
   ['heif', 'image/heif'],
+  ['csv', 'text/csv'],
+  ['ofx', 'application/x-ofx'],
 ]);
 
 export async function POST(req: NextRequest) {

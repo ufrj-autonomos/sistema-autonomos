@@ -21,7 +21,7 @@
     "check:production": "node scripts/check-production-env.mjs",
     "test:production": "node --import tsx tests/production-security.test.ts",
     "test:gestao": "node --import tsx tests/gestao-production.test.ts",
-    "test": "npm run test:access && npm run test:production && npm run test:gestao && npm run test:attendance && npm run test:institutional && npm run test:overview && npm run test:analytics && npm run test:activity && npm run test:images-projects && npm run test:justifications && npm run test:meetings && npm run test:disciplinary && npm run test:meeting-minutes && npm run test:finance",
+    "test": "npm run test:access && npm run test:production && npm run test:gestao && npm run test:attendance && npm run test:institutional && npm run test:overview && npm run test:analytics && npm run test:activity && npm run test:images-projects && npm run test:justifications && npm run test:meetings && npm run test:disciplinary && npm run test:meeting-minutes && npm run test:finance && npm run test:assets",
     "test:database": "node --import tsx tests/database-production.test.ts && node --import tsx tests/attendance-database.test.ts && node --import tsx tests/institutional-database.test.ts && node --import tsx tests/activity-database.test.ts && node --import tsx tests/attendance-justifications-database.test.ts && node --import tsx tests/meeting-minutes-database.test.ts",
     "test:attendance": "node --import tsx tests/attendance.test.ts",
     "test:institutional": "node --import tsx tests/institutional.test.ts",
@@ -35,7 +35,8 @@
     "test:meetings": "node --import tsx tests/meetings-and-theme.test.ts",
     "test:disciplinary": "node --import tsx tests/disciplinary.test.ts",
     "test:meeting-minutes": "node --import tsx tests/meeting-minutes.test.ts",
-    "test:finance": "node --import tsx tests/finance.test.ts"
+    "test:finance": "node --import tsx tests/finance.test.ts",
+    "test:assets": "node --import tsx tests/assets.test.ts"
   },
   "prisma": {
     "seed": "tsx prisma/seed.ts"

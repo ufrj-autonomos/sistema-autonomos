@@ -147,8 +147,15 @@ model Member {
   issuedWarnings       DisciplinaryWarning[] @relation("IssuedWarnings")
 
   // Financial relations
-  financialEntriesRequested FinancialEntry[] @relation("FinancialRequester")
-  financialEntriesReviewed  FinancialEntry[] @relation("FinancialReviewer")
+  financialEntriesRequested   FinancialEntry[]     @relation("FinancialRequester")
+  financialEntriesReviewed    FinancialEntry[]     @relation("FinancialReviewer")
+  financialStatementsUploaded FinancialStatement[] @relation("FinancialStatementUploader")
+
+  // Inventory / Asset relations
+  assetsInCustody   InventoryAsset[]      @relation("AssetCustodian")
+  assetsCreated     InventoryAsset[]      @relation("AssetCreator")
+  assetsUpdated     InventoryAsset[]      @relation("AssetUpdater")
+  assetEvents       InventoryAssetEvent[] @relation("AssetEventActor")
 
   @@index([email])
   @@index([institutionalMemberId])
@@ -625,6 +632,7 @@ model FinancialEntry {
   reviewedAt      DateTime?             @db.Timestamptz(3)
   paidAt          DateTime?             @db.Timestamptz(3)
   attachments     FinancialAttachment[]
+  assets          InventoryAsset[]
   createdAt       DateTime              @default(now()) @db.Timestamptz(3)
   updatedAt       DateTime              @updatedAt @db.Timestamptz(3)
 
@@ -647,4 +655,105 @@ model FinancialAttachment {
   createdAt   DateTime       @default(now()) @db.Timestamptz(3)
 
   @@index([entryId])
+}
+
+model FinancialStatement {
+  id            String   @id @default(cuid())
+  title         String
+  fundSource    String   @default("Dinheiro Livre") // "Dinheiro Livre" | "Conta Coppetec"
+  referenceDate DateTime @db.Date
+  fileName      String
+  fileUrl       String
+  mimeType      String?
+  notes         String?  @db.Text
+  uploadedById  String?
+  uploadedBy    Member?  @relation("FinancialStatementUploader", fields: [uploadedById], references: [id], onDelete: SetNull)
+  createdAt     DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt     DateTime @updatedAt @db.Timestamptz(3)
+
+  @@index([fundSource, referenceDate])
+  @@index([referenceDate])
+}
+
+// ---------------------------------------------------------------------------
+// 9. GESTÃO DE PATRIMÔNIO & MATERIAIS DA EQUIPE
+// ---------------------------------------------------------------------------
+
+enum AssetAcquisitionStatus {
+  PLANEJADO
+  EM_COTACAO
+  COMPRADO_AGUARDANDO
+  ADQUIRIDO
+  EMPRESTADO
+  MANUTENCAO
+  BAIXADO
+}
+
+enum AssetCondition {
+  NOVO
+  BOM
+  DESGASTADO
+  DEFEITO_PARCIAL
+  ESTRAGADO
+}
+
+model InventoryAsset {
+  id                      String                 @id @default(cuid())
+  assetTag                String                 @unique // ex: PAT-001
+  name                    String
+  description             String?                @db.Text
+  category                String                 @default("Eletrônica & Embarcados")
+  team                    String                 @default("Geral")
+  area                    String                 @default("Geral")
+  quantity                Int                    @default(1)
+  unit                    String                 @default("un")
+  unitPriceCents          Int                    @default(0)
+  totalPriceCents         Int                    @default(0)
+  acquisitionStatus       AssetAcquisitionStatus @default(ADQUIRIDO)
+  condition               AssetCondition         @default(BOM)
+  damageNotes             String?                @db.Text
+  acquiredAt              DateTime?              @db.Date
+  expectedAcquisitionDate DateTime?              @db.Date
+  warrantyUntil           DateTime?              @db.Date
+  acquisitionSource       String?                @default("Dinheiro Livre")
+  supplier                String?
+  purchaseUrl             String?
+  serialNumber            String?
+  location                String?
+  custodianId             String?
+  custodian               Member?                @relation("AssetCustodian", fields: [custodianId], references: [id], onDelete: SetNull)
+  custodianName           String?
+  financialEntryId        String?
+  financialEntry          FinancialEntry?        @relation(fields: [financialEntryId], references: [id], onDelete: SetNull)
+  photoUrl                String?
+  invoiceUrl              String?
+  invoiceName             String?
+  createdById             String?
+  createdBy               Member?                @relation("AssetCreator", fields: [createdById], references: [id], onDelete: SetNull)
+  updatedById             String?
+  updatedBy               Member?                @relation("AssetUpdater", fields: [updatedById], references: [id], onDelete: SetNull)
+  events                  InventoryAssetEvent[]
+  createdAt               DateTime               @default(now()) @db.Timestamptz(3)
+  updatedAt               DateTime               @updatedAt @db.Timestamptz(3)
+
+  @@index([acquisitionStatus, condition])
+  @@index([category])
+  @@index([team])
+  @@index([custodianId])
+  @@index([acquiredAt])
+}
+
+model InventoryAssetEvent {
+  id        String         @id @default(cuid())
+  assetId   String
+  asset     InventoryAsset @relation(fields: [assetId], references: [id], onDelete: Cascade)
+  eventType String
+  title     String
+  notes     String?        @db.Text
+  actorId   String?
+  actor     Member?        @relation("AssetEventActor", fields: [actorId], references: [id], onDelete: SetNull)
+  actorName String?
+  createdAt DateTime       @default(now()) @db.Timestamptz(3)
+
+  @@index([assetId, createdAt])
 }

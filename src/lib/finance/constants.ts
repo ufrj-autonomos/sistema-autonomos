@@ -104,8 +104,23 @@ export interface FinancialSummary {
   monthlyCashflow: MonthlyCashflowPoint[];
 }
 
+export interface FinancialStatementDTO {
+  id: string;
+  title: string;
+  fundSource: string;
+  referenceDate: string; // YYYY-MM-DD
+  fileName: string;
+  fileUrl: string;
+  mimeType: string | null;
+  notes: string | null;
+  uploadedById: string | null;
+  uploadedByName: string | null;
+  createdAt: string;
+}
+
 export interface FinancialDashboardData {
   entries: FinancialEntryDTO[];
+  statements: FinancialStatementDTO[];
   summary: FinancialSummary;
   members: Array<{
     id: string;

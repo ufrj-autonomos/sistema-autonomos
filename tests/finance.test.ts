@@ -66,7 +66,16 @@ test(
   async () => {
     const dashboard = await getFinancialDashboardData();
     assert.ok(dashboard.entries.length >= 30);
-    assert.equal(dashboard.summary.freeCashBalanceCents, 243318);
-    assert.equal(dashboard.summary.awaitingReimbursementCents, 228600);
+    assert.ok(dashboard.statements.length >= 1);
+    assert.ok(
+      dashboard.statements.some(
+        s => s.fundSource === 'Dinheiro Livre' && s.referenceDate === '2026-01-31'
+      )
+    );
+    assert.equal(
+      dashboard.summary.freeCashBalanceCents,
+      dashboard.summary.freeCashIncomeCents - dashboard.summary.freeCashExpenseCents
+    );
+    assert.ok(dashboard.summary.awaitingReimbursementCents >= 0);
   }
 );

@@ -99,7 +99,12 @@ export function ReimbursementsClient({
     const res = await fetch('/api/financeiro?scope=management', { cache: 'no-store' });
     if (!res.ok) return;
     const json = (await res.json()) as FinancialDashboardData;
-    setData({ entries: json.entries, summary: json.summary, members: json.members });
+    setData({
+      entries: json.entries,
+      statements: json.statements || [],
+      summary: json.summary,
+      members: json.members,
+    });
     if (reopenId) {
       const updated = json.entries.find(e => e.id === reopenId) || null;
       setSelectedItem(updated);

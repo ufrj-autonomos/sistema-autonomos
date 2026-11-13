@@ -758,6 +758,35 @@ async function main() {
     );
   }
 
+  // Extratos iniciais das contas (itau_extrato_012026.pdf)
+  const { url: extratoUrl, mimeType: extratoMime } = await downloadDriveAndUploadSupabase(storage, 'EXTRATO', {
+    name: 'itau_extrato_012026.pdf',
+    driveFileId: '1eXDQoEPUYv6Jzq5d_qJjo4Hd78_ls0vO',
+    kind: 'STATEMENT',
+  });
+  await prisma.financialStatement.upsert({
+    where: { id: 'seed-extrato-itau-01-2026' },
+    update: {
+      title: 'Extrato Conta Itaú — Janeiro/2026',
+      fundSource: 'Dinheiro Livre',
+      referenceDate: new Date('2026-01-31T12:00:00Z'),
+      fileName: 'itau_extrato_012026.pdf',
+      fileUrl: extratoUrl,
+      mimeType: extratoMime,
+      notes: 'Extrato inicial da conta corrente Itaú importado da pasta financeira.',
+    },
+    create: {
+      id: 'seed-extrato-itau-01-2026',
+      title: 'Extrato Conta Itaú — Janeiro/2026',
+      fundSource: 'Dinheiro Livre',
+      referenceDate: new Date('2026-01-31T12:00:00Z'),
+      fileName: 'itau_extrato_012026.pdf',
+      fileUrl: extratoUrl,
+      mimeType: extratoMime,
+      notes: 'Extrato inicial da conta corrente Itaú importado da pasta financeira.',
+    },
+  });
+
   // Verificação matemática do saldo
   const allEntries = await prisma.financialEntry.findMany();
   const freeIncome = allEntries

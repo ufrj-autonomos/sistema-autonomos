@@ -11,6 +11,7 @@ import {
   type FinancialEntryDTO,
   type FinancialEntryStatusValue,
   type FinancialEntryTypeValue,
+  type FinancialStatementDTO,
   type FinancialSummary,
   type MemberReimbursementsData,
   type MonthlyCashflowPoint,
@@ -313,11 +314,45 @@ const entryInclude = {
   },
 };
 
+function serializeStatement(row: {
+  id: string;
+  title: string;
+  fundSource: string;
+  referenceDate: Date;
+  fileName: string;
+  fileUrl: string;
+  mimeType: string | null;
+  notes: string | null;
+  uploadedById: string | null;
+  createdAt: Date;
+  uploadedBy?: { id: string; name: string } | null;
+}): FinancialStatementDTO {
+  return {
+    id: row.id,
+    title: row.title,
+    fundSource: row.fundSource,
+    referenceDate: row.referenceDate.toISOString().slice(0, 10),
+    fileName: row.fileName,
+    fileUrl: row.fileUrl,
+    mimeType: row.mimeType,
+    notes: row.notes,
+    uploadedById: row.uploadedById,
+    uploadedByName: row.uploadedBy?.name ?? null,
+    createdAt: row.createdAt.toISOString(),
+  };
+}
+
 export async function getFinancialDashboardData(): Promise<FinancialDashboardData> {
-  const [rawEntries, members] = await Promise.all([
+  const [rawEntries, rawStatements, members] = await Promise.all([
     prisma.financialEntry.findMany({
       include: entryInclude,
       orderBy: [{ occurredAt: 'desc' }, { createdAt: 'desc' }],
+    }),
+    prisma.financialStatement.findMany({
+      include: {
+        uploadedBy: { select: { id: true, name: true } },
+      },
+      orderBy: [{ referenceDate: 'desc' }, { createdAt: 'desc' }],
     }),
     prisma.member.findMany({
       where: { status: 'APPROVED' },
@@ -337,9 +372,10 @@ export async function getFinancialDashboardData(): Promise<FinancialDashboardDat
   ]);
 
   const entries = rawEntries.map(serializeEntry);
+  const statements = rawStatements.map(serializeStatement);
   const summary = computeFinancialSummary(entries);
 
-  return { entries, summary, members };
+  return { entries, statements, summary, members };
 }
 
 export async function getMemberReimbursementsData(
@@ -752,4 +788,69 @@ export async function updateMemberPixKey(
     select: { pixKey: true, pixKeyType: true },
   });
   return updated;
+}
+
+export async function createFinancialStatement(
+  actor: SafeUser,
+  input: {
+    title: string;
+    fundSource: string;
+    referenceDate: string;
+    fileName: string;
+    fileUrl: string;
+    mimeType?: string | null;
+    notes?: string | null;
+  }
+): Promise<FinancialStatementDTO> {
+  if (!hasManagementAccess(actor.role)) {
+    throw new FinanceServiceError('Apenas a gestão pode cadastrar extratos.', 403);
+  }
+
+  const title = typeof input.title === 'string' ? input.title.trim() : '';
+  if (!title || title.length < 2 || title.length > 200) {
+    throw new FinanceServiceError('Informe um título válido para o extrato.', 400);
+  }
+
+  const fundSource = (FINANCE_FUNDS as readonly string[]).includes(input.fundSource)
+    ? input.fundSource
+    : 'Dinheiro Livre';
+
+  if (!input.referenceDate || !/^\d{4}-\d{2}-\d{2}$/.test(input.referenceDate)) {
+    throw new FinanceServiceError('Informe a data de referência do extrato.', 400);
+  }
+
+  if (!input.fileUrl?.trim() || !input.fileName?.trim()) {
+    throw new FinanceServiceError('Anexe o arquivo do extrato.', 400);
+  }
+
+  const created = await prisma.financialStatement.create({
+    data: {
+      title,
+      fundSource,
+      referenceDate: new Date(`${input.referenceDate}T12:00:00Z`),
+      fileName: input.fileName.trim().slice(0, 180),
+      fileUrl: input.fileUrl.trim(),
+      mimeType: input.mimeType ?? null,
+      notes: input.notes?.trim() || null,
+      uploadedById: actor.id,
+    },
+    include: {
+      uploadedBy: { select: { id: true, name: true } },
+    },
+  });
+
+  return serializeStatement(created);
+}
+
+export async function deleteFinancialStatement(actor: SafeUser, id: string): Promise<void> {
+  if (!hasManagementAccess(actor.role)) {
+    throw new FinanceServiceError('Apenas a gestão pode excluir extratos.', 403);
+  }
+
+  const existing = await prisma.financialStatement.findUnique({ where: { id }, select: { id: true } });
+  if (!existing) {
+    throw new FinanceServiceError('Extrato não encontrado.', 404);
+  }
+
+  await prisma.financialStatement.delete({ where: { id } });
 }
