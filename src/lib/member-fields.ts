@@ -31,11 +31,11 @@ export function roleFromCargo(
   if (['Coordenador', 'Vice-Coordenador', 'Coordenador de Marketing'].includes(c)) {
     return 'COORDINATOR';
   }
-  if (c === 'Trainee') {
-    return 'TRAINEE';
-  }
   if (isGestaoArea(area)) {
     return 'MANAGEMENT';
+  }
+  if (c === 'Trainee') {
+    return 'TRAINEE';
   }
   return 'MEMBER';
 }

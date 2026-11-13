@@ -5,7 +5,7 @@ import { ACCOUNT_STATUSES, ROLES, hasManagementAccess } from './access-policy';
 import { safeUserSelect } from './session';
 import { db as institutionalDb } from './institutional/db';
 import { sendAccountApprovedEmail } from './email';
-import { roleFromCargo } from './member-fields';
+import { isGestaoArea, roleFromCargo } from './member-fields';
 
 export class AccountUpdateError extends Error {
   constructor(message: string, public status: number) { super(message); }
@@ -55,8 +55,15 @@ export async function updateAccount(actorId: string, targetId: string, input: un
       if (actor.role !== 'ADMIN' && (Object.keys(data).length !== 1 || data.role !== undefined || target.status !== 'PENDING' || !['TRAINEE', 'MEMBER'].includes(target.role) || !['APPROVED', 'REJECTED'].includes(String(data.status)))) {
         throw new AccountUpdateError('Gestão pode apenas aceitar ou recusar cadastros pendentes de Trainee e Membro. Somente Admin altera cargos e situações.', 403);
       }
-      const role = (data.role ?? target.role) as Role;
       const status = (data.status ?? target.status) as AccountStatus;
+      const role = (
+        !data.role &&
+        status === 'APPROVED' &&
+        (target.role === 'TRAINEE' || target.role === 'MEMBER') &&
+        isGestaoArea(target.area)
+          ? 'MANAGEMENT'
+          : (data.role ?? target.role)
+      ) as Role;
       if (target.role === 'ADMIN' && target.status === 'APPROVED' && (role !== 'ADMIN' || status !== 'APPROVED')) {
         const admins = await tx.member.count({ where: { role: 'ADMIN', status: 'APPROVED' } });
         if (admins <= 1) throw new AccountUpdateError('Mantenha pelo menos um administrador aprovado na plataforma.', 409);

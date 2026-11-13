@@ -96,7 +96,7 @@ export async function savePrivateDetails(table: 'member' | 'project', id: number
             ...stored,
             name: rawName || targetAccount.name || instMember.name,
             area: nextArea,
-            ...(targetAccount.role === 'MEMBER' && isGestaoArea(nextArea) ? { role: 'MANAGEMENT' } : {}),
+            ...((targetAccount.role === 'MEMBER' || targetAccount.role === 'TRAINEE') && isGestaoArea(nextArea) ? { role: 'MANAGEMENT' } : {}),
           },
         });
         await ensureAttendanceEnrollment(tx, current);
@@ -111,7 +111,7 @@ export async function savePrivateDetails(table: 'member' | 'project', id: number
             ...stored,
             name: rawName || current.name || instMember.name,
             area: nextArea,
-            ...(current.role === 'MEMBER' && isGestaoArea(nextArea) ? { role: 'MANAGEMENT' } : {}),
+            ...((current.role === 'MEMBER' || current.role === 'TRAINEE') && isGestaoArea(nextArea) ? { role: 'MANAGEMENT' } : {}),
           },
         });
       }
