@@ -39,6 +39,15 @@ export async function GET(req: NextRequest) {
       console.warn('Aviso na sincronização de traduções pendentes no cron:', transError);
     }
 
+    let attendanceWarnings = 0;
+    try {
+      const { runAttendanceAlertsAndAutoPunishments } = await import('@/lib/attendance/alerts');
+      const alertStats = await runAttendanceAlertsAndAutoPunishments({ now, evaluateAutoWarnings: true });
+      attendanceWarnings = alertStats.autoWarningsIssued;
+    } catch (attendanceError) {
+      console.warn('Aviso na avaliação automática de presença no cron:', attendanceError);
+    }
+
     return NextResponse.json(
       {
         success: true,
@@ -49,6 +58,7 @@ export async function GET(req: NextRequest) {
         translatedProjects: translationStats.updatedProjects,
         remainingPendingMembers: translationStats.pendingMembers,
         remainingPendingProjects: translationStats.pendingProjects,
+        attendanceAutoWarnings: attendanceWarnings,
       },
       { headers: { 'Cache-Control': 'no-store' } }
     );

@@ -175,7 +175,7 @@ export function DisciplinaryManagement({
           <p className="mt-2 text-sm text-muted-foreground max-w-3xl">
             Acompanhamento de avisos, advertências diretas e consolidadas.
             <span className="ml-1 inline-block font-semibold text-foreground">
-              Regra: 2 Avisos = 1 Advertência | 3 Advertências = Expulsão
+              Regra: 2 Avisos = 1 Advertência | 2 Advertências = Risco de expulsão | 3ª Advertência = Expulsão automática
             </span>
           </p>
         </div>
@@ -235,7 +235,7 @@ export function DisciplinaryManagement({
         <div className="rounded-xl border border-amber-500/20 bg-amber-500/5 p-5 shadow-xs">
           <div className="flex items-center justify-between">
             <p className="text-xs font-semibold uppercase tracking-wider text-amber-700 dark:text-amber-400">
-              Em Atenção / Alerta
+              Em Atenção
             </p>
             <AlertTriangle className="h-4 w-4 text-amber-600 dark:text-amber-400" />
           </div>
@@ -243,7 +243,7 @@ export function DisciplinaryManagement({
             {data.overview.atencaoAlertaCount}
           </p>
           <p className="mt-1 text-xs text-amber-600/80 dark:text-amber-400/70">
-            Possuem 1 aviso ou até 2 advertências
+            Possuem 1 aviso ou 1 advertência
           </p>
         </div>
 
@@ -258,7 +258,7 @@ export function DisciplinaryManagement({
             {data.overview.expulsosCount}
           </p>
           <p className="mt-1 text-xs text-red-600/80 dark:text-red-400/70">
-            3 ou mais advertências acumuladas
+            2 advertências acumuladas (3ª expulsa automaticamente)
           </p>
         </div>
       </div>
@@ -335,8 +335,8 @@ export function DisciplinaryManagement({
                 <option value="ALL">Todos os status</option>
                 <option value="REGULAR">🟢 Regular</option>
                 <option value="ATENCAO">🟡 Atenção</option>
-                <option value="ALERTA">🟠 Alerta</option>
-                <option value="EXPULSAO">🔴 Expulsão</option>
+                <option value="ALERTA">🟠 Risco de expulsão</option>
+                <option value="EXPULSAO">🔴 Expulsa</option>
               </select>
             </div>
           </div>

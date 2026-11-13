@@ -5,6 +5,7 @@ import { hasManagementAccess } from '@/lib/access-policy';
 import { prisma } from '@/lib/prisma';
 import { localDateTime, weekKey, weekRange } from './time';
 import { memberSummary, reportSummary, visitDto } from './summary';
+import { listVacationWeeks } from './vacations';
 import type { AttendanceReport, ScanResult } from './types';
 import { GOAL_LABELS } from './format';
 import { db as institutionalDb } from '@/lib/institutional/db';
@@ -26,15 +27,20 @@ export async function attendanceReport(key = weekKey(), memberId?: string, now =
   const range = weekRange(selectedWeek(key, now));
   const settings = await prisma.attendanceSettings.findUnique({ where: { id: 'lab' } });
   if (!settings) throw new AttendanceError('O controle de presença ainda não foi configurado.', 503);
-  const members = await prisma.member.findMany({
-    where: memberId ? { id: memberId } : { active: true, attendancePeriods: { some: {} } },
-    include: {
-      attendanceJustifications: { where: { status: 'APPROVED', weekStartsOn: { lte: new Date(`${range.key}T00:00:00Z`) } }, select: { weekStartsOn: true } },
-      attendancePeriods: { orderBy: { startsOn: 'asc' } },
-      attendanceVisits: { where: { checkedInAt: { lt: range.end } }, orderBy: { checkedInAt: 'desc' } },
-    },
-    orderBy: { name: 'asc' },
-  });
+  const [members, vacationRows] = await Promise.all([
+    prisma.member.findMany({
+      where: memberId ? { id: memberId } : { active: true, attendancePeriods: { some: {} } },
+      include: {
+        attendanceJustifications: { where: { status: 'APPROVED', weekStartsOn: { lte: new Date(`${range.key}T00:00:00Z`) } }, select: { weekStartsOn: true } },
+        attendancePeriods: { orderBy: { startsOn: 'asc' } },
+        attendanceVisits: { where: { checkedInAt: { lt: range.end } }, orderBy: { checkedInAt: 'desc' } },
+      },
+      orderBy: { name: 'asc' },
+    }),
+    listVacationWeeks().catch(() => []),
+  ]);
+  const vacationKeys = vacationRows.map((row) => row.weekStartsOn);
+  const isVacationWeek = vacationKeys.includes(range.key);
   const ids = members.flatMap(member => typeof member.institutionalMemberId === 'number' ? [member.institutionalMemberId] : []);
   const identities = ids.length && process.env.INSTITUTIONAL_DATABASE_URL
     ? await institutionalDb.institutionalMember.findMany({ where: { id: { in: ids } }, select: { id: true, name: true, area: true } })
@@ -49,12 +55,17 @@ export async function attendanceReport(key = weekKey(), memberId?: string, now =
       range.key,
       now,
       settings.maxSessionSeconds,
-      member.attendanceJustifications || []
+      member.attendanceJustifications || [],
+      vacationKeys,
     );
-  }).filter(member => memberId || member.requiredSeconds > 0 || member.visits.length > 0);
+  }).filter(member => memberId || isVacationWeek || member.requiredSeconds > 0 || member.visits.length > 0);
   return {
-    serverNow: now.toISOString(), week: { key: range.key, sunday: range.sunday, start: range.start.toISOString(), end: range.end.toISOString(), isCurrent: range.key === weekKey(now), isClosed: range.end <= now },
-    members: summaries, summary: reportSummary(summaries), trackingStartedAt: settings.startedAt.toISOString(),
+    serverNow: now.toISOString(),
+    week: { key: range.key, sunday: range.sunday, start: range.start.toISOString(), end: range.end.toISOString(), isCurrent: range.key === weekKey(now), isClosed: range.end <= now, isVacation: isVacationWeek },
+    vacationWeeks: vacationRows.map(({ weekStartsOn, label }) => ({ weekStartsOn, label })),
+    members: summaries,
+    summary: reportSummary(summaries),
+    trackingStartedAt: settings.startedAt.toISOString(),
   };
 }
 

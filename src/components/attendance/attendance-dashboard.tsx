@@ -5,6 +5,7 @@ import { ArrowLeft, ArrowRight, ChevronDown, Download, QrCode, RefreshCw } from 
 import type { AttendanceMemberDto, AttendanceReport, AttendanceVisitDto } from '@/lib/attendance/types';
 import { formatDuration, formatLabDate, GOAL_LABELS, mondayForDate, shiftWeek, VISIT_LABELS } from '@/lib/attendance/format';
 import { AttendanceJustifications } from './attendance-justifications';
+import { AttendanceVacationCalendar } from './attendance-vacation-calendar';
 import { VisitEditor, type VisitEdit } from './visit-editor';
 import { ExportGoogleSheetsButton } from '@/components/export/export-google-sheets-button';
 
@@ -80,10 +81,25 @@ export function AttendanceDashboard({ initialWeek, selectedWeek = initialWeek, a
       <div className="flex flex-wrap items-end gap-2"><button type="button" aria-label="Semana anterior" onClick={() => setWeek(shiftWeek(week, -1))} className={control}><ArrowLeft className="h-4 w-4" /></button><label className="flex flex-col gap-2 text-sm text-secondary-foreground">Semana iniciada em<input type="date" value={week} max={initialWeek} onChange={event => { if (event.target.value) setWeek(mondayForDate(event.target.value)); }} className={control} /></label><button type="button" aria-label="Próxima semana" disabled={week >= initialWeek} onClick={() => setWeek(shiftWeek(week, 1))} className={control}><ArrowRight className="h-4 w-4" /></button><button type="button" onClick={() => setWeek(initialWeek)} className={`${control} sm:ml-2`}>Esta semana</button></div>
       <div className="flex flex-wrap items-center gap-2"><button type="button" disabled={loading} onClick={() => setVersion(value => value + 1)} className={`${control} inline-flex items-center gap-2`}><RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />Atualizar</button>{admin && <><ExportGoogleSheetsButton type="attendance" period={week} label="Google Sheets" /><a href={`/api/admin/attendance/export?week=${encodeURIComponent(week)}`} className={`${control} inline-flex items-center gap-2`}><Download className="h-4 w-4" />Exportar CSV</a></>}</div>
     </div>
-    <AttendanceJustifications admin={admin} selectedWeek={week} currentWeek={initialWeek} refreshKey={version} onChanged={() => setVersion(value => value + 1)} />
+    <div className="space-y-4">
+      {admin && (
+        <AttendanceVacationCalendar
+          vacationWeeks={report?.vacationWeeks || []}
+          selectedWeekKey={week}
+          onChanged={() => setVersion(value => value + 1)}
+          onSelectWeek={(mondayKey) => setWeek(mondayKey)}
+        />
+      )}
+      <AttendanceJustifications admin={admin} selectedWeek={week} currentWeek={initialWeek} refreshKey={version} onChanged={() => setVersion(value => value + 1)} />
+    </div>
     {error && <p role="alert" className="my-5 rounded-lg border border-red-400/30 bg-red-400/10 p-4 text-sm text-red-700 dark:text-red-300">{error}</p>}
     {loading && !report && <p role="status" className="py-10 text-muted-foreground">Consultando as horas da semana...</p>}
     {report && <>
+      {report.week.isVacation && (
+        <div className="my-4 rounded-xl border border-sky-500/35 bg-sky-500/10 px-4 py-3 text-sm text-sky-900 dark:text-sky-200">
+          <strong>🏖️ Semana de Férias / Recesso:</strong> As horas desta semana não estão sendo cobradas, sem aplicação de avisos/punições e sem registro de falta no histórico.
+        </div>
+      )}
       <p className="text-sm text-secondary-foreground">{formatLabDate(report.week.start)} a {formatLabDate(new Date(new Date(report.week.end).getTime() - 1).toISOString())} · Segunda a domingo · Horário de Brasília</p>
       <p className="mt-2 text-sm text-muted-foreground">{report.week.isClosed ? 'Semana encerrada: as metas abaixo do previsto entram no histórico de descumprimento.' : 'Semana em andamento: a meta pode ser cumprida até domingo (ou até o fim do mês para Marketing e Gestão com meta mensal de 4h).'} Registros com saída validada e justificativas aprovadas contam para a meta.</p>
       {admin && <dl className="my-6 flex flex-wrap gap-x-8 gap-y-4 border-y border-border py-5 text-sm"><div><dt className="text-muted-foreground">Membros acompanhados</dt><dd className="mt-1 text-lg font-medium tabular-nums">{report.summary.requiredMembers}</dd></div><div><dt className="text-muted-foreground">Meta cumprida</dt><dd className="mt-1 text-lg font-medium tabular-nums text-emerald-700 dark:text-emerald-300">{report.summary.met}</dd></div><div><dt className="text-muted-foreground">{report.week.isClosed ? 'Abaixo da meta' : 'Ainda em andamento'}</dt><dd className="mt-1 text-lg font-medium tabular-nums">{report.week.isClosed ? report.summary.missed : report.summary.pending}</dd></div><div><dt className="text-muted-foreground">No laboratório</dt><dd className="mt-1 text-lg font-medium tabular-nums">{report.summary.inLab}</dd></div><div><dt className="text-muted-foreground">Registros para revisão</dt><dd className="mt-1 text-lg font-medium tabular-nums text-amber-700 dark:text-amber-300">{report.summary.review}</dd></div></dl>}

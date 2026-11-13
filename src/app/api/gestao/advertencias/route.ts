@@ -1,12 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getCurrentUser } from '@/lib/session';
 import { prisma } from '@/lib/prisma';
-import { db as institutionalDb } from '@/lib/institutional/db';
 import {
   canUserManageDisciplinary,
   getDisciplinaryDashboardData,
 } from '@/lib/disciplinary/service';
-import type { DisciplinaryWarningType } from '@prisma/client';
+import { issueDisciplinaryOccurrence, type OccurrenceInputType } from '@/lib/disciplinary/issue';
 
 export async function GET(req: NextRequest) {
   try {
@@ -41,7 +40,6 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Membro, tipo e motivo são obrigatórios.' }, { status: 400 });
     }
 
-    const isDirectExpulsion = type === 'EXPULSAO_DIRETA';
     const validTypes = ['AVISO', 'ADVERTENCIA_DIRETA', 'EXPULSAO_DIRETA'];
     if (!validTypes.includes(type)) {
       return NextResponse.json({ error: 'Tipo de ocorrência inválido.' }, { status: 400 });
@@ -50,7 +48,7 @@ export async function POST(req: NextRequest) {
     // Verificar se o membro alvo existe
     const targetMember = await prisma.member.findUnique({
       where: { id: memberId },
-      select: { id: true, name: true, teamId: true, institutionalMemberId: true },
+      select: { id: true, name: true, teamId: true },
     });
 
     if (!targetMember) {
@@ -62,47 +60,25 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Coordenadores só podem registrar ocorrências para membros da sua própria equipe.' }, { status: 403 });
     }
 
-    const created = await prisma.disciplinaryWarning.create({
-      data: {
-        memberId,
-        type: isDirectExpulsion ? 'ADVERTENCIA_DIRETA' : (type as DisciplinaryWarningType),
-        reason: isDirectExpulsion ? `[EXPULSÃO DIRETA] ${reason.trim()}` : reason.trim(),
-        notes: notes ? notes.trim() : null,
-        issuedById: user.id,
-      },
-      include: {
-        member: { select: { id: true, name: true, area: true } },
-        issuedBy: { select: { id: true, name: true } },
-      },
+    const result = await issueDisciplinaryOccurrence({
+      memberId,
+      type: type as OccurrenceInputType,
+      reason,
+      notes,
+      issuedById: user.id,
     });
 
-    if (isDirectExpulsion) {
-      const now = new Date();
-      await prisma.member.update({
-        where: { id: memberId },
-        data: {
-          active: false,
-          inactivatedAt: now,
-          inactivationReason: `Expulsão: ${reason.trim()}`,
-        },
-      });
-
-      if (targetMember.institutionalMemberId && process.env.INSTITUTIONAL_DATABASE_URL) {
-        try {
-          await institutionalDb.institutionalMember.update({
-            where: { id: targetMember.institutionalMemberId },
-            data: {
-              active: false,
-              leftYear: String(now.getFullYear()),
-            },
-          });
-        } catch (instError) {
-          console.warn('Falha ao atualizar status de inativação no banco institucional:', instError);
-        }
-      }
-    }
-
-    return NextResponse.json({ success: true, expelled: isDirectExpulsion, warning: created }, { status: 201 });
+    return NextResponse.json(
+      {
+        success: true,
+        expelled: result.expelled,
+        autoExpelled: result.autoExpelled,
+        warning: result.warning,
+        summary: result.summary,
+        emailSent: result.emailResult.sent,
+      },
+      { status: 201 }
+    );
   } catch (error) {
     console.error('Erro ao registrar ocorrência disciplinar:', error);
     return NextResponse.json({ error: 'Erro interno ao registrar ocorrência.' }, { status: 500 });

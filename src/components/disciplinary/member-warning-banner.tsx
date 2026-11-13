@@ -38,7 +38,7 @@ export function MemberWarningBanner({
             </p>
 
             <p className="mt-1 text-xs text-red-800/80 dark:text-red-400/80">
-              Regra da equipe: 2 Avisos = 1 Advertência | 3 Advertências = Expulsão.
+              Regra da equipe: 2 Avisos = 1 Advertência | 2 Advertências = Risco de expulsão | 3ª Advertência = Expulsão automática.
             </p>
           </div>
         </div>

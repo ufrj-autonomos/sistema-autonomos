@@ -29,7 +29,7 @@ export function rosterAnalytics(directory: DirectoryIdentity[], operational: Ana
     complete: operational ? linked.filter(member => member.internal?.profileCompletedAt).length : null,
   };
 }
-export function presenceAnalytics(operational: AnalyticsMember[], directory: DirectoryIdentity[] | null, weeks: number, now = new Date(), maxSeconds = MAX_SESSION_SECONDS) {
+export function presenceAnalytics(operational: AnalyticsMember[], directory: DirectoryIdentity[] | null, weeks: number, now = new Date(), maxSeconds = MAX_SESSION_SECONDS, vacationWeeks: string[] = []) {
   const currentKey = weekKey(now), start = nextWeek(currentKey, -weeks);
   const byId = new Map(directory?.map(member => [member.id, member]) || []);
   const keys = Array.from({ length: weeks + 1 }, (_, index) => nextWeek(start, index));
@@ -39,7 +39,7 @@ export function presenceAnalytics(operational: AnalyticsMember[], directory: Dir
     const identity = member.institutionalMemberId ? byId.get(member.institutionalMemberId) : null;
     const periods = member.attendancePeriods.filter(period => !period.endsOn || dateKey(period.endsOn) > start).map(period => ({ ...period, startsOn: new Date(`${dateKey(period.startsOn) < start ? start : dateKey(period.startsOn)}T00:00:00Z`) }));
     const profile = { id: member.id, name: identity?.name || member.name, area: resolveMemberAreas(identity?.area, member.area).internal || 'Não informada', email: null };
-    const summaries = keys.map(key => memberSummary(profile, periods, member.attendanceVisits, key, now, maxSeconds, member.attendanceJustifications || []));
+    const summaries = keys.map(key => memberSummary(profile, periods, member.attendanceVisits, key, now, maxSeconds, member.attendanceJustifications || [], vacationWeeks));
     const closed = summaries.slice(0, weeks).filter(summary => summary.requiredSeconds > 0);
     return { id: member.id, name: profile.name, area: profile.area, team: identity?.team?.name || 'Autônomos', requiredWeeks: closed.length, metWeeks: closed.filter(summary => summary.status === 'MET').length, missedWeeks: closed.filter(summary => summary.status === 'MISSED').length, seconds: summaries.slice(0, weeks).reduce((sum, row) => sum + row.completedSeconds, 0), summaries };
   });

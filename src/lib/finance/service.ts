@@ -1,10 +1,13 @@
 import { prisma } from '@/lib/prisma';
 import { hasManagementAccess } from '@/lib/access-policy';
+import { sendReimbursementStatusEmail } from '@/lib/email';
 import type { SafeUser } from '@/lib/session';
 import {
   FINANCE_CATEGORIES,
   FINANCE_FUNDS,
   FINANCE_TEAMS,
+  FINANCIAL_STATUS_META,
+  formatBRL,
   type CategoryExpenseSummary,
   type FinancialAttachmentDTO,
   type FinancialDashboardData,
@@ -78,6 +81,7 @@ function serializeEntry(row: {
   requester?: {
     id: string;
     name: string;
+    email?: string | null;
     avatar: string | null;
     area: string;
     pixKey: string | null;
@@ -297,6 +301,7 @@ const entryInclude = {
     select: {
       id: true,
       name: true,
+      email: true,
       avatar: true,
       area: true,
       pixKey: true,
@@ -478,6 +483,46 @@ export interface CreateFinancialEntryInput {
   }>;
 }
 
+async function notifyReimbursementChange(
+  row: Parameters<typeof serializeEntry>[0],
+  event: 'CREATED' | 'STATUS_UPDATED'
+): Promise<void> {
+  if (!row.isReimbursement) return;
+
+  let toEmail = row.requester?.email ?? null;
+  const recipientName = row.requester?.name || row.requesterName;
+
+  if (!toEmail && row.requesterName) {
+    const fallback = await prisma.member.findFirst({
+      where: {
+        name: { equals: row.requesterName, mode: 'insensitive' },
+        email: { not: null },
+      },
+      select: { email: true },
+    });
+    toEmail = fallback?.email ?? null;
+  }
+
+  if (!toEmail) return;
+
+  const statusValue = row.status as FinancialEntryStatusValue;
+  const statusLabel = FINANCIAL_STATUS_META[statusValue]?.label || row.status;
+
+  await sendReimbursementStatusEmail(toEmail, {
+    recipientName,
+    event,
+    code: row.code,
+    title: row.title,
+    amountFormatted: formatBRL(row.amountCents),
+    status: row.status,
+    statusLabel,
+    pixKey: row.pixKey || row.requester?.pixKey || null,
+    pixKeyType: row.pixKeyType || row.requester?.pixKeyType || null,
+    reviewNotes: row.reviewNotes,
+    teamLabel: row.team,
+  });
+}
+
 export async function createFinancialEntry(
   actor: SafeUser,
   input: CreateFinancialEntryInput
@@ -602,6 +647,8 @@ export async function createFinancialEntry(
     },
     include: entryInclude,
   });
+
+  await notifyReimbursementChange(created, 'CREATED');
 
   return serializeEntry(created);
 }
@@ -756,6 +803,10 @@ export async function updateFinancialEntry(
     data,
     include: entryInclude,
   });
+
+  if (updated.isReimbursement && updated.status !== existing.status) {
+    await notifyReimbursementChange(updated, 'STATUS_UPDATED');
+  }
 
   return serializeEntry(updated);
 }

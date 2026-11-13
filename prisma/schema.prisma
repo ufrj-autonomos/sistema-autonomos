@@ -132,6 +132,8 @@ model Member {
   attendancePunches  AttendancePunch[]
   attendanceAudits   AttendanceAudit[]     @relation("AuditedMember")
   performedAudits    AttendanceAudit[]     @relation("AuditActor")
+  vacationWeeksCreated AttendanceVacationWeek[] @relation("VacationCreator")
+  attendanceAlertLogs  AttendanceAlertLog[]
 
   // Ensino relations
   courseProgress     CourseProgress[]
@@ -394,11 +396,12 @@ model ProjectDetails {
 }
 
 model AttendanceSettings {
-  id                  String   @id @default("lab")
-  qrCode              String   @unique
-  weeklyTargetSeconds Int      @default(7200)
-  maxSessionSeconds   Int      @default(43200)
-  startedAt           DateTime @default(now()) @db.Timestamptz(3)
+  id                  String    @id @default("lab")
+  qrCode              String    @unique
+  weeklyTargetSeconds Int       @default(7200)
+  maxSessionSeconds   Int       @default(43200)
+  startedAt           DateTime  @default(now()) @db.Timestamptz(3)
+  autoWarningStartsOn DateTime? @db.Date
 }
 
 model AttendancePeriod {
@@ -458,6 +461,28 @@ model AttendanceAudit {
   createdAt DateTime         @default(now()) @db.Timestamptz(3)
 
   @@index([memberId, createdAt])
+}
+
+model AttendanceVacationWeek {
+  id           String   @id @default(cuid())
+  weekStartsOn DateTime @unique @db.Date
+  label        String?
+  createdById  String?
+  createdBy    Member?  @relation("VacationCreator", fields: [createdById], references: [id], onDelete: SetNull)
+  createdAt    DateTime @default(now()) @db.Timestamptz(3)
+}
+
+model AttendanceAlertLog {
+  id        String   @id @default(cuid())
+  kind      String
+  periodKey String
+  memberId  String
+  member    Member   @relation(fields: [memberId], references: [id], onDelete: Cascade)
+  warningId String?
+  sentAt    DateTime @default(now()) @db.Timestamptz(3)
+
+  @@unique([kind, periodKey, memberId])
+  @@index([memberId, sentAt])
 }
 
 // Immutable through the application: no update/delete endpoints. Account removal

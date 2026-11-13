@@ -66,7 +66,7 @@ export function calculateDisciplinaryStatus(avisos: number, directWarnings: numb
       warningFromAvisos,
       totalWarnings,
       status: 'EXPULSAO',
-      statusLabel: 'Expulsão',
+      statusLabel: 'Expulsa',
       statusColor: 'red',
     };
   }
@@ -75,7 +75,7 @@ export function calculateDisciplinaryStatus(avisos: number, directWarnings: numb
       warningFromAvisos,
       totalWarnings,
       status: 'ALERTA',
-      statusLabel: 'Alerta',
+      statusLabel: 'Risco de expulsão',
       statusColor: 'orange',
     };
   }
@@ -207,8 +207,8 @@ export async function getDisciplinaryDashboardData(user: SafeUser): Promise<Disc
     const stats = calculateDisciplinaryStatus(avisosCount, directWarningsCount);
 
     if (stats.status === 'REGULAR') regularesCount++;
-    else if (stats.status === 'ATENCAO' || stats.status === 'ALERTA') atencaoAlertaCount++;
-    else if (stats.status === 'EXPULSAO') expulsosCount++;
+    else if (stats.status === 'ATENCAO') atencaoAlertaCount++;
+    else if (stats.status === 'ALERTA' || stats.status === 'EXPULSAO') expulsosCount++;
 
     const teamSlug: 'nautilus' | 'harpia' | 'autonomos' =
       m.teamId === 1 ? 'nautilus' : m.teamId === 2 ? 'harpia' : 'autonomos';

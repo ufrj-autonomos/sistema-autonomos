@@ -5,24 +5,28 @@ import { db } from './institutional/db';
 import { privateData } from './directory-validation';
 import { ensureAttendanceEnrollment } from './attendance/enrollment';
 import { memberSummary } from './attendance/summary';
+import { getVacationWeekKeys } from './attendance/vacations';
 import { weekKey } from './attendance/time';
 import { syncMemberAgeToInstitutional } from './birthdays';
 import { publishInstitutionalSite } from './institutional/publish';
 
 export async function memberPrivateDetails(institutionalMemberId: number) {
-  const member = await prisma.member.findUnique({
-    where: { institutionalMemberId },
-    include: {
-      attendancePeriods: true,
-      attendanceVisits: true,
-        attendanceJustifications: { where: { status: 'APPROVED' }, select: { weekStartsOn: true } },
-      profileChanges: {
-        where: { status: 'PENDING' },
-        orderBy: { createdAt: 'desc' },
-        take: 1,
+  const [member, vacationWeeks] = await Promise.all([
+    prisma.member.findUnique({
+      where: { institutionalMemberId },
+      include: {
+        attendancePeriods: true,
+        attendanceVisits: true,
+          attendanceJustifications: { where: { status: 'APPROVED' }, select: { weekStartsOn: true } },
+        profileChanges: {
+          where: { status: 'PENDING' },
+          orderBy: { createdAt: 'desc' },
+          take: 1,
+        },
       },
-    },
-  });
+    }),
+    getVacationWeekKeys().catch(() => [] as string[]),
+  ]);
   return {
     name: member?.name || '',
     area: normalizeMemberArea(member?.area) || '',
@@ -44,7 +48,8 @@ export async function memberPrivateDetails(institutionalMemberId: number) {
           { id: member.id, name: member.name, area: member.area || 'Não informada', email: member.email || null },
           member.attendancePeriods,
           member.attendanceVisits,
-          weekKey(), undefined, undefined, member.attendanceJustifications || []
+          weekKey(), undefined, undefined, member.attendanceJustifications || [],
+          vacationWeeks,
         )
       : null,
   };

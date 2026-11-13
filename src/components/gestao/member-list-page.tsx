@@ -5,6 +5,7 @@ import { prisma } from '@/lib/prisma';
 import { resolveMemberAreas } from '@/lib/member-fields';
 import { db } from '@/lib/institutional/db';
 import { memberSummary } from '@/lib/attendance/summary';
+import { getVacationWeekKeys } from '@/lib/attendance/vacations';
 import { weekKey } from '@/lib/attendance/time';
 import { initialMemberPreferences, type MemberDirectoryRow, type PendingProfileChangeDto } from '@/lib/member-directory';
 import { MemberDirectory } from './member-directory';
@@ -12,7 +13,7 @@ import { MemberDirectory } from './member-directory';
 export async function MemberListPage({ mode = 'active' }: { mode?: 'active' | 'alumni' } = {}) {
   const user = await requirePageUser(true);
   const isAlumniMode = mode === 'alumni';
-  const [records, platformMembers, preferences, projects] = await Promise.all([
+  const [records, platformMembers, preferences, projects, vacationWeeks] = await Promise.all([
     db.institutionalMember.findMany({
       where: { active: !isAlumniMode },
       include: { team: { select: { name: true } } },
@@ -32,6 +33,7 @@ export async function MemberListPage({ mode = 'active' }: { mode?: 'active' | 'a
     }),
     prisma.member.findUnique({ where: { id: user.id }, select: { memberDirectoryPreferences: true } }),
     db.project.findMany({ select: { id: true, name: true, slug: true } }),
+    getVacationWeekKeys().catch(() => [] as string[]),
   ]);
 
   const byInstId = new Map(
@@ -137,7 +139,7 @@ export async function MemberListPage({ mode = 'active' }: { mode?: 'active' | 'a
               { id: member.id, name: record.name, area: areas.internal || 'Não informada', email: member.email || null },
               member.attendancePeriods,
               member.attendanceVisits,
-              weekKey(), undefined, undefined, member.attendanceJustifications || []
+              weekKey(), undefined, undefined, member.attendanceJustifications || [], vacationWeeks
             ).missedWeeks
           : null,
       },

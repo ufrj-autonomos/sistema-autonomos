@@ -1,9 +1,12 @@
 {
-  "$schema": "https://openapi.vercel.sh/vercel.json",
-  "framework": "nextjs",
-  "installCommand": "npm ci --include=dev",
-  "buildCommand": "npm run build:vercel",
   "crons": [
-    { "path": "/api/cron/maintenance", "schedule": "0 4 * * *" }
+    {
+      "path": "/api/cron/maintenance",
+      "schedule": "0 4 * * *"
+    },
+    {
+      "path": "/api/cron/attendance-alerts",
+      "schedule": "0 22 * * *"
+    }
   ]
 }

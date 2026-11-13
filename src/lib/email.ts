@@ -1,4 +1,12 @@
 import nodemailer from 'nodemailer';
+import {
+  buildDisciplinaryEmail,
+  buildLabHoursAlertEmail,
+  buildReimbursementEmail,
+  type DisciplinaryEmailInput,
+  type LabHoursAlertEmailInput,
+  type ReimbursementEmailInput,
+} from './email-templates';
 
 function getTransport() {
   const host = process.env.SMTP_HOST?.trim();
@@ -19,6 +27,71 @@ function getTransport() {
 
 function getFromAddress() {
   return process.env.EMAIL_FROM?.trim() || process.env.SMTP_USER?.trim() || 'UFRJ Autônomos <noreply@autonomos.ufrj.br>';
+}
+
+export interface DispatchEmailResult {
+  sent: boolean;
+  skipped?: boolean;
+  error?: string;
+}
+
+async function dispatchEmail(params: {
+  to: string | null | undefined;
+  subject: string;
+  html: string;
+  text: string;
+}): Promise<DispatchEmailResult> {
+  const to = params.to?.trim();
+  if (!to) {
+    return { sent: false, skipped: true };
+  }
+
+  const transport = getTransport();
+  if (!transport) {
+    console.warn(`[email] SMTP não configurado; e-mail "${params.subject}" não enviado para ${to}.`);
+    return { sent: false, skipped: true };
+  }
+
+  try {
+    await transport.sendMail({
+      from: getFromAddress(),
+      to,
+      subject: params.subject,
+      text: params.text,
+      html: params.html,
+    });
+    return { sent: true };
+  } catch (err) {
+    console.error(`[email] Falha ao enviar "${params.subject}" para ${to}:`, err);
+    return {
+      sent: false,
+      error: err instanceof Error ? err.message : 'Erro desconhecido ao enviar e-mail.',
+    };
+  }
+}
+
+export async function sendDisciplinaryNotificationEmail(
+  to: string | null | undefined,
+  input: DisciplinaryEmailInput
+): Promise<DispatchEmailResult> {
+  const built = buildDisciplinaryEmail(input);
+  return dispatchEmail({ to, ...built });
+}
+
+export async function sendLabHoursAlertEmail(
+  to: string | null | undefined,
+  input: LabHoursAlertEmailInput
+): Promise<DispatchEmailResult> {
+  const built = buildLabHoursAlertEmail(input);
+  return dispatchEmail({ to, ...built });
+}
+
+export async function sendReimbursementStatusEmail(
+  to: string | null | undefined,
+  input: ReimbursementEmailInput
+): Promise<DispatchEmailResult> {
+  const built = buildReimbursementEmail(input);
+  return dispatchEmail({ to, ...built });
 }
 
 export async function sendPasswordResetCodeEmail(params: {

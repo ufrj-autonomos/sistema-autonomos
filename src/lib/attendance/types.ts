@@ -15,7 +15,8 @@ export interface AttendanceMemberDto {
 }
 export interface AttendanceReport {
   serverNow: string;
-  week: { key: string; sunday: string; start: string; end: string; isCurrent: boolean; isClosed: boolean };
+  week: { key: string; sunday: string; start: string; end: string; isCurrent: boolean; isClosed: boolean; isVacation?: boolean };
+  vacationWeeks?: { weekStartsOn: string; label: string | null }[];
   members: AttendanceMemberDto[];
   summary: { requiredMembers: number; met: number; pending: number; missed: number; review: number; inLab: number; completedSeconds: number };
   trackingStartedAt: string;

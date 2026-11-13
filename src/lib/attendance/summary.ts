@@ -1,8 +1,39 @@
-import { dateKey, nextWeek, overlapSeconds, weekKey, weekRange, monthRange, isMonthlyAttendanceArea, MAX_SESSION_SECONDS, DEFAULT_WEEKLY_SECONDS, DEFAULT_MONTHLY_SECONDS } from './time';
+import { calendarDate, dateKey, nextWeek, overlapSeconds, weekKey, weekRange, monthRange, isMonthlyAttendanceArea, MAX_SESSION_SECONDS, DEFAULT_WEEKLY_SECONDS, DEFAULT_MONTHLY_SECONDS } from './time';
 import type { AttendanceMemberDto, AttendanceReport, AttendanceVisitDto, MemberIdentifier, VisitStatus } from './types';
 
 export interface PeriodRecord { startsOn: Date; endsOn: Date | null; targetSeconds: number }
 export interface VisitRecord { id: string; memberId: MemberIdentifier; checkedInAt: Date; checkedOutAt: Date | null; status: VisitStatus; source: string }
+
+/**
+ * Returns the Monday `YYYY-MM-DD` keys of all weeks starting inside `[monthStart, monthEnd)`.
+ */
+export function monthWeekKeys(monthStart: Date, monthEnd: Date): string[] {
+  const firstMonday = weekKey(monthStart);
+  const keys: string[] = [];
+  for (let key = firstMonday; ; key = nextWeek(key)) {
+    const r = weekRange(key);
+    if (r.start >= monthEnd) break;
+    if (r.start >= monthStart) {
+      keys.push(key);
+    }
+  }
+  return keys;
+}
+
+/**
+ * Effective monthly target in seconds accounting for vacation weeks inside `[monthStart, monthEnd)`.
+ * If all weeks in the month are marked as vacation, returns 0 (month exempt).
+ */
+export function effectiveMonthlyTarget(monthStart: Date, monthEnd: Date, vacationSet: ReadonlySet<string>): number {
+  if (vacationSet.size === 0) return DEFAULT_MONTHLY_SECONDS;
+  const mondays = monthWeekKeys(monthStart, monthEnd);
+  if (mondays.length === 0) return DEFAULT_MONTHLY_SECONDS;
+  const nonVacation = mondays.filter((k) => !vacationSet.has(k)).length;
+  if (nonVacation === 0) return 0;
+  if (nonVacation === mondays.length) return DEFAULT_MONTHLY_SECONDS;
+  return Math.round((DEFAULT_MONTHLY_SECONDS * nonVacation) / mondays.length);
+}
+
 export function visitDto(visit: VisitRecord, now = new Date(), maxSeconds = MAX_SESSION_SECONDS): AttendanceVisitDto {
   return {
     id: visit.id, memberId: visit.memberId, checkedInAt: visit.checkedInAt.toISOString(), checkedOutAt: visit.checkedOutAt?.toISOString() || null,
@@ -11,7 +42,18 @@ export function visitDto(visit: VisitRecord, now = new Date(), maxSeconds = MAX_
     needsReview: visit.status === 'REVIEW' || (visit.status === 'OPEN' && now.getTime() - visit.checkedInAt.getTime() > maxSeconds * 1000),
   };
 }
-export function memberSummary(member: { id: MemberIdentifier; name: string; area: string; email: string | null }, periods: PeriodRecord[], visits: VisitRecord[], selected: string, now = new Date(), maxSeconds = MAX_SESSION_SECONDS, justifications: { weekStartsOn: Date }[] = []): AttendanceMemberDto {
+
+export function memberSummary(
+  member: { id: MemberIdentifier; name: string; area: string; email: string | null },
+  periods: PeriodRecord[],
+  visits: VisitRecord[],
+  selected: string,
+  now = new Date(),
+  maxSeconds = MAX_SESSION_SECONDS,
+  justifications: { weekStartsOn: Date }[] = [],
+  vacationWeeks: Iterable<string> = [],
+): AttendanceMemberDto {
+  const vacationSet = new Set<string>(vacationWeeks);
   const range = weekRange(selected);
   const current = weekRange(weekKey(now));
   const isMonthly = isMonthlyAttendanceArea(member.area);
@@ -20,6 +62,7 @@ export function memberSummary(member: { id: MemberIdentifier; name: string; area
   for (const period of periods) {
     const end = period.endsOn ? dateKey(period.endsOn) : nextWeek(selected);
     for (let key = dateKey(period.startsOn); key < end && key <= selected; key = nextWeek(key)) {
+      if (vacationSet.has(key)) continue;
       requiredWeeks.set(key, Math.max(requiredWeeks.get(key) || 0, period.targetSeconds));
     }
   }
@@ -30,8 +73,14 @@ export function memberSummary(member: { id: MemberIdentifier; name: string; area
 
   if (isMonthly) {
     const mRange = monthRange(selected);
-    const hasActivePeriodInMonth = Boolean(requiredWeeks.get(selected));
-    const requiredSeconds = hasActivePeriodInMonth ? DEFAULT_MONTHLY_SECONDS : 0;
+    const hasActivePeriodInMonth = periods.some((period) => {
+      const pStart = period.startsOn;
+      const pEnd = period.endsOn;
+      return pStart < mRange.end && (!pEnd || pEnd > mRange.start);
+    });
+    const requiredSeconds = hasActivePeriodInMonth
+      ? effectiveMonthlyTarget(mRange.start, mRange.end, vacationSet)
+      : 0;
 
     let monthlyPhysicalSeconds = 0;
     for (const visit of visits) {
@@ -51,19 +100,24 @@ export function memberSummary(member: { id: MemberIdentifier; name: string; area
     const completedSeconds = monthlyPhysicalSeconds + monthlyJustifiedSeconds;
     const isMonthClosed = mRange.end <= now;
 
-    // Calcular meses fechados anteriores abaixo da meta
     let missedMonths = 0;
-    if (hasActivePeriodInMonth) {
+    if (hasActivePeriodInMonth && periods.length > 0) {
       const currentMonthRange = monthRange(weekKey(now));
-      let iterDate = new Date(mRange.start);
-      // Avaliar meses passados que já fecharam
-      const firstPeriodStart = periods.length ? new Date(Math.min(...periods.map(p => p.startsOn.getTime()))) : null;
-      if (firstPeriodStart) {
-        const startMonth = monthRange(dateKey(firstPeriodStart));
-        let check = new Date(startMonth.start);
-        while (check < currentMonthRange.start) {
-          const nextCheck = new Date(check.getFullYear(), check.getMonth() + 1, 1);
-          const checkRange = { start: check, end: nextCheck };
+      const firstPeriodStart = new Date(Math.min(...periods.map(p => p.startsOn.getTime())));
+      const startMonth = monthRange(dateKey(firstPeriodStart));
+      for (
+        let mCursor = `${startMonth.key}-01`;
+        mCursor < `${currentMonthRange.key}-01`;
+        mCursor = calendarDate(mCursor).add({ months: 1 }).toString()
+      ) {
+        const checkRange = monthRange(mCursor);
+        const periodActiveInCheck = periods.some(
+          (p) => p.startsOn < checkRange.end && (!p.endsOn || p.endsOn > checkRange.start)
+        );
+        const checkTarget = periodActiveInCheck
+          ? effectiveMonthlyTarget(checkRange.start, checkRange.end, vacationSet)
+          : 0;
+        if (checkTarget > 0) {
           let checkSeconds = 0;
           for (const visit of visits) {
             if (visit.status === 'CLOSED' && visit.checkedOutAt) {
@@ -76,10 +130,9 @@ export function memberSummary(member: { id: MemberIdentifier; name: string; area
               checkSeconds += DEFAULT_WEEKLY_SECONDS;
             }
           }
-          if (checkSeconds < DEFAULT_MONTHLY_SECONDS) {
+          if (checkSeconds < checkTarget) {
             missedMonths++;
           }
-          check = nextCheck;
         }
       }
     }
@@ -126,6 +179,7 @@ export function memberSummary(member: { id: MemberIdentifier; name: string; area
     openVisit: open ? visitDto(open, now, maxSeconds) : null, pendingReviews: details.filter(visit => visit.needsReview).length, visits: details,
   };
 }
+
 export function reportSummary(members: AttendanceMemberDto[]): AttendanceReport['summary'] {
   return {
     requiredMembers: members.filter(member => member.requiredSeconds > 0).length,

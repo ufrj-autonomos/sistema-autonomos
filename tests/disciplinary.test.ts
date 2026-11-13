@@ -43,28 +43,32 @@ test('Disciplinary calculation rules (2 Avisos = 1 Advertência | 3 Advertência
   assert.equal(r4.totalWarnings, 1);
   assert.equal(r4.warningFromAvisos, 0);
 
-  // 2 avisos, 1 advertência direta -> Alerta (1 direta + 1 por avisos = 2 total)
+  // 2 avisos, 1 advertência direta -> Risco de expulsão (1 direta + 1 por avisos = 2 total)
   const r5 = calculateDisciplinaryStatus(2, 1);
   assert.equal(r5.status, 'ALERTA');
+  assert.equal(r5.statusLabel, 'Risco de expulsão');
   assert.equal(r5.totalWarnings, 2);
   assert.equal(r5.warningFromAvisos, 1);
   assert.equal(r5.statusColor, 'orange');
 
-  // 0 avisos, 2 advertências diretas -> Alerta
+  // 0 avisos, 2 advertências diretas -> Risco de expulsão
   const r6 = calculateDisciplinaryStatus(0, 2);
   assert.equal(r6.status, 'ALERTA');
+  assert.equal(r6.statusLabel, 'Risco de expulsão');
   assert.equal(r6.totalWarnings, 2);
   assert.equal(r6.statusColor, 'orange');
 
-  // 0 avisos, 3 advertências diretas -> Expulsão
+  // 0 avisos, 3 advertências diretas -> Expulsa
   const r7 = calculateDisciplinaryStatus(0, 3);
   assert.equal(r7.status, 'EXPULSAO');
+  assert.equal(r7.statusLabel, 'Expulsa');
   assert.equal(r7.totalWarnings, 3);
   assert.equal(r7.statusColor, 'red');
 
-  // 6 avisos, 0 advertências diretas -> Expulsão (6/2 = 3)
+  // 6 avisos, 0 advertências diretas -> Expulsa (6/2 = 3)
   const r8 = calculateDisciplinaryStatus(6, 0);
   assert.equal(r8.status, 'EXPULSAO');
+  assert.equal(r8.statusLabel, 'Expulsa');
   assert.equal(r8.totalWarnings, 3);
   assert.equal(r8.warningFromAvisos, 3);
   assert.equal(r8.statusColor, 'red');
