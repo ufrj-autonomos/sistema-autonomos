@@ -49,7 +49,7 @@ export const MEMBER_COLUMNS = [
   { key: 'linkedin', label: 'LinkedIn', group: 'Site', width: 220 },
   { key: 'github', label: 'GitHub', group: 'Site', width: 220 },
   { key: 'instagram', label: 'Instagram', group: 'Site', width: 220 },
-  { key: 'joinedYear', label: 'Ano de entrada', group: 'Site', width: 140 },
+  { key: 'joinedYear', label: 'Data de entrada', group: 'Site', width: 140 },
   { key: 'leftYear', label: 'Ano de saída', group: 'Site', width: 130 },
   { key: 'projectNames', label: 'Projetos', group: 'Site', width: 240 },
   { key: 'isFemale', label: 'Adaptação de cargo no feminino', group: 'Site', width: 200 },

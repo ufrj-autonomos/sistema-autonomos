@@ -52,6 +52,11 @@ export async function POST(req: NextRequest) {
 
     const passwordHash = await hashPassword(password);
     let institutionalMemberId: number | null = null;
+    const now = new Date();
+    const entryMonth = String(now.getMonth() + 1).padStart(2, '0');
+    const entryYear = now.getFullYear();
+    const joinedDate = `${entryMonth}/${entryYear}`;
+
     if (process.env.INSTITUTIONAL_DATABASE_URL) {
       try {
         const instMember = await institutionalDb.institutionalMember.create({
@@ -61,6 +66,7 @@ export async function POST(req: NextRequest) {
             area: 'Software',
             active: true,
             showOnSite: false,
+            joinedYear: joinedDate,
           },
         });
         institutionalMemberId = instMember.id;

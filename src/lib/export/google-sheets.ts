@@ -201,7 +201,7 @@ export async function exportMembersToSheets(): Promise<ExportDataResult> {
     'Contato de Emergência',
     'Tel. de Emergência',
     'Data de Nascimento',
-    'Ano de Ingresso',
+    'Data de Entrada',
     'Perfil Completo',
   ];
 

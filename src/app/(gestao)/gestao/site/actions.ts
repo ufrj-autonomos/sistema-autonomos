@@ -29,7 +29,15 @@ export async function createRecord(table: string, data: unknown): Promise<{ succ
     activityTarget(directoryPath(table));
     const parsed = recordData(table, data, true);
     if (['member', 'project'].includes(table) && !('showOnSite' in parsed)) parsed.showOnSite = false;
-    if (table === 'member' && typeof parsed.role === 'string') Object.assign(parsed, memberRoleTranslations(parsed.role));
+    if (table === 'member') {
+      if (!parsed.joinedYear) {
+        const now = new Date();
+        const entryMonth = String(now.getMonth() + 1).padStart(2, '0');
+        const entryYear = now.getFullYear();
+        parsed.joinedYear = `${entryMonth}/${entryYear}`;
+      }
+      if (typeof parsed.role === 'string') Object.assign(parsed, memberRoleTranslations(parsed.role));
+    }
     const created = await model.create({ data: parsed });
     activityTarget(`${directoryPath(table)}/${created.id}`);
     if (table === 'member' && created?.id) {

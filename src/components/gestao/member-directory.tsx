@@ -433,7 +433,7 @@ export function MemberDirectory({ rows, initialPreferences, mode = 'active' }: {
     if (key === 'course' || key === 'joinedYear' || key === 'leftYear') {
       const fieldLabels = {
         course: 'Curso',
-        joinedYear: 'Ano de entrada',
+        joinedYear: 'Data de entrada',
         leftYear: 'Ano de saída',
       };
       return (
@@ -697,7 +697,7 @@ export function MemberDirectory({ rows, initialPreferences, mode = 'active' }: {
       </DialogContent>
     </Dialog>
 
-    {/* Pop-up de edição rápida de texto/ano (Curso, Ano de entrada, Ano de saída) */}
+    {/* Pop-up de edição rápida de texto (Curso, Data de entrada, Ano de saída) */}
     <Dialog open={Boolean(textEditModal)} onOpenChange={open => { if (!open && !savingTextField) setTextEditModal(null); }}>
       <DialogContent className="border-border bg-background text-foreground max-w-md">
         <DialogHeader>
@@ -726,6 +726,8 @@ export function MemberDirectory({ rows, initialPreferences, mode = 'active' }: {
               placeholder={
                 textEditModal?.field === 'course'
                   ? 'Ex: Engenharia Eletrônica e de Computação'
+                  : textEditModal?.field === 'joinedYear'
+                  ? 'Ex: 11/2026'
                   : 'Ex: 2024'
               }
               className={`min-h-11 w-full rounded-lg border border-input bg-background px-3 text-sm text-foreground placeholder:text-muted-foreground ${focus}`}

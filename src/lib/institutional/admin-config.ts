@@ -63,7 +63,7 @@ export const adminModels: Record<string, AdminModel> = {
       { name: "linkedin", label: "LinkedIn URL", type: "string", description: "Link do perfil no LinkedIn. Ex: https://linkedin.com/in/..." },
       { name: "github", label: "GitHub URL", type: "string", description: "Link do GitHub. Ex: https://github.com/..." },
       { name: "instagram", label: "Instagram URL", type: "string", description: "Link do Instagram. Ex: https://instagram.com/..." },
-      { name: "joinedYear", label: "Ano de Entrada", type: "string", description: "Ano em que entrou na equipe. Ex: 2021" },
+      { name: "joinedYear", label: "Data de Entrada", type: "string", description: "Mês e ano em que entrou na equipe. Ex: 11/2026" },
       { name: "leftYear", label: "Ano de Saída", type: "string", description: "Ano em que saiu (se aplicável). Ex: 2023" },
       { name: "course", label: "Curso", type: "string", description: "Curso de graduação. Ex: Engenharia Mecânica" },
       { name: "courseEn", label: "Curso (EN)", type: "string", description: "Nome do curso em Inglês." },
