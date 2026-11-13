@@ -15,6 +15,7 @@ import {
   TrendingUp,
   Layers,
   Wallet,
+  Lightbulb,
 } from 'lucide-react';
 import { requirePageUser } from '@/lib/session';
 import { prisma } from '@/lib/prisma';
@@ -156,6 +157,13 @@ export default async function HomePage() {
           >
             <Wallet className="h-4 w-4 text-emerald-500" />
             Reembolsos
+          </Link>
+          <Link
+            href="/melhorias"
+            className="inline-flex min-h-11 items-center gap-2 rounded-lg border border-border px-4 py-2 text-sm font-medium text-foreground hover:bg-muted transition"
+          >
+            <Lightbulb className="h-4 w-4 text-amber-500" />
+            Ideias &amp; Bugs
           </Link>
           <Link
             href="/perfil"

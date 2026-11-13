@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
-import { Boxes, ChartNoAxesCombined, ScrollText, ArrowLeft, ArrowUpRight, ChevronRight, ChevronDown, Clock3, LayoutDashboard, Globe, LogOut, Menu, Network, Server, ShieldAlert, ShieldCheck, Users, UserMinus, Wallet, Eye, FolderKanban, X } from 'lucide-react';
+import { Boxes, ChartNoAxesCombined, ScrollText, ArrowLeft, ArrowUpRight, ChevronRight, ChevronDown, Clock3, LayoutDashboard, Lightbulb, Globe, LogOut, Menu, Network, Server, ShieldAlert, ShieldCheck, Users, UserMinus, Wallet, Eye, FolderKanban, X } from 'lucide-react';
 import { ThemeToggle } from '@/components/layout/theme-toggle';
 import { hasManagementAccess, ROLE_LABELS } from '@/lib/access-policy';
 import { useSession } from '@/contexts/auth-context';
@@ -24,6 +24,7 @@ const icons = {
   assets: Boxes,
   siteMembers: Eye,
   projects: FolderKanban,
+  feedback: Lightbulb,
   system: Server,
   institutional: Globe,
 };

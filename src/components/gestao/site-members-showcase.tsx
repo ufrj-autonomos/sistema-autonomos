@@ -4,6 +4,7 @@ import { useMemo, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import {
+  AlertCircle,
   CheckCircle2,
   Clock,
   Edit3,
@@ -56,6 +57,8 @@ export type SiteMemberShowcaseRow = {
   leftYear: string | null;
   projectNames: string;
   pendingChange?: PendingProfileChangeDto | null;
+  missingSiteFields: string[];
+  missingInternalFields: string[];
 };
 
 function displayRole(role: string, isFemale: boolean) {
@@ -107,6 +110,7 @@ export function SiteMembersShowcase({
   const [tab, setTab] = useState<'active' | 'alumni' | 'all'>(initialTab);
   const [teamFilter, setTeamFilter] = useState<'all' | 'geral' | 'harpia' | 'nautilus'>('all');
   const [visibilityFilter, setVisibilityFilter] = useState<'all' | 'visible' | 'hidden'>('all');
+  const [completenessFilter, setCompletenessFilter] = useState<'all' | 'incomplete' | 'complete'>('all');
   const [search, setSearch] = useState('');
   const [viewMode, setViewMode] = useState<'cards' | 'list'>('cards');
   const [togglingId, setTogglingId] = useState<number | null>(null);
@@ -120,11 +124,15 @@ export function SiteMembersShowcase({
     const activeTotal = rows.filter(r => r.active).length;
     const alumniVisible = rows.filter(r => !r.active && r.showOnSite).length;
     const alumniTotal = rows.filter(r => !r.active).length;
+    const incompleteCount = rows.filter(
+      r => r.missingSiteFields.length > 0 || r.missingInternalFields.length > 0
+    ).length;
     return {
       activeVisible,
       activeTotal,
       alumniVisible,
       alumniTotal,
+      incompleteCount,
       totalVisible: activeVisible + alumniVisible,
       totalHidden: rows.length - (activeVisible + alumniVisible),
     };
@@ -143,13 +151,18 @@ export function SiteMembersShowcase({
       if (visibilityFilter === 'visible' && !row.showOnSite) return false;
       if (visibilityFilter === 'hidden' && row.showOnSite) return false;
 
+      const hasMissing =
+        row.missingSiteFields.length > 0 || row.missingInternalFields.length > 0;
+      if (completenessFilter === 'incomplete' && !hasMissing) return false;
+      if (completenessFilter === 'complete' && hasMissing) return false;
+
       if (q) {
         const hay = `${row.name} ${row.role} ${row.area} ${row.course ?? ''} ${row.teamName}`.toLocaleLowerCase('pt-BR');
         if (!hay.includes(q)) return false;
       }
       return true;
     });
-  }, [rows, tab, teamFilter, visibilityFilter, search]);
+  }, [rows, tab, teamFilter, visibilityFilter, completenessFilter, search]);
 
   async function toggleVisibility(row: SiteMemberShowcaseRow) {
     setTogglingId(row.id);
@@ -338,7 +351,7 @@ export function SiteMembersShowcase({
           </div>
         </div>
 
-        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-[minmax(14rem,1fr)_auto_auto]">
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-[minmax(14rem,1fr)_auto_auto_auto]">
           <div className="relative">
             <Search className="pointer-events-none absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
             <input
@@ -385,6 +398,25 @@ export function SiteMembersShowcase({
                 }`}
               >
                 {v.label}
+              </button>
+            ))}
+          </div>
+
+          <div className="flex flex-wrap items-center gap-1 rounded-lg border border-border bg-background/60 p-1 text-xs">
+            {[
+              { value: 'all', label: 'Perfis: Todos' },
+              { value: 'incomplete', label: `Com pendências (${stats.incompleteCount})` },
+              { value: 'complete', label: 'Completos' },
+            ].map(c => (
+              <button
+                key={c.value}
+                type="button"
+                onClick={() => setCompletenessFilter(c.value as typeof completenessFilter)}
+                className={`rounded-md px-2.5 py-1.5 transition-colors cursor-pointer ${
+                  completenessFilter === c.value ? 'bg-accent font-semibold text-foreground' : 'text-muted-foreground hover:text-foreground'
+                }`}
+              >
+                {c.label}
               </button>
             ))}
           </div>
@@ -504,6 +536,26 @@ export function SiteMembersShowcase({
                       <span className="text-[10px] text-muted-foreground/60">Sem redes sociais</span>
                     )}
                   </div>
+
+                  {/* Pendências explícitas do perfil */}
+                  {(row.missingSiteFields.length > 0 || row.missingInternalFields.length > 0) && (
+                    <div className="mt-2 rounded-lg border border-amber-500/30 bg-amber-500/10 p-2.5 space-y-1 text-[11px]">
+                      <p className="inline-flex items-center gap-1 font-semibold text-amber-800 dark:text-amber-300">
+                        <AlertCircle className="h-3.5 w-3.5 shrink-0" />
+                        O que falta no perfil:
+                      </p>
+                      {row.missingSiteFields.length > 0 && (
+                        <p className="text-amber-900/90 dark:text-amber-200/90 leading-snug">
+                          <span className="font-medium">Site:</span> {row.missingSiteFields.join(', ')}
+                        </p>
+                      )}
+                      {row.missingInternalFields.length > 0 && (
+                        <p className="text-amber-900/80 dark:text-amber-200/80 leading-snug">
+                          <span className="font-medium">Cadastro:</span> {row.missingInternalFields.join(', ')}
+                        </p>
+                      )}
+                    </div>
+                  )}
                 </div>
 
                 {/* Rodapé de Ações */}
@@ -565,6 +617,7 @@ export function SiteMembersShowcase({
                   <th className="px-4 py-3 font-medium">Status</th>
                   <th className="px-4 py-3 font-medium">Equipe &amp; Área</th>
                   <th className="px-4 py-3 font-medium">Cargo no Site</th>
+                  <th className="px-4 py-3 font-medium">Faltando no Perfil</th>
                   <th className="px-4 py-3 font-medium">Exibição</th>
                   <th className="px-4 py-3 font-medium text-right">Ações</th>
                 </tr>
@@ -605,6 +658,26 @@ export function SiteMembersShowcase({
                       </td>
                       <td className="px-4 py-3 text-xs font-medium text-foreground">
                         {displayRole(row.role, row.isFemale)}
+                      </td>
+                      <td className="px-4 py-3 text-xs max-w-[260px]">
+                        {row.missingSiteFields.length === 0 && row.missingInternalFields.length === 0 ? (
+                          <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/10 px-2 py-0.5 text-[11px] font-medium text-emerald-700 dark:text-emerald-300 border border-emerald-500/20">
+                            <CheckCircle2 className="h-3 w-3" /> Completo
+                          </span>
+                        ) : (
+                          <div className="space-y-0.5 text-[11px] text-amber-800 dark:text-amber-300">
+                            {row.missingSiteFields.length > 0 && (
+                              <p className="leading-snug">
+                                <span className="font-semibold">Site:</span> {row.missingSiteFields.join(', ')}
+                              </p>
+                            )}
+                            {row.missingInternalFields.length > 0 && (
+                              <p className="leading-snug text-amber-700/90 dark:text-amber-200/80">
+                                <span className="font-semibold">Cadastro:</span> {row.missingInternalFields.join(', ')}
+                              </p>
+                            )}
+                          </div>
+                        )}
                       </td>
                       <td className="px-4 py-3">
                         <button
@@ -761,6 +834,25 @@ export function SiteMembersShowcase({
                     </a>
                   )}
                 </div>
+
+                {(previewMember.missingSiteFields.length > 0 || previewMember.missingInternalFields.length > 0) && (
+                  <div className="rounded-xl border border-amber-500/35 bg-amber-500/10 p-3 text-xs space-y-1">
+                    <p className="inline-flex items-center gap-1.5 font-semibold text-amber-800 dark:text-amber-300">
+                      <AlertCircle className="h-4 w-4 shrink-0" />
+                      Pendências identificadas neste perfil
+                    </p>
+                    {previewMember.missingSiteFields.length > 0 && (
+                      <p className="text-amber-900/90 dark:text-amber-200/90">
+                        <strong>Para o card no site:</strong> {previewMember.missingSiteFields.join(', ')}
+                      </p>
+                    )}
+                    {previewMember.missingInternalFields.length > 0 && (
+                      <p className="text-amber-900/80 dark:text-amber-200/80">
+                        <strong>Cadastro interno:</strong> {previewMember.missingInternalFields.join(', ')}
+                      </p>
+                    )}
+                  </div>
+                )}
               </div>
             </div>
           )}

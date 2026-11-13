@@ -17,6 +17,7 @@ import {
   ArrowRight,
   UserCircle,
   Wallet,
+  Lightbulb,
 } from "lucide-react";
 import { ThemeToggle } from "./theme-toggle";
 import { Logo } from "@/components/brand/logo";
@@ -98,6 +99,7 @@ export function Navbar({ className }: NavbarProps) {
     { label: "Presença", href: "/presenca", icon: Clock3 },
     { label: "Reuniões", href: "/reunioes", icon: CalendarCheck },
     { label: "Reembolsos", href: "/reembolsos", icon: Wallet },
+    { label: "Ideias & Bugs", href: "/melhorias", icon: Lightbulb },
     { label: "Meu Perfil", href: "/perfil", icon: UserCircle },
     { label: "Gestão", href: "/gestao", icon: ShieldCheck },
   ].filter(item => Boolean(user) && (item.href !== "/gestao" || canAccessManagement));
@@ -339,6 +341,16 @@ export function Navbar({ className }: NavbarProps) {
                   >
                     <Wallet className="w-4 h-4 text-muted-foreground" />
                     <span>Meus Reembolsos</span>
+                  </Link>
+
+                  <Link
+                    href="/melhorias"
+                    onClick={() => setIsUserDropdownOpen(false)}
+                    className="flex items-center gap-2.5 px-3 py-2 text-secondary-foreground hover:text-foreground hover:bg-foreground/5 rounded-lg transition-colors text-sm"
+                    role="menuitem"
+                  >
+                    <Lightbulb className="w-4 h-4 text-muted-foreground" />
+                    <span>Bugs, Ideias &amp; Melhorias</span>
                   </Link>
 
                   {canAccessManagement && (

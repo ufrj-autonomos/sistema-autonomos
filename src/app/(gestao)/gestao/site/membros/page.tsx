@@ -79,6 +79,31 @@ export default async function SiteMembersPage({
 
     const areas = resolveMemberAreas(record.area, member?.area);
 
+    const missingSiteFields: string[] = [];
+    if (!record.photo) missingSiteFields.push('Foto');
+    if (!record.bio?.trim()) missingSiteFields.push('Biografia');
+    if (!(record.course?.trim() || member?.course?.trim())) missingSiteFields.push('Curso');
+    if (!areas.site) missingSiteFields.push('Área');
+    if (!record.joinedYear?.trim()) missingSiteFields.push('Data de entrada');
+    if (!record.linkedin?.trim() && !record.github?.trim() && !record.instagram?.trim()) {
+      missingSiteFields.push('Redes sociais');
+    }
+
+    const missingInternalFields: string[] = [];
+    if (record.active) {
+      if (!member) {
+        missingInternalFields.push('Conta vinculada');
+      } else {
+        if (!member.phone?.trim()) missingInternalFields.push('WhatsApp');
+        if (!member.cpf?.trim()) missingInternalFields.push('CPF');
+        if (!member.dre?.trim()) missingInternalFields.push('DRE');
+        if (!member.birthDate) missingInternalFields.push('Data de nascimento');
+        if (!member.profileCompletedAt && missingInternalFields.length === 0) {
+          missingInternalFields.push('Confirmação inicial');
+        }
+      }
+    }
+
     return {
       id: record.id,
       name: record.name,
@@ -105,6 +130,8 @@ export default async function SiteMembersPage({
       leftYear: record.leftYear,
       projectNames,
       pendingChange,
+      missingSiteFields,
+      missingInternalFields,
     };
   });
 

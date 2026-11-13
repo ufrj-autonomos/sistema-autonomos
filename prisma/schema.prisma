@@ -157,6 +157,12 @@ model Member {
   assetsUpdated     InventoryAsset[]      @relation("AssetUpdater")
   assetEvents       InventoryAssetEvent[] @relation("AssetEventActor")
 
+  // Feedback / Bugs & Ideas relations
+  feedbackSubmitted FeedbackItem[]        @relation("FeedbackAuthor")
+  feedbackAssigned  FeedbackItem[]        @relation("FeedbackAssignee")
+  feedbackReviewed  FeedbackItem[]        @relation("FeedbackReviewer")
+  feedbackVotes     FeedbackVote[]
+
   @@index([email])
   @@index([institutionalMemberId])
 }
@@ -756,4 +762,96 @@ model InventoryAssetEvent {
   createdAt DateTime       @default(now()) @db.Timestamptz(3)
 
   @@index([assetId, createdAt])
+}
+
+// ---------------------------------------------------------------------------
+// 10. REPORTES DE BUGS, MELHORIAS, IDEIAS & OUVIDORIA (Equipe, Lab, Sistema, Site)
+// ---------------------------------------------------------------------------
+
+enum FeedbackScope {
+  SISTEMA
+  SITE
+  LABORATORIO
+  EQUIPE
+}
+
+enum FeedbackCategory {
+  BUG
+  MELHORIA
+  IDEIA
+  PROBLEMA_LAB
+  PROCESSO
+}
+
+enum FeedbackStatus {
+  RECEBIDA
+  EM_ANALISE
+  APROVADA
+  EM_ANDAMENTO
+  APLICADA
+  ARQUIVADA
+}
+
+enum FeedbackValidity {
+  PENDENTE
+  VALIDA
+  PARCIALMENTE_VALIDA
+  INVALIDA_OU_DUPLICADA
+}
+
+enum FeedbackPriority {
+  BAIXA
+  MEDIA
+  ALTA
+  CRITICA
+}
+
+model FeedbackItem {
+  id               String           @id @default(cuid())
+  code             String           @unique // ex: FB-001
+  scope            FeedbackScope    @default(SISTEMA)
+  category         FeedbackCategory @default(IDEIA)
+  title            String
+  description      String           @db.Text
+  pageOrLocation   String?
+  stepsToReproduce String?          @db.Text
+  expectedOutcome  String?          @db.Text
+  attachmentUrl    String?
+  attachmentName   String?
+  isAnonymous      Boolean          @default(false)
+  authorId         String?
+  author           Member?          @relation("FeedbackAuthor", fields: [authorId], references: [id], onDelete: SetNull)
+  authorName       String
+  status           FeedbackStatus   @default(RECEBIDA)
+  validity         FeedbackValidity @default(PENDENTE)
+  priority         FeedbackPriority @default(MEDIA)
+  assignedArea     String?
+  assignedToId     String?
+  assignedTo       Member?          @relation("FeedbackAssignee", fields: [assignedToId], references: [id], onDelete: SetNull)
+  responseNotes    String?          @db.Text
+  appliedAt        DateTime?        @db.Timestamptz(3)
+  reviewedById     String?
+  reviewedBy       Member?          @relation("FeedbackReviewer", fields: [reviewedById], references: [id], onDelete: SetNull)
+  reviewedAt       DateTime?        @db.Timestamptz(3)
+  votes            FeedbackVote[]
+  createdAt        DateTime         @default(now()) @db.Timestamptz(3)
+  updatedAt        DateTime         @updatedAt @db.Timestamptz(3)
+
+  @@index([scope, status])
+  @@index([category, status])
+  @@index([validity])
+  @@index([authorId])
+  @@index([createdAt])
+}
+
+model FeedbackVote {
+  id         String       @id @default(cuid())
+  feedbackId String
+  feedback   FeedbackItem @relation(fields: [feedbackId], references: [id], onDelete: Cascade)
+  memberId   String
+  member     Member       @relation(fields: [memberId], references: [id], onDelete: Cascade)
+  createdAt  DateTime     @default(now()) @db.Timestamptz(3)
+
+  @@unique([feedbackId, memberId])
+  @@index([memberId])
 }
