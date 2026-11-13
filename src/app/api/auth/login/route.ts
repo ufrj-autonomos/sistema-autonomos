@@ -1,6 +1,7 @@
 import { traceApi } from '@/lib/activity/server';
 import { readAuthPayload } from '@/lib/auth-request';
 import { NextRequest, NextResponse } from 'next/server';
+import type { AccountStatus, Role } from '@prisma/client';
 import { prisma } from '@/lib/prisma';
 import { verifyPassword } from '@/lib/auth';
 import { createUserSession, SESSION_COOKIE_NAME, sessionCookieOptions, TeamSlug } from '@/lib/session';
@@ -26,10 +27,44 @@ export async function POST(req: NextRequest) {
     const normalizedEmail = String(email).toLowerCase().trim();
     const blockedAccount = await checkRateLimit(`login-account:${normalizedEmail}`, 10, 15 * 60);
     if (blockedAccount) return blockedAccount;
-    const member = await prisma.member.findUnique({
-      where: { email: normalizedEmail },
-      include: { credential: true },
-    });
+    type LoginMemberRecord = {
+      id: string;
+      email: string | null;
+      name: string;
+      role: Role;
+      status: AccountStatus;
+      avatar: string | null;
+      area: string;
+      teamId: number | null;
+      institutionalMemberId: number | null;
+      profileCompletedAt: Date | null;
+      credential: { passwordHash: string } | null;
+    };
+    let member: LoginMemberRecord | null = null;
+    try {
+      member = await prisma.member.findUnique({
+        where: { email: normalizedEmail },
+        include: { credential: true },
+      });
+    } catch (lookupError) {
+      console.warn('Fallback no lookup de login (/api/auth/login):', lookupError);
+      member = await prisma.member.findUnique({
+        where: { email: normalizedEmail },
+        select: {
+          id: true,
+          email: true,
+          name: true,
+          role: true,
+          status: true,
+          avatar: true,
+          area: true,
+          teamId: true,
+          institutionalMemberId: true,
+          profileCompletedAt: true,
+          credential: { select: { passwordHash: true } },
+        },
+      });
+    }
 
     if (!member) {
       return NextResponse.json(

@@ -5,6 +5,7 @@ import { hasManagementAccess } from '@/lib/access-policy';
 import { getMeetingsDashboardData, calculateAttendanceScore, KNOWN_AREAS } from '@/lib/meetings/service';
 import { getDisciplinaryDashboardData } from '@/lib/disciplinary/service';
 import { attendanceReport } from '@/lib/attendance/service';
+import { getFinancialDashboardData, FINANCIAL_STATUS_META } from '@/lib/finance/service';
 import { weekKey } from '@/lib/attendance/time';
 
 export interface ExportDataResult {
@@ -336,5 +337,53 @@ export async function exportAttendanceToSheets(week = weekKey()): Promise<Export
     tsvContent: tsv,
     rowCount: rows.length,
     title: `Presença no Laboratório — Semana ${week}`,
+  };
+}
+
+/**
+ * 5. Exportação do Livro Caixa Financeiro
+ */
+export async function exportFinanceToSheets(): Promise<ExportDataResult> {
+  const data = await getFinancialDashboardData();
+
+  const headers = [
+    'Código',
+    'Tipo',
+    'Data',
+    'Descrição',
+    'Solicitante / Origem',
+    'Categoria',
+    'Conta / Verba',
+    'Equipe',
+    'Valor (R$)',
+    'Status',
+    'Chave PIX',
+    'Comprovantes',
+    'Observações',
+  ];
+
+  const rows: (string | number | boolean | null | undefined)[][] = data.entries.map((entry) => [
+    entry.code,
+    entry.type === 'ENTRADA' ? 'Entrada' : entry.isReimbursement ? 'Reembolso' : 'Saída',
+    entry.occurredAt ? entry.occurredAt.split('-').reverse().join('/') : 'Sem data',
+    entry.title,
+    entry.requesterName,
+    entry.category,
+    entry.fundSource,
+    entry.team,
+    (entry.amountCents / 100).toFixed(2).replace('.', ','),
+    FINANCIAL_STATUS_META[entry.status]?.label || entry.status,
+    entry.pixKey || '',
+    entry.attachments.map(a => a.url).join(' | '),
+    entry.description || '',
+  ]);
+
+  const { csv, tsv } = buildCsvAndTsv(headers, rows);
+  return {
+    filename: `livro_caixa_ufrj_autonomos_${new Date().toISOString().slice(0, 10)}.csv`,
+    csvContent: csv,
+    tsvContent: tsv,
+    rowCount: rows.length,
+    title: 'Livro Caixa e Reembolsos — UFRJ Autônomos',
   };
 }

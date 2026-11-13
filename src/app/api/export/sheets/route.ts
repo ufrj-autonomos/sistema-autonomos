@@ -6,6 +6,7 @@ import {
   exportMembersToSheets,
   exportDisciplinaryToSheets,
   exportAttendanceToSheets,
+  exportFinanceToSheets,
 } from '@/lib/export/google-sheets';
 
 export async function GET(req: NextRequest) {
@@ -44,9 +45,12 @@ export async function GET(req: NextRequest) {
       case 'attendance':
         result = await exportAttendanceToSheets(week);
         break;
+      case 'finance':
+        result = await exportFinanceToSheets();
+        break;
       default:
         return NextResponse.json(
-          { error: 'Tipo de tabela inválido. Use "meetings", "members", "disciplinary" ou "attendance".' },
+          { error: 'Tipo de tabela inválido. Use "meetings", "members", "disciplinary", "attendance" ou "finance".' },
           { status: 400 }
         );
     }

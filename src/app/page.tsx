@@ -14,6 +14,7 @@ import {
   Award,
   TrendingUp,
   Layers,
+  Wallet,
 } from 'lucide-react';
 import { requirePageUser } from '@/lib/session';
 import { prisma } from '@/lib/prisma';
@@ -148,6 +149,13 @@ export default async function HomePage() {
           >
             <CalendarCheck className="h-4 w-4 text-primary" />
             Reuniões
+          </Link>
+          <Link
+            href="/reembolsos"
+            className="inline-flex min-h-11 items-center gap-2 rounded-lg border border-border px-4 py-2 text-sm font-medium text-foreground hover:bg-muted transition"
+          >
+            <Wallet className="h-4 w-4 text-emerald-500" />
+            Reembolsos
           </Link>
           <Link
             href="/perfil"

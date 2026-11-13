@@ -109,6 +109,8 @@ model Member {
   active                     Boolean       @default(true)
   inactivatedAt              DateTime?     @db.Date
   inactivationReason         String?
+  pixKey                     String?
+  pixKeyType                 String?
   profileCompletedAt         DateTime?     @db.Timestamptz(3)
   memberDirectoryPreferences Json?
   createdAt                  DateTime      @default(now()) @db.Timestamptz(3)
@@ -143,6 +145,10 @@ model Member {
   // Disciplinary relations
   disciplinaryWarnings DisciplinaryWarning[] @relation("MemberWarnings")
   issuedWarnings       DisciplinaryWarning[] @relation("IssuedWarnings")
+
+  // Financial relations
+  financialEntriesRequested FinancialEntry[] @relation("FinancialRequester")
+  financialEntriesReviewed  FinancialEntry[] @relation("FinancialReviewer")
 
   @@index([email])
   @@index([institutionalMemberId])
@@ -573,4 +579,72 @@ model DisciplinaryWarning {
   @@index([issuedById])
   @@index([type])
   @@index([createdAt])
+}
+
+// ---------------------------------------------------------------------------
+// 8. SISTEMA FINANCEIRO (Livro Caixa, Entradas, Saídas e Reembolsos)
+// ---------------------------------------------------------------------------
+
+enum FinancialEntryType {
+  ENTRADA
+  SAIDA
+}
+
+enum FinancialEntryStatus {
+  PENDENTE
+  APROVADO
+  AGUARDANDO_REEMBOLSO
+  AGUARDANDO_NF
+  PAGO
+  RECUSADO
+}
+
+model FinancialEntry {
+  id              String                @id @default(cuid())
+  code            String                @unique
+  type            FinancialEntryType
+  isReimbursement Boolean               @default(false)
+  title           String
+  description     String?               @db.Text
+  category        String                @default("Administrativo")
+  fundSource      String                @default("Dinheiro Livre")
+  team            String                @default("Geral")
+  amountCents     Int
+  occurredAt      DateTime?             @db.Date
+  status          FinancialEntryStatus  @default(PENDENTE)
+  requesterId     String?
+  requester       Member?               @relation("FinancialRequester", fields: [requesterId], references: [id], onDelete: SetNull)
+  requesterName   String
+  pixKey          String?
+  pixKeyType      String?
+  driveFolderId   String?
+  driveFolderUrl  String?
+  reviewNotes     String?               @db.Text
+  reviewedById    String?
+  reviewedBy      Member?               @relation("FinancialReviewer", fields: [reviewedById], references: [id], onDelete: SetNull)
+  reviewedAt      DateTime?             @db.Timestamptz(3)
+  paidAt          DateTime?             @db.Timestamptz(3)
+  attachments     FinancialAttachment[]
+  createdAt       DateTime              @default(now()) @db.Timestamptz(3)
+  updatedAt       DateTime              @updatedAt @db.Timestamptz(3)
+
+  @@index([type, status])
+  @@index([isReimbursement, status])
+  @@index([requesterId])
+  @@index([occurredAt])
+  @@index([category])
+}
+
+model FinancialAttachment {
+  id          String         @id @default(cuid())
+  entryId     String
+  entry       FinancialEntry @relation(fields: [entryId], references: [id], onDelete: Cascade)
+  name        String
+  url         String
+  driveFileId String?
+  mimeType    String?
+  kind        String         @default("RECEIPT") // RECEIPT | PAYMENT_PROOF | STATEMENT
+  createdAt   DateTime       @default(now()) @db.Timestamptz(3)
+
+  @@index([entryId])
 }

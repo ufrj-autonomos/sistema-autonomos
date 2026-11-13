@@ -1,228 +1,281 @@
 'use client';
 
+import Link from 'next/link';
 import { useMemo, useState } from 'react';
 import {
-  AlertCircle,
+  AlertTriangle,
   Check,
   CheckCircle2,
   Clock,
   Copy,
   CreditCard,
   DollarSign,
-  FileText,
+  FileWarning,
   Filter,
+  Landmark,
+  Paperclip,
   Plus,
   Receipt,
   Search,
-  Upload,
   Wallet,
   X,
   XCircle,
 } from 'lucide-react';
 import { toast } from 'sonner';
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/institutional/ui/dialog';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/institutional/ui/dialog';
+import {
+  FINANCE_CATEGORIES,
+  FINANCE_FUNDS,
+  FINANCE_TEAMS,
+  FINANCIAL_STATUS_META,
+  PIX_KEY_TYPES,
+  formatBRL,
+  formatFinanceDate,
+  type FinancialDashboardData,
+  type FinancialEntryDTO,
+  type FinancialEntryStatusValue,
+} from '@/lib/finance/constants';
+import {
+  AttachmentGallery,
+  ReceiptUploader,
+  type UploadedAttachmentDraft,
+} from '@/components/finance/attachment-gallery';
 import { cn } from '@/lib/utils';
 
-type ReimbursementStatus = 'PENDENTE' | 'APROVADO' | 'PAGO' | 'RECUSADO';
-type TeamDivision = 'Harpia' | 'Nautilus' | 'Geral';
-type ReimbursementCategory =
-  | 'Peças e Componentes'
-  | 'Ferramentas e Lab'
-  | 'Viagem e Competição'
-  | 'Software e Cloud'
-  | 'Eventos';
-
-type ReimbursementItem = {
-  id: string;
-  title: string;
-  requesterName: string;
-  requesterArea: string;
-  team: TeamDivision;
-  category: ReimbursementCategory;
-  amountCents: number;
-  purchaseDate: string;
-  createdAt: string;
-  pixKey: string;
-  receiptName: string;
-  status: ReimbursementStatus;
-  notes?: string;
-};
-
-const INITIAL_DEMO_ITEMS: ReimbursementItem[] = [
-  {
-    id: 'RMB-042',
-    title: 'Conjunto de conectores XT60 e cabos silicone 12AWG',
-    requesterName: 'Lucas Andrade',
-    requesterArea: 'Eletrônica',
-    team: 'Harpia',
-    category: 'Peças e Componentes',
-    amountCents: 24890,
-    purchaseDate: '2026-11-08',
-    createdAt: '2026-11-09',
-    pixKey: 'lucas.andrade@poli.ufrj.br',
-    receiptName: 'nf-loja-eletronica-042.pdf',
-    status: 'PENDENTE',
-    notes: 'Reposição urgente para chicote de potência do drone VANT-4.',
-  },
-  {
-    id: 'RMB-041',
-    title: 'Vedação O-ring Viton e graxa dielétrica para casco estanque',
-    requesterName: 'Mariana Costa',
-    requesterArea: 'Mecânica',
-    team: 'Nautilus',
-    category: 'Peças e Componentes',
-    amountCents: 31500,
-    purchaseDate: '2026-11-05',
-    createdAt: '2026-11-06',
-    pixKey: '(21) 99812-3341',
-    receiptName: 'comprovante-vedacao-nautilus.jpg',
-    status: 'APROVADO',
-    notes: 'Aprovado pela coordenação da divisão Nautilus.',
-  },
-  {
-    id: 'RMB-040',
-    title: 'Inscrição e logística de transporte para feira de robótica CT',
-    requesterName: 'Rafael Nogueira',
-    requesterArea: 'Marketing',
-    team: 'Geral',
-    category: 'Eventos',
-    amountCents: 18500,
-    purchaseDate: '2026-10-29',
-    createdAt: '2026-10-30',
-    pixKey: '124.890.312-00',
-    receiptName: 'recibo-impressao-banners.pdf',
-    status: 'PAGO',
-    notes: 'Pago via PIX em 02/11 pela tesouraria.',
-  },
-  {
-    id: 'RMB-039',
-    title: 'Créditos de GPU para treinamento de visão computacional',
-    requesterName: 'Bianca Rocha',
-    requesterArea: 'Software',
-    team: 'Harpia',
-    category: 'Software e Cloud',
-    amountCents: 14250,
-    purchaseDate: '2026-10-24',
-    createdAt: '2026-10-25',
-    pixKey: 'bianca.rocha@ufrj.br',
-    receiptName: 'invoice-cloud-gpu.pdf',
-    status: 'PENDENTE',
-    notes: 'Treinamento do detector de alvos aéreos.',
-  },
-];
-
-function formatBRL(cents: number) {
-  return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(cents / 100);
-}
-
-const STATUS_STYLE: Record<ReimbursementStatus, { label: string; cls: string }> = {
-  PENDENTE: {
-    label: 'Pendente',
-    cls: 'bg-amber-500/15 text-amber-700 dark:text-amber-300 border-amber-500/30',
-  },
-  APROVADO: {
-    label: 'Aprovado (A pagar)',
-    cls: 'bg-blue-500/15 text-blue-700 dark:text-blue-300 border-blue-500/30',
-  },
-  PAGO: {
-    label: 'Pago',
-    cls: 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border-emerald-500/30',
-  },
-  RECUSADO: {
-    label: 'Recusado',
-    cls: 'bg-red-500/15 text-red-700 dark:text-red-300 border-red-500/30',
-  },
-};
-
-const TEAM_STYLE: Record<TeamDivision, string> = {
+const TEAM_STYLE: Record<string, string> = {
   Harpia: 'bg-purple-500/10 text-purple-700 dark:text-purple-300 border-purple-500/30',
   Nautilus: 'bg-sky-500/10 text-sky-700 dark:text-sky-300 border-sky-500/30',
   Geral: 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border-emerald-500/30',
 };
 
-export function ReimbursementsClient({ currentUserName }: { currentUserName: string }) {
-  const [items, setItems] = useState<ReimbursementItem[]>(INITIAL_DEMO_ITEMS);
-  const [teamFilter, setTeamFilter] = useState<'all' | TeamDivision>('all');
-  const [statusFilter, setStatusFilter] = useState<'all' | ReimbursementStatus>('all');
-  const [categoryFilter, setCategoryFilter] = useState<'all' | ReimbursementCategory>('all');
+export function ReimbursementsClient({
+  currentUserName,
+  initialData,
+}: {
+  currentUserName: string;
+  initialData: FinancialDashboardData;
+}) {
+  const [data, setData] = useState<FinancialDashboardData>(initialData);
+  const [teamFilter, setTeamFilter] = useState<'all' | string>('all');
+  const [statusFilter, setStatusFilter] = useState<'all' | 'OPEN' | FinancialEntryStatusValue>('all');
+  const [categoryFilter, setCategoryFilter] = useState<'all' | string>('all');
   const [search, setSearch] = useState('');
-  const [selectedItem, setSelectedItem] = useState<ReimbursementItem | null>(null);
+  const [selectedItem, setSelectedItem] = useState<FinancialEntryDTO | null>(null);
   const [creatingOpen, setCreatingOpen] = useState(false);
+
+  // Detail modal interactive states
+  const [detailAmount, setDetailAmount] = useState('');
+  const [detailReviewNotes, setDetailReviewNotes] = useState('');
+  const [detailProofDrafts, setDetailProofDrafts] = useState<UploadedAttachmentDraft[]>([]);
+  const [updatingId, setUpdatingId] = useState<string | null>(null);
 
   // Form states for new reimbursement modal
   const [formTitle, setFormTitle] = useState('');
-  const [formTeam, setFormTeam] = useState<TeamDivision>('Geral');
-  const [formCategory, setFormCategory] = useState<ReimbursementCategory>('Peças e Componentes');
+  const [formRequesterId, setFormRequesterId] = useState('');
+  const [formTeam, setFormTeam] = useState<string>('Geral');
+  const [formCategory, setFormCategory] = useState<string>('Eletrônica');
+  const [formFundSource, setFormFundSource] = useState<string>('Dinheiro Livre');
   const [formAmount, setFormAmount] = useState('');
-  const [formPurchaseDate, setFormPurchaseDate] = useState('2026-11-12');
+  const [formPurchaseDate, setFormPurchaseDate] = useState(() => new Date().toISOString().slice(0, 10));
+  const [formPixKeyType, setFormPixKeyType] = useState<string>('CPF');
   const [formPixKey, setFormPixKey] = useState('');
-  const [formReceiptName, setFormReceiptName] = useState('');
   const [formNotes, setFormNotes] = useState('');
+  const [formDrafts, setFormDrafts] = useState<UploadedAttachmentDraft[]>([]);
+  const [creatingLoading, setCreatingLoading] = useState(false);
+
+  const items = useMemo(
+    () => data.entries.filter(e => e.type === 'SAIDA' && e.isReimbursement),
+    [data.entries]
+  );
+
+  async function refreshData(reopenId?: string) {
+    const res = await fetch('/api/financeiro?scope=management', { cache: 'no-store' });
+    if (!res.ok) return;
+    const json = (await res.json()) as FinancialDashboardData;
+    setData({ entries: json.entries, summary: json.summary, members: json.members });
+    if (reopenId) {
+      const updated = json.entries.find(e => e.id === reopenId) || null;
+      setSelectedItem(updated);
+      if (updated) {
+        setDetailAmount((updated.amountCents / 100).toFixed(2).replace('.', ','));
+        setDetailReviewNotes(updated.reviewNotes || '');
+      }
+    }
+  }
+
+  function openDetail(item: FinancialEntryDTO) {
+    setSelectedItem(item);
+    setDetailAmount((item.amountCents / 100).toFixed(2).replace('.', ','));
+    setDetailReviewNotes(item.reviewNotes || '');
+    setDetailProofDrafts([]);
+  }
 
   const metrics = useMemo(() => {
-    const pendingCents = items.filter(i => i.status === 'PENDENTE').reduce((acc, i) => acc + i.amountCents, 0);
-    const approvedCents = items.filter(i => i.status === 'APROVADO').reduce((acc, i) => acc + i.amountCents, 0);
-    const paidCents = items.filter(i => i.status === 'PAGO').reduce((acc, i) => acc + i.amountCents, 0);
-    const pendingCount = items.filter(i => i.status === 'PENDENTE').length;
-    const approvedCount = items.filter(i => i.status === 'APROVADO').length;
-    return { pendingCents, approvedCents, paidCents, pendingCount, approvedCount };
-  }, [items]);
+    const awaiting = items.filter(
+      i => i.status === 'AGUARDANDO_REEMBOLSO' || i.status === 'PENDENTE' || i.status === 'AGUARDANDO_NF'
+    );
+    const approved = items.filter(i => i.status === 'APROVADO');
+    const paid = items.filter(i => i.status === 'PAGO');
+    return {
+      awaitingCents: awaiting.reduce((acc, i) => acc + i.amountCents, 0),
+      awaitingCount: awaiting.length,
+      approvedCents: approved.reduce((acc, i) => acc + i.amountCents, 0),
+      approvedCount: approved.length,
+      paidCents: paid.reduce((acc, i) => acc + i.amountCents, 0),
+      paidCount: paid.length,
+      freeCashBalanceCents: data.summary.freeCashBalanceCents,
+    };
+  }, [items, data.summary.freeCashBalanceCents]);
 
   const filtered = useMemo(() => {
     const q = search.trim().toLocaleLowerCase('pt-BR');
     return items.filter(item => {
       if (teamFilter !== 'all' && item.team !== teamFilter) return false;
-      if (statusFilter !== 'all' && item.status !== statusFilter) return false;
+      if (statusFilter === 'OPEN') {
+        if (
+          item.status !== 'AGUARDANDO_REEMBOLSO' &&
+          item.status !== 'PENDENTE' &&
+          item.status !== 'AGUARDANDO_NF' &&
+          item.status !== 'APROVADO'
+        ) {
+          return false;
+        }
+      } else if (statusFilter !== 'all' && item.status !== statusFilter) {
+        return false;
+      }
       if (categoryFilter !== 'all' && item.category !== categoryFilter) return false;
       if (q) {
-        const hay = `${item.id} ${item.title} ${item.requesterName} ${item.category} ${item.pixKey}`.toLocaleLowerCase('pt-BR');
+        const hay = `${item.code} ${item.title} ${item.requesterName} ${item.category} ${item.pixKey || ''} ${item.description || ''}`.toLocaleLowerCase('pt-BR');
         if (!hay.includes(q)) return false;
       }
       return true;
     });
   }, [items, teamFilter, statusFilter, categoryFilter, search]);
 
-  function updateStatus(id: string, nextStatus: ReimbursementStatus) {
-    setItems(prev => prev.map(item => (item.id === id ? { ...item, status: nextStatus } : item)));
-    if (selectedItem?.id === id) {
-      setSelectedItem({ ...selectedItem, status: nextStatus });
+  async function updateEntryStatus(
+    id: string,
+    code: string,
+    nextStatus: FinancialEntryStatusValue,
+    extra?: { amountCents?: number; reviewNotes?: string; addAttachments?: UploadedAttachmentDraft[] }
+  ) {
+    setUpdatingId(id);
+    try {
+      const res = await fetch(`/api/financeiro/${id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          status: nextStatus,
+          ...(extra?.amountCents !== undefined ? { amountCents: extra.amountCents } : {}),
+          ...(extra?.reviewNotes !== undefined ? { reviewNotes: extra.reviewNotes } : {}),
+          ...(extra?.addAttachments?.length ? { addAttachments: extra.addAttachments } : {}),
+        }),
+      });
+      const json = await res.json();
+      if (!res.ok) {
+        toast.error(json.error || 'Não foi possível atualizar a solicitação.');
+        return;
+      }
+      setDetailProofDrafts([]);
+      await refreshData(selectedItem?.id === id ? id : undefined);
+      toast.success(`Solicitação ${code} atualizada para "${FINANCIAL_STATUS_META[nextStatus].label}".`);
+    } catch {
+      toast.error('Erro de conexão ao atualizar solicitação.');
+    } finally {
+      setUpdatingId(null);
     }
-    const label = STATUS_STYLE[nextStatus].label;
-    toast.success(`Solicitação ${id} marcada como "${label}" (prévia local).`);
   }
 
-  function handleCreateSubmit(e: React.FormEvent) {
+  async function handleSaveDetailsOnly() {
+    if (!selectedItem) return;
+    const numeric = Number(detailAmount.replace(/\./g, '').replace(',', '.'));
+    if (!Number.isFinite(numeric) || numeric < 0) {
+      toast.error('Valor inválido.');
+      return;
+    }
+    setUpdatingId(selectedItem.id);
+    try {
+      const res = await fetch(`/api/financeiro/${selectedItem.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          amountCents: Math.round(numeric * 100),
+          reviewNotes: detailReviewNotes,
+          addAttachments: detailProofDrafts,
+        }),
+      });
+      const json = await res.json();
+      if (!res.ok) {
+        toast.error(json.error || 'Erro ao salvar.');
+        return;
+      }
+      setDetailProofDrafts([]);
+      await refreshData(selectedItem.id);
+      toast.success(`Detalhes de ${selectedItem.code} salvos!`);
+    } catch {
+      toast.error('Erro de conexão.');
+    } finally {
+      setUpdatingId(null);
+    }
+  }
+
+  async function handleCreateSubmit(e: React.FormEvent) {
     e.preventDefault();
-    const numeric = Number(formAmount.replace(',', '.'));
-    if (!formTitle.trim() || !Number.isFinite(numeric) || numeric <= 0 || !formPixKey.trim()) {
-      toast.error('Preencha descrição, valor válido e chave PIX.');
+    const numeric = Number(formAmount.replace(/\./g, '').replace(',', '.'));
+    if (!formTitle.trim() || !Number.isFinite(numeric) || numeric < 0) {
+      toast.error('Preencha descrição e valor válido.');
       return;
     }
 
-    const newItem: ReimbursementItem = {
-      id: `RMB-${String(items.length + 40).padStart(3, '0')}`,
-      title: formTitle.trim(),
-      requesterName: currentUserName,
-      requesterArea: 'Gestão',
-      team: formTeam,
-      category: formCategory,
-      amountCents: Math.round(numeric * 100),
-      purchaseDate: formPurchaseDate,
-      createdAt: new Date().toISOString().slice(0, 10),
-      pixKey: formPixKey.trim(),
-      receiptName: formReceiptName.trim() || 'nota-fiscal-anexada.pdf',
-      status: 'PENDENTE',
-      notes: formNotes.trim() || undefined,
-    };
+    setCreatingLoading(true);
+    try {
+      const selectedMember = data.members.find(m => m.id === formRequesterId);
+      const res = await fetch('/api/financeiro', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          type: 'SAIDA',
+          isReimbursement: true,
+          title: formTitle.trim(),
+          requesterId: formRequesterId || null,
+          requesterName: selectedMember?.name || currentUserName,
+          team: formTeam,
+          category: formCategory,
+          fundSource: formFundSource,
+          amountCents: Math.round(numeric * 100),
+          occurredAt: formPurchaseDate || null,
+          status: 'AGUARDANDO_REEMBOLSO',
+          pixKey: formPixKey.trim() || null,
+          pixKeyType: formPixKey.trim() ? formPixKeyType : null,
+          description: formNotes.trim() || null,
+          attachments: formDrafts,
+        }),
+      });
+      const json = await res.json();
+      if (!res.ok) {
+        toast.error(json.error || 'Erro ao criar reembolso.');
+        return;
+      }
 
-    setItems(prev => [newItem, ...prev]);
-    setCreatingOpen(false);
-    setFormTitle('');
-    setFormAmount('');
-    setFormPixKey('');
-    setFormReceiptName('');
-    setFormNotes('');
-    toast.success(`Solicitação ${newItem.id} adicionada na prévia local!`);
+      toast.success(`Solicitação ${json.entry.code} registrada no banco!`);
+      setCreatingOpen(false);
+      setFormTitle('');
+      setFormAmount('');
+      setFormPixKey('');
+      setFormNotes('');
+      setFormDrafts([]);
+      await refreshData();
+    } catch {
+      toast.error('Erro de conexão ao registrar solicitação.');
+    } finally {
+      setCreatingLoading(false);
+    }
   }
 
   return (
@@ -230,15 +283,23 @@ export function ReimbursementsClient({ currentUserName }: { currentUserName: str
       {/* Cabeçalho */}
       <header className="flex flex-wrap items-start justify-between gap-4 border-b border-border pb-5">
         <div>
-          <div className="inline-flex items-center gap-2 rounded-full border border-emerald-500/30 bg-emerald-500/10 px-3 py-0.5 text-xs font-medium text-emerald-700 dark:text-emerald-300 mb-2">
-            <Wallet className="h-3.5 w-3.5" />
-            Módulo Financeiro · Protótipo Front-end
+          <div className="flex flex-wrap items-center gap-2 mb-2">
+            <span className="inline-flex items-center gap-2 rounded-full border border-emerald-500/30 bg-emerald-500/10 px-3 py-0.5 text-xs font-medium text-emerald-700 dark:text-emerald-300">
+              <Wallet className="h-3.5 w-3.5" />
+              Módulo Financeiro · Dados em Tempo Real
+            </span>
+            <Link
+              href="/gestao/financeiro/caixa"
+              className="inline-flex items-center gap-1.5 rounded-full border border-border bg-background px-3 py-0.5 text-xs font-medium text-muted-foreground hover:text-foreground transition-colors"
+            >
+              <Landmark className="h-3 w-3" /> Abrir Livro Caixa (Saldo: {formatBRL(metrics.freeCashBalanceCents)})
+            </Link>
           </div>
           <h1 className="font-display text-3xl font-semibold text-foreground">
             Gestão de Reembolsos
           </h1>
           <p className="mt-1.5 max-w-2xl text-sm text-muted-foreground leading-relaxed">
-            Centralize solicitações de reembolso de peças, competições e despesas operacionais por divisão, confira notas fiscais, chaves PIX e acompanhe aprovações.
+            Confira solicitações de reembolso da equipe, notas fiscais importadas do Drive e novos pedidos dos membros, copie chaves PIX e registre comprovantes de pagamento.
           </p>
         </div>
 
@@ -252,26 +313,18 @@ export function ReimbursementsClient({ currentUserName }: { currentUserName: str
         </button>
       </header>
 
-      {/* Aviso de Protótipo Frontend */}
-      <div className="flex items-start gap-3 rounded-xl border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-xs text-amber-800 dark:text-amber-200">
-        <AlertCircle className="h-4 w-4 shrink-0 mt-0.5 text-amber-600 dark:text-amber-400" />
-        <p className="leading-relaxed">
-          <strong>Visualização Front-end:</strong> Os registros exibidos abaixo são exemplos interativos para validação do fluxo financeiro. Você pode criar solicitações, aprovar, marcar como pago e filtrar normalmente nesta sessão antes da integração com o banco de dados.
-        </p>
-      </div>
-
       {/* KPIs Financeiros */}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <div className="rounded-xl border border-border bg-card p-4 shadow-xs">
           <div className="flex items-center justify-between text-muted-foreground">
-            <span className="text-xs font-semibold uppercase tracking-wider">Aguardando Aprovação</span>
+            <span className="text-xs font-semibold uppercase tracking-wider">Aguardando Reembolso</span>
             <Clock className="h-4 w-4 text-amber-500" />
           </div>
-          <p className="mt-3 font-display text-2xl font-bold tabular-nums text-foreground">
-            {formatBRL(metrics.pendingCents)}
+          <p className="mt-3 font-display text-2xl font-bold tabular-nums text-amber-600 dark:text-amber-400">
+            {formatBRL(metrics.awaitingCents)}
           </p>
           <p className="mt-1 text-xs text-muted-foreground">
-            {metrics.pendingCount} {metrics.pendingCount === 1 ? 'solicitação pendente' : 'solicitações pendentes'}
+            {metrics.awaitingCount} {metrics.awaitingCount === 1 ? 'solicitação em aberto' : 'solicitações em aberto'}
           </p>
         </div>
 
@@ -284,7 +337,7 @@ export function ReimbursementsClient({ currentUserName }: { currentUserName: str
             {formatBRL(metrics.approvedCents)}
           </p>
           <p className="mt-1 text-xs text-muted-foreground">
-            {metrics.approvedCount} {metrics.approvedCount === 1 ? 'PIX aguardando envio' : 'PIX aguardando envio'}
+            {metrics.approvedCount} PIX aguardando envio
           </p>
         </div>
 
@@ -296,18 +349,22 @@ export function ReimbursementsClient({ currentUserName }: { currentUserName: str
           <p className="mt-3 font-display text-2xl font-bold tabular-nums text-emerald-600 dark:text-emerald-400">
             {formatBRL(metrics.paidCents)}
           </p>
-          <p className="mt-1 text-xs text-muted-foreground">pagamentos concluídos no ciclo</p>
+          <p className="mt-1 text-xs text-muted-foreground">
+            {metrics.paidCount} pagamentos concluídos
+          </p>
         </div>
 
         <div className="rounded-xl border border-border bg-card p-4 shadow-xs">
           <div className="flex items-center justify-between text-muted-foreground">
-            <span className="text-xs font-semibold uppercase tracking-wider">Total Movimentado</span>
+            <span className="text-xs font-semibold uppercase tracking-wider">Saldo Dinheiro Livre</span>
             <DollarSign className="h-4 w-4 text-primary" />
           </div>
           <p className="mt-3 font-display text-2xl font-bold tabular-nums text-foreground">
-            {formatBRL(metrics.pendingCents + metrics.approvedCents + metrics.paidCents)}
+            {formatBRL(metrics.freeCashBalanceCents)}
           </p>
-          <p className="mt-1 text-xs text-muted-foreground">{items.length} solicitações registradas</p>
+          <p className="mt-1 text-xs text-muted-foreground">
+            Disponível em caixa antes dos pendentes
+          </p>
         </div>
       </div>
 
@@ -324,7 +381,7 @@ export function ReimbursementsClient({ currentUserName }: { currentUserName: str
               <button
                 key={tab.value}
                 type="button"
-                onClick={() => setTeamFilter(tab.value as typeof teamFilter)}
+                onClick={() => setTeamFilter(tab.value)}
                 className={cn(
                   'rounded-lg px-3 py-1.5 text-xs font-medium border transition-colors cursor-pointer',
                   teamFilter === tab.value
@@ -338,17 +395,29 @@ export function ReimbursementsClient({ currentUserName }: { currentUserName: str
           </div>
 
           <div className="flex flex-wrap items-center gap-1.5 text-xs">
-            {(['all', 'PENDENTE', 'APROVADO', 'PAGO', 'RECUSADO'] as const).map(st => (
+            {(
+              [
+                { value: 'all', label: 'Todos' },
+                { value: 'OPEN', label: 'Em aberto' },
+                { value: 'AGUARDANDO_REEMBOLSO', label: 'Aguardando Reembolso' },
+                { value: 'APROVADO', label: 'Aprovado' },
+                { value: 'PAGO', label: 'Pago' },
+                { value: 'AGUARDANDO_NF', label: 'Aguardando NF' },
+                { value: 'RECUSADO', label: 'Recusado' },
+              ] as const
+            ).map(st => (
               <button
-                key={st}
+                key={st.value}
                 type="button"
-                onClick={() => setStatusFilter(st)}
+                onClick={() => setStatusFilter(st.value)}
                 className={cn(
                   'rounded-md px-2.5 py-1 transition-colors cursor-pointer',
-                  statusFilter === st ? 'bg-accent font-semibold text-foreground' : 'text-muted-foreground hover:text-foreground'
+                  statusFilter === st.value
+                    ? 'bg-accent font-semibold text-foreground'
+                    : 'text-muted-foreground hover:text-foreground'
                 )}
               >
-                {st === 'all' ? 'Todos status' : STATUS_STYLE[st].label}
+                {st.label}
               </button>
             ))}
           </div>
@@ -367,16 +436,16 @@ export function ReimbursementsClient({ currentUserName }: { currentUserName: str
           </div>
           <select
             value={categoryFilter}
-            onChange={e => setCategoryFilter(e.target.value as typeof categoryFilter)}
+            onChange={e => setCategoryFilter(e.target.value)}
             aria-label="Filtrar por categoria"
             className="min-h-10 rounded-lg border border-input bg-background px-3 text-sm text-foreground"
           >
             <option value="all">Todas as categorias</option>
-            <option value="Peças e Componentes">Peças e Componentes</option>
-            <option value="Ferramentas e Lab">Ferramentas e Lab</option>
-            <option value="Viagem e Competição">Viagem e Competição</option>
-            <option value="Software e Cloud">Software e Cloud</option>
-            <option value="Eventos">Eventos</option>
+            {FINANCE_CATEGORIES.map(cat => (
+              <option key={cat} value={cat}>
+                {cat}
+              </option>
+            ))}
           </select>
         </div>
 
@@ -385,7 +454,9 @@ export function ReimbursementsClient({ currentUserName }: { currentUserName: str
           <div className="py-16 px-4 text-center">
             <Filter className="mx-auto h-8 w-8 text-muted-foreground mb-3" />
             <p className="text-sm font-medium text-foreground">Nenhuma solicitação encontrada</p>
-            <p className="mt-1 text-xs text-muted-foreground">Ajuste os filtros acima ou crie uma nova solicitação de reembolso.</p>
+            <p className="mt-1 text-xs text-muted-foreground">
+              Ajuste os filtros acima ou registre uma nova solicitação de reembolso.
+            </p>
           </div>
         ) : (
           <div className="overflow-x-auto">
@@ -396,87 +467,153 @@ export function ReimbursementsClient({ currentUserName }: { currentUserName: str
                   <th className="px-4 py-3 font-medium">Solicitante</th>
                   <th className="px-4 py-3 font-medium">Divisão</th>
                   <th className="px-4 py-3 font-medium">Categoria</th>
+                  <th className="px-4 py-3 font-medium">Comprov.</th>
                   <th className="px-4 py-3 font-medium text-right">Valor</th>
                   <th className="px-4 py-3 font-medium">Status</th>
                   <th className="px-4 py-3 font-medium text-right">Ações</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-border">
-                {filtered.map(item => (
-                  <tr key={item.id} className="hover:bg-muted/25 transition-colors">
-                    <td className="px-4 py-3.5 max-w-xs">
-                      <div className="flex items-center gap-2">
-                        <span className="font-mono text-[11px] font-semibold text-muted-foreground">{item.id}</span>
-                        <span className="text-[11px] text-muted-foreground">· {item.purchaseDate}</span>
-                      </div>
-                      <button
-                        type="button"
-                        onClick={() => setSelectedItem(item)}
-                        className="mt-0.5 block text-left font-medium text-foreground hover:underline cursor-pointer line-clamp-1"
-                      >
-                        {item.title}
-                      </button>
-                    </td>
-                    <td className="px-4 py-3.5">
-                      <p className="font-medium text-foreground text-xs">{item.requesterName}</p>
-                      <p className="text-[11px] text-muted-foreground">{item.requesterArea}</p>
-                    </td>
-                    <td className="px-4 py-3.5">
-                      <span className={cn('inline-flex rounded-full border px-2 py-0.5 font-mono text-[11px]', TEAM_STYLE[item.team])}>
-                        {item.team}
-                      </span>
-                    </td>
-                    <td className="px-4 py-3.5 text-xs text-muted-foreground">{item.category}</td>
-                    <td className="px-4 py-3.5 text-right font-mono font-semibold tabular-nums text-foreground">
-                      {formatBRL(item.amountCents)}
-                    </td>
-                    <td className="px-4 py-3.5">
-                      <span className={cn('inline-flex rounded-full border px-2.5 py-0.5 text-[11px] font-medium', STATUS_STYLE[item.status].cls)}>
-                        {STATUS_STYLE[item.status].label}
-                      </span>
-                    </td>
-                    <td className="px-4 py-3.5 text-right">
-                      <div className="inline-flex items-center gap-1.5">
-                        {item.status === 'PENDENTE' && (
-                          <>
-                            <button
-                              type="button"
-                              onClick={() => updateStatus(item.id, 'APROVADO')}
-                              className="inline-flex h-8 items-center gap-1 rounded-md bg-emerald-600 px-2.5 text-xs font-medium text-white hover:bg-emerald-700 cursor-pointer"
-                              title="Aprovar solicitação"
-                            >
-                              <Check className="h-3.5 w-3.5" /> Aprovar
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => updateStatus(item.id, 'RECUSADO')}
-                              className="inline-flex h-8 items-center justify-center rounded-md border border-red-500/30 bg-red-500/10 px-2 text-xs text-red-700 dark:text-red-300 hover:bg-red-500/20 cursor-pointer"
-                              title="Recusar solicitação"
-                            >
-                              <XCircle className="h-3.5 w-3.5" />
-                            </button>
-                          </>
-                        )}
-                        {item.status === 'APROVADO' && (
-                          <button
-                            type="button"
-                            onClick={() => updateStatus(item.id, 'PAGO')}
-                            className="inline-flex h-8 items-center gap-1 rounded-md bg-blue-600 px-2.5 text-xs font-medium text-white hover:bg-blue-700 cursor-pointer"
-                          >
-                            <DollarSign className="h-3.5 w-3.5" /> Marcar Pago
-                          </button>
-                        )}
+                {filtered.map(item => {
+                  const statusMeta = FINANCIAL_STATUS_META[item.status];
+                  const isOpen =
+                    item.status === 'AGUARDANDO_REEMBOLSO' ||
+                    item.status === 'PENDENTE' ||
+                    item.status === 'AGUARDANDO_NF';
+
+                  return (
+                    <tr key={item.id} className="hover:bg-muted/25 transition-colors">
+                      <td className="px-4 py-3.5 max-w-xs">
+                        <div className="flex items-center gap-2">
+                          <span className="font-mono text-[11px] font-semibold text-muted-foreground">
+                            {item.code}
+                          </span>
+                          <span className="text-[11px] text-muted-foreground">
+                            · {formatFinanceDate(item.occurredAt)}
+                          </span>
+                        </div>
                         <button
                           type="button"
-                          onClick={() => setSelectedItem(item)}
-                          className="inline-flex h-8 items-center gap-1 rounded-md border border-border px-2.5 text-xs text-foreground hover:bg-accent cursor-pointer"
+                          onClick={() => openDetail(item)}
+                          className="mt-0.5 block text-left font-medium text-foreground hover:underline cursor-pointer line-clamp-1"
                         >
-                          <Receipt className="h-3.5 w-3.5" /> Detalhes
+                          {item.title}
                         </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
+                      </td>
+                      <td className="px-4 py-3.5">
+                        <div className="flex items-center gap-2">
+                          {item.requesterAvatar ? (
+                            <img
+                              src={item.requesterAvatar}
+                              alt={item.requesterName}
+                              className="h-6 w-6 rounded-full object-cover border border-border shrink-0"
+                            />
+                          ) : (
+                            <div className="h-6 w-6 rounded-full bg-muted border border-border flex items-center justify-center text-[10px] font-mono text-muted-foreground shrink-0">
+                              {item.requesterName.slice(0, 2).toUpperCase()}
+                            </div>
+                          )}
+                          <div className="min-w-0">
+                            <p className="font-medium text-foreground text-xs truncate">
+                              {item.requesterName}
+                            </p>
+                            <p className="text-[11px] text-muted-foreground truncate">
+                              {item.requesterArea || 'Autônomos'}
+                            </p>
+                          </div>
+                        </div>
+                      </td>
+                      <td className="px-4 py-3.5">
+                        <span
+                          className={cn(
+                            'inline-flex rounded-full border px-2 py-0.5 font-mono text-[11px]',
+                            TEAM_STYLE[item.team] || TEAM_STYLE.Geral
+                          )}
+                        >
+                          {item.team}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3.5 text-xs text-muted-foreground">{item.category}</td>
+                      <td className="px-4 py-3.5">
+                        {item.attachments.length > 0 ? (
+                          <button
+                            type="button"
+                            onClick={() => openDetail(item)}
+                            className="inline-flex items-center gap-1 rounded-full bg-primary/10 px-2 py-0.5 text-[11px] font-medium text-primary hover:bg-primary/20 cursor-pointer"
+                          >
+                            <Paperclip className="h-3 w-3" /> {item.attachments.length}
+                          </button>
+                        ) : (
+                          <span className="text-[11px] text-amber-600 dark:text-amber-400 font-medium">
+                            Sem anexo
+                          </span>
+                        )}
+                      </td>
+                      <td className="px-4 py-3.5 text-right font-mono font-semibold tabular-nums text-foreground">
+                        {item.amountCents > 0 ? (
+                          formatBRL(item.amountCents)
+                        ) : (
+                          <span className="text-amber-600 dark:text-amber-400 text-xs">
+                            A definir
+                          </span>
+                        )}
+                      </td>
+                      <td className="px-4 py-3.5 whitespace-nowrap">
+                        <span
+                          className={cn(
+                            'inline-flex rounded-full border px-2.5 py-0.5 text-[11px] font-medium',
+                            statusMeta.cls
+                          )}
+                        >
+                          {statusMeta.label}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3.5 text-right whitespace-nowrap">
+                        <div className="inline-flex items-center gap-1.5">
+                          {isOpen && (
+                            <>
+                              <button
+                                type="button"
+                                disabled={updatingId === item.id}
+                                onClick={() => updateEntryStatus(item.id, item.code, 'APROVADO')}
+                                className="inline-flex h-8 items-center gap-1 rounded-md bg-emerald-600 px-2.5 text-xs font-medium text-white hover:bg-emerald-700 disabled:opacity-60 cursor-pointer"
+                                title="Aprovar solicitação"
+                              >
+                                <Check className="h-3.5 w-3.5" /> Aprovar
+                              </button>
+                              <button
+                                type="button"
+                                disabled={updatingId === item.id}
+                                onClick={() => updateEntryStatus(item.id, item.code, 'RECUSADO')}
+                                className="inline-flex h-8 items-center justify-center rounded-md border border-red-500/30 bg-red-500/10 px-2 text-xs text-red-700 dark:text-red-300 hover:bg-red-500/20 cursor-pointer"
+                                title="Recusar solicitação"
+                              >
+                                <XCircle className="h-3.5 w-3.5" />
+                              </button>
+                            </>
+                          )}
+                          {item.status === 'APROVADO' && (
+                            <button
+                              type="button"
+                              disabled={updatingId === item.id}
+                              onClick={() => updateEntryStatus(item.id, item.code, 'PAGO')}
+                              className="inline-flex h-8 items-center gap-1 rounded-md bg-blue-600 px-2.5 text-xs font-medium text-white hover:bg-blue-700 disabled:opacity-60 cursor-pointer"
+                            >
+                              <DollarSign className="h-3.5 w-3.5" /> Marcar Pago
+                            </button>
+                          )}
+                          <button
+                            type="button"
+                            onClick={() => openDetail(item)}
+                            className="inline-flex h-8 items-center gap-1 rounded-md border border-border px-2.5 text-xs text-foreground hover:bg-accent cursor-pointer"
+                          >
+                            <Receipt className="h-3.5 w-3.5" /> Detalhes
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>
@@ -485,13 +622,18 @@ export function ReimbursementsClient({ currentUserName }: { currentUserName: str
 
       {/* Modal de Detalhes / Nota Fiscal / PIX */}
       <Dialog open={Boolean(selectedItem)} onOpenChange={open => !open && setSelectedItem(null)}>
-        <DialogContent className="sm:max-w-lg border-border bg-card text-foreground">
+        <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto border-border bg-card text-foreground">
           <DialogHeader>
             <div className="flex items-center justify-between gap-2">
-              <span className="font-mono text-xs text-muted-foreground">{selectedItem?.id}</span>
+              <span className="font-mono text-xs text-muted-foreground">{selectedItem?.code}</span>
               {selectedItem && (
-                <span className={cn('inline-flex rounded-full border px-2.5 py-0.5 text-[11px] font-medium', STATUS_STYLE[selectedItem.status].cls)}>
-                  {STATUS_STYLE[selectedItem.status].label}
+                <span
+                  className={cn(
+                    'inline-flex rounded-full border px-2.5 py-0.5 text-[11px] font-medium',
+                    FINANCIAL_STATUS_META[selectedItem.status].cls
+                  )}
+                >
+                  {FINANCIAL_STATUS_META[selectedItem.status].label}
                 </span>
               )}
             </div>
@@ -499,110 +641,210 @@ export function ReimbursementsClient({ currentUserName }: { currentUserName: str
               {selectedItem?.title}
             </DialogTitle>
             <DialogDescription className="text-xs text-muted-foreground">
-              Solicitado por {selectedItem?.requesterName} ({selectedItem?.requesterArea}) · Divisão {selectedItem?.team}
+              Solicitado por {selectedItem?.requesterName}
+              {selectedItem?.requesterArea ? ` (${selectedItem.requesterArea})` : ''} · Divisão{' '}
+              {selectedItem?.team}
             </DialogDescription>
           </DialogHeader>
 
           {selectedItem && (
             <div className="space-y-4 text-sm">
-              <div className="grid grid-cols-2 gap-3 rounded-xl border border-border bg-muted/30 p-4">
+              <div className="grid sm:grid-cols-2 gap-3 rounded-xl border border-border bg-muted/30 p-4">
                 <div>
-                  <p className="text-xs text-muted-foreground">Valor do reembolso</p>
-                  <p className="font-display text-2xl font-bold text-foreground mt-0.5">
-                    {formatBRL(selectedItem.amountCents)}
+                  <label className="text-xs text-muted-foreground block mb-1">
+                    Valor do reembolso (R$)
+                  </label>
+                  <input
+                    value={detailAmount}
+                    onChange={e => setDetailAmount(e.target.value)}
+                    className="min-h-10 w-full rounded-lg border border-input bg-background px-3 font-mono text-lg font-bold text-foreground"
+                  />
+                </div>
+                <div>
+                  <p className="text-xs text-muted-foreground">Data da compra / Categoria</p>
+                  <p className="font-mono text-sm font-medium text-foreground mt-1.5">
+                    {formatFinanceDate(selectedItem.occurredAt)}
+                  </p>
+                  <p className="text-[11px] text-muted-foreground mt-0.5">
+                    {selectedItem.category} · {selectedItem.fundSource}
                   </p>
                 </div>
-                <div>
-                  <p className="text-xs text-muted-foreground">Data da compra</p>
-                  <p className="font-mono text-sm font-medium text-foreground mt-1">{selectedItem.purchaseDate}</p>
-                  <p className="text-[11px] text-muted-foreground mt-0.5">{selectedItem.category}</p>
-                </div>
               </div>
 
-              <div className="rounded-xl border border-border p-3.5 flex items-center justify-between gap-3">
-                <div className="min-w-0">
-                  <p className="text-xs text-muted-foreground">Chave PIX para transferência</p>
-                  <p className="font-mono text-xs font-semibold text-foreground truncate mt-0.5">{selectedItem.pixKey}</p>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => {
-                    navigator.clipboard?.writeText(selectedItem.pixKey);
-                    toast.success('Chave PIX copiada!');
-                  }}
-                  className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-border px-3 text-xs font-medium hover:bg-accent cursor-pointer shrink-0"
-                >
-                  <Copy className="h-3.5 w-3.5" /> Copiar PIX
-                </button>
-              </div>
-
-              <div className="rounded-xl border border-border p-3.5 flex items-center justify-between gap-3">
-                <div className="flex items-center gap-2.5 min-w-0">
-                  <FileText className="h-5 w-5 text-primary shrink-0" />
+              {selectedItem.pixKey ? (
+                <div className="rounded-xl border border-border p-3.5 flex items-center justify-between gap-3">
                   <div className="min-w-0">
-                    <p className="text-xs text-muted-foreground">Comprovante / Nota Fiscal</p>
-                    <p className="text-xs font-medium text-foreground truncate">{selectedItem.receiptName}</p>
+                    <p className="text-xs text-muted-foreground">
+                      Chave PIX ({selectedItem.pixKeyType || 'PIX'})
+                    </p>
+                    <p className="font-mono text-xs font-semibold text-foreground truncate mt-0.5">
+                      {selectedItem.pixKey}
+                    </p>
                   </div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      navigator.clipboard?.writeText(selectedItem.pixKey || '');
+                      toast.success('Chave PIX copiada!');
+                    }}
+                    className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-border px-3 text-xs font-medium hover:bg-accent cursor-pointer shrink-0"
+                  >
+                    <Copy className="h-3.5 w-3.5" /> Copiar PIX
+                  </button>
                 </div>
-                <span className="rounded-md bg-muted px-2 py-1 text-[10px] font-mono text-muted-foreground">Anexado</span>
-              </div>
-
-              {selectedItem.notes && (
-                <div className="rounded-lg bg-muted/40 p-3 text-xs text-secondary-foreground border border-border/60">
-                  <strong className="text-foreground">Observações:</strong> {selectedItem.notes}
+              ) : (
+                <div className="flex items-center gap-2.5 rounded-xl border border-amber-500/30 bg-amber-500/10 p-3 text-xs text-amber-800 dark:text-amber-200">
+                  <AlertTriangle className="h-4 w-4 shrink-0 text-amber-500" />
+                  <span>
+                    Membro ainda não informou a chave PIX na plataforma. Assim que ele atualizar em{' '}
+                    <strong>/reembolsos</strong>, ela aparecerá aqui automaticamente.
+                  </span>
                 </div>
               )}
+
+              {selectedItem.description && (
+                <div className="rounded-lg bg-muted/40 p-3 text-xs text-secondary-foreground border border-border/60">
+                  <strong className="text-foreground">Observações do pedido:</strong>{' '}
+                  {selectedItem.description}
+                </div>
+              )}
+
+              <div>
+                <label className="mb-1 block text-xs font-medium text-muted-foreground">
+                  Nota / Parecer da Tesouraria (visível ao membro)
+                </label>
+                <textarea
+                  rows={2}
+                  value={detailReviewNotes}
+                  onChange={e => setDetailReviewNotes(e.target.value)}
+                  placeholder="Ex: Reembolso pago via PIX na conta do Itaú, ou informe se falta NF..."
+                  className="w-full rounded-lg border border-input bg-background p-2.5 text-xs text-foreground"
+                />
+              </div>
+
+              <div className="space-y-2 border-t border-border pt-3">
+                <p className="text-xs font-semibold text-foreground">
+                  Comprovantes e Notas Fiscais ({selectedItem.attachments.length})
+                </p>
+                <AttachmentGallery
+                  attachments={selectedItem.attachments}
+                  driveFolderUrl={selectedItem.driveFolderUrl}
+                />
+                <ReceiptUploader
+                  drafts={detailProofDrafts}
+                  onAdd={d => setDetailProofDrafts(prev => [...prev, d])}
+                  onRemove={idx => setDetailProofDrafts(prev => prev.filter((_, i) => i !== idx))}
+                  kind="PAYMENT_PROOF"
+                  label="Anexar comprovante de transferência PIX / documento adicional"
+                />
+              </div>
             </div>
           )}
 
           <DialogFooter className="flex-wrap justify-between gap-2 border-t border-border pt-3">
             <div className="flex flex-wrap items-center gap-2">
-              {selectedItem?.status === 'PENDENTE' && (
-                <>
+              {selectedItem &&
+                (selectedItem.status === 'AGUARDANDO_REEMBOLSO' ||
+                  selectedItem.status === 'PENDENTE' ||
+                  selectedItem.status === 'AGUARDANDO_NF') && (
+                  <>
+                    <button
+                      type="button"
+                      disabled={updatingId === selectedItem.id}
+                      onClick={() =>
+                        updateEntryStatus(selectedItem.id, selectedItem.code, 'RECUSADO', {
+                          reviewNotes: detailReviewNotes,
+                          addAttachments: detailProofDrafts,
+                        })
+                      }
+                      className="inline-flex min-h-9 items-center gap-1.5 rounded-lg border border-red-500/30 bg-red-500/10 px-3 text-xs font-medium text-red-700 dark:text-red-300 hover:bg-red-500/20 cursor-pointer"
+                    >
+                      <X className="h-3.5 w-3.5" /> Recusar
+                    </button>
+                    <button
+                      type="button"
+                      disabled={updatingId === selectedItem.id}
+                      onClick={() =>
+                        updateEntryStatus(selectedItem.id, selectedItem.code, 'AGUARDANDO_NF', {
+                          reviewNotes: detailReviewNotes,
+                          addAttachments: detailProofDrafts,
+                        })
+                      }
+                      className="inline-flex min-h-9 items-center gap-1.5 rounded-lg border border-orange-500/30 bg-orange-500/10 px-3 text-xs font-medium text-orange-700 dark:text-orange-300 hover:bg-orange-500/20 cursor-pointer"
+                    >
+                      <FileWarning className="h-3.5 w-3.5" /> Pedir NF
+                    </button>
+                    <button
+                      type="button"
+                      disabled={updatingId === selectedItem.id}
+                      onClick={() => {
+                        const numeric = Number(detailAmount.replace(/\./g, '').replace(',', '.'));
+                        updateEntryStatus(selectedItem.id, selectedItem.code, 'APROVADO', {
+                          amountCents: Number.isFinite(numeric) ? Math.round(numeric * 100) : undefined,
+                          reviewNotes: detailReviewNotes,
+                          addAttachments: detailProofDrafts,
+                        });
+                      }}
+                      className="inline-flex min-h-9 items-center gap-1.5 rounded-lg bg-emerald-600 px-3.5 text-xs font-semibold text-white hover:bg-emerald-700 cursor-pointer"
+                    >
+                      <Check className="h-3.5 w-3.5" /> Aprovar reembolso
+                    </button>
+                  </>
+                )}
+
+              {selectedItem &&
+                (selectedItem.status === 'APROVADO' ||
+                  selectedItem.status === 'AGUARDANDO_REEMBOLSO') && (
                   <button
                     type="button"
-                    onClick={() => updateStatus(selectedItem.id, 'RECUSADO')}
-                    className="inline-flex min-h-9 items-center gap-1.5 rounded-lg border border-red-500/30 bg-red-500/10 px-3 text-xs font-medium text-red-700 dark:text-red-300 hover:bg-red-500/20 cursor-pointer"
+                    disabled={updatingId === selectedItem.id}
+                    onClick={() => {
+                      const numeric = Number(detailAmount.replace(/\./g, '').replace(',', '.'));
+                      updateEntryStatus(selectedItem.id, selectedItem.code, 'PAGO', {
+                        amountCents: Number.isFinite(numeric) ? Math.round(numeric * 100) : undefined,
+                        reviewNotes: detailReviewNotes,
+                        addAttachments: detailProofDrafts,
+                      });
+                    }}
+                    className="inline-flex min-h-9 items-center gap-1.5 rounded-lg bg-blue-600 px-3.5 text-xs font-semibold text-white hover:bg-blue-700 cursor-pointer"
                   >
-                    <X className="h-3.5 w-3.5" /> Recusar
+                    <DollarSign className="h-3.5 w-3.5" /> Confirmar pagamento PIX
                   </button>
-                  <button
-                    type="button"
-                    onClick={() => updateStatus(selectedItem.id, 'APROVADO')}
-                    className="inline-flex min-h-9 items-center gap-1.5 rounded-lg bg-emerald-600 px-3.5 text-xs font-semibold text-white hover:bg-emerald-700 cursor-pointer"
-                  >
-                    <Check className="h-3.5 w-3.5" /> Aprovar reembolso
-                  </button>
-                </>
-              )}
-              {selectedItem?.status === 'APROVADO' && (
+                )}
+            </div>
+
+            <div className="flex items-center gap-2">
+              {selectedItem && (
                 <button
                   type="button"
-                  onClick={() => updateStatus(selectedItem.id, 'PAGO')}
-                  className="inline-flex min-h-9 items-center gap-1.5 rounded-lg bg-blue-600 px-3.5 text-xs font-semibold text-white hover:bg-blue-700 cursor-pointer"
+                  disabled={updatingId === selectedItem.id}
+                  onClick={handleSaveDetailsOnly}
+                  className="inline-flex min-h-9 items-center rounded-lg border border-border bg-background px-3 text-xs font-medium hover:bg-accent cursor-pointer"
                 >
-                  <DollarSign className="h-3.5 w-3.5" /> Confirmar pagamento PIX
+                  Salvar dados
                 </button>
               )}
+              <button
+                type="button"
+                onClick={() => setSelectedItem(null)}
+                className="inline-flex min-h-9 items-center rounded-lg border border-border px-3.5 text-xs font-medium hover:bg-accent cursor-pointer"
+              >
+                Fechar
+              </button>
             </div>
-            <button
-              type="button"
-              onClick={() => setSelectedItem(null)}
-              className="inline-flex min-h-9 items-center rounded-lg border border-border px-3.5 text-xs font-medium hover:bg-accent cursor-pointer"
-            >
-              Fechar
-            </button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
 
       {/* Modal de Nova Solicitação de Reembolso */}
       <Dialog open={creatingOpen} onOpenChange={setCreatingOpen}>
-        <DialogContent className="sm:max-w-lg border-border bg-card text-foreground">
+        <DialogContent className="sm:max-w-lg max-h-[90vh] overflow-y-auto border-border bg-card text-foreground">
           <DialogHeader>
-            <DialogTitle className="font-display text-lg font-semibold">Nova Solicitação de Reembolso</DialogTitle>
+            <DialogTitle className="font-display text-lg font-semibold">
+              Nova Solicitação de Reembolso
+            </DialogTitle>
             <DialogDescription className="text-xs text-muted-foreground">
-              Preencha os dados da compra e a chave PIX para envio à coordenação financeira.
+              Registre um reembolso diretamente no banco de dados da tesouraria.
             </DialogDescription>
           </DialogHeader>
           <form onSubmit={handleCreateSubmit} className="space-y-4">
@@ -620,20 +862,47 @@ export function ReimbursementsClient({ currentUserName }: { currentUserName: str
               />
             </div>
 
-            <div className="grid gap-3 sm:grid-cols-2">
+            <div>
+              <label className="mb-1 block text-xs font-medium text-muted-foreground" htmlFor="rmb-member">
+                Membro Solicitante *
+              </label>
+              <select
+                id="rmb-member"
+                value={formRequesterId}
+                onChange={e => {
+                  const id = e.target.value;
+                  setFormRequesterId(id);
+                  const found = data.members.find(m => m.id === id);
+                  if (found?.pixKey) setFormPixKey(found.pixKey);
+                  if (found?.pixKeyType) setFormPixKeyType(found.pixKeyType);
+                }}
+                className="min-h-10 w-full rounded-lg border border-input bg-background px-3 text-sm text-foreground"
+              >
+                <option value="">Eu mesmo ({currentUserName})</option>
+                {data.members.map(m => (
+                  <option key={m.id} value={m.id}>
+                    {m.name} ({m.area})
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div className="grid gap-3 sm:grid-cols-3">
               <div>
                 <label className="mb-1 block text-xs font-medium text-muted-foreground" htmlFor="rmb-team">
-                  Divisão / Equipe *
+                  Divisão *
                 </label>
                 <select
                   id="rmb-team"
                   value={formTeam}
-                  onChange={e => setFormTeam(e.target.value as TeamDivision)}
+                  onChange={e => setFormTeam(e.target.value)}
                   className="min-h-10 w-full rounded-lg border border-input bg-background px-3 text-sm text-foreground"
                 >
-                  <option value="Geral">UFRJ Autônomos (Geral)</option>
-                  <option value="Harpia">Harpia</option>
-                  <option value="Nautilus">Nautilus</option>
+                  {FINANCE_TEAMS.map(t => (
+                    <option key={t} value={t}>
+                      {t}
+                    </option>
+                  ))}
                 </select>
               </div>
               <div>
@@ -643,14 +912,31 @@ export function ReimbursementsClient({ currentUserName }: { currentUserName: str
                 <select
                   id="rmb-cat"
                   value={formCategory}
-                  onChange={e => setFormCategory(e.target.value as ReimbursementCategory)}
+                  onChange={e => setFormCategory(e.target.value)}
                   className="min-h-10 w-full rounded-lg border border-input bg-background px-3 text-sm text-foreground"
                 >
-                  <option value="Peças e Componentes">Peças e Componentes</option>
-                  <option value="Ferramentas e Lab">Ferramentas e Lab</option>
-                  <option value="Viagem e Competição">Viagem e Competição</option>
-                  <option value="Software e Cloud">Software e Cloud</option>
-                  <option value="Eventos">Eventos</option>
+                  {FINANCE_CATEGORIES.map(c => (
+                    <option key={c} value={c}>
+                      {c}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="mb-1 block text-xs font-medium text-muted-foreground" htmlFor="rmb-fund">
+                  Origem *
+                </label>
+                <select
+                  id="rmb-fund"
+                  value={formFundSource}
+                  onChange={e => setFormFundSource(e.target.value)}
+                  className="min-h-10 w-full rounded-lg border border-input bg-background px-3 text-sm text-foreground"
+                >
+                  {FINANCE_FUNDS.map(f => (
+                    <option key={f} value={f}>
+                      {f}
+                    </option>
+                  ))}
                 </select>
               </div>
             </div>
@@ -684,42 +970,44 @@ export function ReimbursementsClient({ currentUserName }: { currentUserName: str
               </div>
             </div>
 
-            <div>
-              <label className="mb-1 block text-xs font-medium text-muted-foreground" htmlFor="rmb-pix">
-                Chave PIX para recebimento *
-              </label>
-              <input
-                id="rmb-pix"
-                required
-                value={formPixKey}
-                onChange={e => setFormPixKey(e.target.value)}
-                placeholder="CPF, E-mail, Telefone ou Chave aleatória"
-                className="min-h-10 w-full rounded-lg border border-input bg-background px-3 text-sm font-mono text-foreground"
-              />
+            <div className="grid gap-3 sm:grid-cols-[10rem_1fr]">
+              <div>
+                <label className="mb-1 block text-xs font-medium text-muted-foreground" htmlFor="rmb-pix-type">
+                  Tipo de PIX
+                </label>
+                <select
+                  id="rmb-pix-type"
+                  value={formPixKeyType}
+                  onChange={e => setFormPixKeyType(e.target.value)}
+                  className="min-h-10 w-full rounded-lg border border-input bg-background px-3 text-sm text-foreground"
+                >
+                  {PIX_KEY_TYPES.map(t => (
+                    <option key={t} value={t}>
+                      {t}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="mb-1 block text-xs font-medium text-muted-foreground" htmlFor="rmb-pix">
+                  Chave PIX
+                </label>
+                <input
+                  id="rmb-pix"
+                  value={formPixKey}
+                  onChange={e => setFormPixKey(e.target.value)}
+                  placeholder="CPF, E-mail, Telefone ou Chave aleatória"
+                  className="min-h-10 w-full rounded-lg border border-input bg-background px-3 text-sm font-mono text-foreground"
+                />
+              </div>
             </div>
 
-            <div>
-              <label className="mb-1 block text-xs font-medium text-muted-foreground" htmlFor="rmb-file">
-                Comprovante / Nota Fiscal (PDF ou Imagem)
-              </label>
-              <label
-                htmlFor="rmb-file"
-                className="flex cursor-pointer items-center justify-between rounded-lg border border-dashed border-border bg-muted/30 px-3 py-2.5 text-xs text-muted-foreground hover:bg-muted/60"
-              >
-                <span className="flex items-center gap-2 truncate">
-                  <Upload className="h-4 w-4 text-primary shrink-0" />
-                  {formReceiptName || 'Clique para anexar nota fiscal ou recibo'}
-                </span>
-                <span className="font-mono text-[10px] text-primary">Selecionar</span>
-                <input
-                  id="rmb-file"
-                  type="file"
-                  accept="image/*,.pdf"
-                  className="sr-only"
-                  onChange={e => setFormReceiptName(e.target.files?.[0]?.name || '')}
-                />
-              </label>
-            </div>
+            <ReceiptUploader
+              drafts={formDrafts}
+              onAdd={d => setFormDrafts(prev => [...prev, d])}
+              onRemove={idx => setFormDrafts(prev => prev.filter((_, i) => i !== idx))}
+              kind="RECEIPT"
+            />
 
             <div>
               <label className="mb-1 block text-xs font-medium text-muted-foreground" htmlFor="rmb-notes">
@@ -745,10 +1033,11 @@ export function ReimbursementsClient({ currentUserName }: { currentUserName: str
               </button>
               <button
                 type="submit"
-                className="inline-flex min-h-10 items-center gap-2 rounded-lg bg-primary px-4 text-xs font-semibold text-primary-foreground hover:bg-primary/90 cursor-pointer"
+                disabled={creatingLoading}
+                className="inline-flex min-h-10 items-center gap-2 rounded-lg bg-primary px-4 text-xs font-semibold text-primary-foreground hover:bg-primary/90 disabled:opacity-60 cursor-pointer"
               >
                 <Check className="h-4 w-4" />
-                Registrar solicitação
+                {creatingLoading ? 'Salvando…' : 'Registrar solicitação'}
               </button>
             </DialogFooter>
           </form>
