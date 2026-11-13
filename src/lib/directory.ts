@@ -1,4 +1,4 @@
-import { normalizeMemberArea } from './member-fields';
+import { isGestaoArea, normalizeMemberArea } from './member-fields';
 import { Prisma } from '@prisma/client';
 import { prisma } from './prisma';
 import { db } from './institutional/db';
@@ -88,13 +88,15 @@ export async function savePrivateDetails(table: 'member' | 'project', id: number
         if (current) {
           await tx.member.update({ where: { id: current.id }, data: { institutionalMemberId: null } });
         }
+        const nextArea = normalizeMemberArea(rawArea) || normalizeMemberArea(targetAccount.area) || normalizeMemberArea(instMember.area) || 'Não informada';
         current = await tx.member.update({
           where: { id: targetAccount.id },
           data: {
             institutionalMemberId: id,
             ...stored,
             name: rawName || targetAccount.name || instMember.name,
-            area: normalizeMemberArea(rawArea) || normalizeMemberArea(targetAccount.area) || normalizeMemberArea(instMember.area) || 'Não informada',
+            area: nextArea,
+            ...(targetAccount.role === 'MEMBER' && isGestaoArea(nextArea) ? { role: 'MANAGEMENT' } : {}),
           },
         });
         await ensureAttendanceEnrollment(tx, current);
@@ -102,24 +104,27 @@ export async function savePrivateDetails(table: 'member' | 'project', id: number
       }
 
       if (current) {
+        const nextArea = normalizeMemberArea(rawArea) || normalizeMemberArea(current.area) || normalizeMemberArea(instMember.area) || 'Não informada';
         return tx.member.update({
           where: { id: current.id },
           data: {
             ...stored,
             name: rawName || current.name || instMember.name,
-            area: normalizeMemberArea(rawArea) || normalizeMemberArea(current.area) || normalizeMemberArea(instMember.area) || 'Não informada',
+            area: nextArea,
+            ...(current.role === 'MEMBER' && isGestaoArea(nextArea) ? { role: 'MANAGEMENT' } : {}),
           },
         });
       }
 
+      const initialArea = normalizeMemberArea(rawArea) || normalizeMemberArea(instMember.area) || 'Não informada';
       const created = await tx.member.create({
         data: {
           institutionalMemberId: id,
           ...stored,
           name: rawName || instMember.name,
-          area: normalizeMemberArea(rawArea) || normalizeMemberArea(instMember.area) || 'Não informada',
+          area: initialArea,
           course: stored.course !== undefined ? stored.course : instMember.course,
-          role: 'MEMBER',
+          role: isGestaoArea(initialArea) ? 'MANAGEMENT' : 'MEMBER',
           status: 'APPROVED',
         },
       });

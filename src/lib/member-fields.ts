@@ -12,8 +12,16 @@ export const MEMBER_ROLES: MemberOption[] = [
 ];
 export const MEMBER_AREAS = ['Gestão', 'Marketing', 'Mecânica', 'Eletrônica', 'Software'] as const;
 
-export function roleFromCargo(cargo: string | null | undefined): 'ADMIN' | 'COORDINATOR' | 'TRAINEE' | 'MEMBER' {
-  if (!cargo) return 'MEMBER';
+export function isGestaoArea(area: string | null | undefined): boolean {
+  const norm = normalizeMemberArea(area);
+  return norm !== null && normalizedKey(norm) === 'gestao';
+}
+
+export function roleFromCargo(
+  cargo: string | null | undefined,
+  area?: string | null
+): 'ADMIN' | 'COORDINATOR' | 'MANAGEMENT' | 'TRAINEE' | 'MEMBER' {
+  if (!cargo) return isGestaoArea(area) ? 'MANAGEMENT' : 'MEMBER';
   const c = normalizeMemberRole(cargo);
   // Diretoria e capitania (e vices) são ADMIN
   if (['Capitão', 'Vice-Capitão', 'Diretor de Gente e Gestão', 'Diretor de Operações'].includes(c)) {
@@ -25,6 +33,9 @@ export function roleFromCargo(cargo: string | null | undefined): 'ADMIN' | 'COOR
   }
   if (c === 'Trainee') {
     return 'TRAINEE';
+  }
+  if (isGestaoArea(area)) {
+    return 'MANAGEMENT';
   }
   return 'MEMBER';
 }

@@ -90,10 +90,22 @@ export async function updateRecord(table: string, id: number, data: unknown): Pr
       if ('teamId' in parsed) {
         syncData.teamId = parsed.teamId === '' || parsed.teamId === null ? null : Number(parsed.teamId);
       }
-      if ('role' in parsed && typeof parsed.role === 'string') {
+      if (
+        ('role' in parsed && typeof parsed.role === 'string') ||
+        ('area' in parsed && (typeof parsed.area === 'string' || parsed.area === null))
+      ) {
         const targetMember = await prisma.member.findFirst({ where: { institutionalMemberId: id } });
         if (targetMember) {
-          const derivedRole = roleFromCargo(parsed.role);
+          const instUpdated = updated as { role?: string | null; area?: string | null };
+          const effectiveCargo =
+            typeof parsed.role === 'string' ? parsed.role : (instUpdated.role ?? 'Membro');
+          const effectiveArea =
+            'area' in parsed && typeof parsed.area === 'string'
+              ? parsed.area
+              : 'area' in parsed && parsed.area === null
+                ? null
+                : (instUpdated.area ?? targetMember.area);
+          const derivedRole = roleFromCargo(effectiveCargo, effectiveArea);
           if (derivedRole === 'ADMIN' || targetMember.role !== 'ADMIN') {
             syncData.role = derivedRole;
           }

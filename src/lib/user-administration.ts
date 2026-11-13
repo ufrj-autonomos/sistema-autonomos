@@ -24,13 +24,14 @@ export async function updateAccount(actorId: string, targetId: string, input: un
     } else {
       let fallbackRole: Role = 'MEMBER';
       try {
-        const targetUser = await prisma.member.findUnique({ where: { id: targetId }, select: { institutionalMemberId: true } });
+        const targetUser = await prisma.member.findUnique({ where: { id: targetId }, select: { institutionalMemberId: true, area: true } });
         if (targetUser?.institutionalMemberId) {
-          const inst = await institutionalDb.institutionalMember.findUnique({ where: { id: targetUser.institutionalMemberId }, select: { role: true } });
-          if (inst?.role) {
-            const derived = roleFromCargo(inst.role);
-            fallbackRole = derived === 'ADMIN' ? 'MEMBER' : (derived as Role);
-          }
+          const inst = await institutionalDb.institutionalMember.findUnique({ where: { id: targetUser.institutionalMemberId }, select: { role: true, area: true } });
+          const derived = roleFromCargo(inst?.role, inst?.area || targetUser.area);
+          fallbackRole = derived === 'ADMIN' ? 'MEMBER' : (derived as Role);
+        } else if (targetUser) {
+          const derived = roleFromCargo(null, targetUser.area);
+          fallbackRole = derived === 'ADMIN' ? 'MEMBER' : (derived as Role);
         }
       } catch {}
       data.role = fallbackRole;
