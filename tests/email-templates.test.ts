@@ -62,7 +62,7 @@ test('buildLabHoursAlertEmail builds alerting email for both weekly and monthly 
   });
   assert.match(weekly.subject, /Alerta de Horas Pendentes/);
   assert.match(weekly.html, /1h 30m/);
-  assert.match(weekly.html, /duas vezes seguidas/i);
+  assert.match(weekly.html, /passível de receber um/i);
 
   const monthly = buildLabHoursAlertEmail({
     recipientName: 'Beatriz',

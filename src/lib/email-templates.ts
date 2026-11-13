@@ -16,6 +16,7 @@ const ACCENT_TOKENS: Record<
     ctaBg: string;
     highlightBg: string;
     highlightBorder: string;
+    highlightTitle: string;
   }
 > = {
   cyan: {
@@ -24,8 +25,9 @@ const ACCENT_TOKENS: Record<
     badgeText: '#67e8f9',
     badgeBorder: '#0e7490',
     ctaBg: '#0284c7',
-    highlightBg: '#ecfeff',
+    highlightBg: '#0c2238',
     highlightBorder: '#06b6d4',
+    highlightTitle: '#67e8f9',
   },
   emerald: {
     bar: '#10b981',
@@ -33,26 +35,29 @@ const ACCENT_TOKENS: Record<
     badgeText: '#6ee7b7',
     badgeBorder: '#047857',
     ctaBg: '#059669',
-    highlightBg: '#ecfdf5',
+    highlightBg: '#07241e',
     highlightBorder: '#10b981',
+    highlightTitle: '#6ee7b7',
   },
   amber: {
     bar: '#f59e0b',
-    badgeBg: '#451a03',
+    badgeBg: '#3b1d06',
     badgeText: '#fcd34d',
     badgeBorder: '#b45309',
     ctaBg: '#d97706',
-    highlightBg: '#fffbeb',
+    highlightBg: '#271a08',
     highlightBorder: '#f59e0b',
+    highlightTitle: '#fcd34d',
   },
   red: {
     bar: '#ef4444',
-    badgeBg: '#450a0a',
+    badgeBg: '#3b0a0a',
     badgeText: '#fca5a5',
     badgeBorder: '#b91c1c',
     ctaBg: '#dc2626',
-    highlightBg: '#fef2f2',
+    highlightBg: '#271014',
     highlightBorder: '#ef4444',
+    highlightTitle: '#fca5a5',
   },
 };
 
@@ -94,34 +99,34 @@ function wrapAutonomosShell(params: {
   <meta name="viewport" content="width=device-width,initial-scale=1.0" />
   <title>${escapeEmailHtml(params.heading)}</title>
 </head>
-<body style="margin:0;padding:0;background-color:#0b1120;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:#0f172a;">
-  <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="background-color:#0b1120;padding:28px 14px;">
+<body style="margin:0;padding:0;background-color:#050a14;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:#e2e8f0;">
+  <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="background-color:#050a14;padding:28px 14px;">
     <tr>
       <td align="center">
-        <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="max-width:600px;background-color:#ffffff;border-radius:16px;overflow:hidden;border:1px solid #1e293b;box-shadow:0 20px 45px rgba(0,0,0,0.35);">
+        <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="max-width:600px;background-color:#0d1526;border-radius:16px;overflow:hidden;border:1px solid #1e293b;box-shadow:0 20px 45px rgba(0,0,0,0.5);">
           <tr>
-            <td style="height:6px;background:${t.bar};font-size:0;line-height:0;">&nbsp;</td>
+            <td style="height:5px;background:${t.bar};font-size:0;line-height:0;">&nbsp;</td>
           </tr>
           <tr>
-            <td style="background:linear-gradient(135deg,#07111e 0%,#0f172a 60%,#111c33 100%);padding:24px 28px;color:#f8fafc;">
-              <div style="font-size:11px;font-weight:700;letter-spacing:0.14em;text-transform:uppercase;color:#94a3b8;margin-bottom:10px;">
+            <td style="background-color:#080f1d;border-bottom:1px solid #1e293b;padding:24px 28px;color:#f8fafc;">
+              <div style="font-size:11px;font-weight:700;letter-spacing:0.14em;text-transform:uppercase;color:#64748b;margin-bottom:10px;">
                 UFRJ AUTÔNOMOS &bull; NAUTILUS &bull; HARPIA
               </div>
               <div style="display:inline-block;padding:4px 10px;border-radius:999px;background-color:${t.badgeBg};border:1px solid ${t.badgeBorder};color:${t.badgeText};font-size:11px;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;margin-bottom:12px;">
                 ${escapeEmailHtml(params.eyebrow)}
               </div>
-              <h1 style="margin:0;font-size:22px;line-height:1.25;font-weight:800;color:#ffffff;">
+              <h1 style="margin:0;font-size:22px;line-height:1.25;font-weight:800;color:#f8fafc;">
                 ${escapeEmailHtml(params.heading)}
               </h1>
               ${
                 params.subtitle
-                  ? `<p style="margin:8px 0 0;font-size:14px;line-height:1.5;color:#cbd5e1;">${escapeEmailHtml(params.subtitle)}</p>`
+                  ? `<p style="margin:8px 0 0;font-size:14px;line-height:1.5;color:#94a3b8;">${escapeEmailHtml(params.subtitle)}</p>`
                   : ''
               }
             </td>
           </tr>
           <tr>
-            <td style="padding:26px 28px;color:#1e293b;font-size:15px;line-height:1.6;">
+            <td style="padding:26px 28px;background-color:#0d1526;color:#cbd5e1;font-size:15px;line-height:1.6;">
               ${params.bodyHtml}
               ${
                 params.ctaLabel && params.ctaUrl
@@ -135,8 +140,8 @@ function wrapAutonomosShell(params: {
             </td>
           </tr>
           <tr>
-            <td style="background-color:#f8fafc;border-top:1px solid #e2e8f0;padding:16px 28px;font-size:12px;line-height:1.5;color:#64748b;">
-              Mensagem automática enviada pelo <strong>Sistema Autônomos (UFRJ)</strong>.<br />
+            <td style="background-color:#080f1d;border-top:1px solid #1e293b;padding:16px 28px;font-size:12px;line-height:1.5;color:#64748b;">
+              Mensagem automática enviada pelo <strong style="color:#94a3b8;">Sistema Autônomos (UFRJ)</strong>.<br />
               Em caso de dúvida, entre em contato com a Gestão da equipe.
             </td>
           </tr>
@@ -201,61 +206,61 @@ export function buildDisciplinaryEmail(input: DisciplinaryEmailInput): BuiltEmai
       : 'Acompanhe seu histórico disciplinar para evitar o acúmulo de novas penalidades.';
 
   const notesHtml = input.occurrenceNotes?.trim()
-    ? `<p style="margin:8px 0 0;font-size:13px;color:#475569;"><strong>Observações:</strong> ${escapeEmailHtml(input.occurrenceNotes.trim())}</p>`
+    ? `<p style="margin:8px 0 0;font-size:13px;color:#cbd5e1;"><strong style="color:#f8fafc;">Observações:</strong> ${escapeEmailHtml(input.occurrenceNotes.trim())}</p>`
     : '';
 
   const bodyHtml = `
-    <p style="margin:0 0 14px;">Olá, <strong>${escapeEmailHtml(input.recipientName)}</strong>.</p>
-    <p style="margin:0 0 16px;">
-      Informamos que foi registrado um(a) <strong>${escapeEmailHtml(typeTitle)}</strong> no seu histórico disciplinar na <strong>UFRJ Autônomos</strong>.
+    <p style="margin:0 0 14px;color:#cbd5e1;">Olá, <strong style="color:#f8fafc;">${escapeEmailHtml(input.recipientName)}</strong>.</p>
+    <p style="margin:0 0 16px;color:#cbd5e1;">
+      Informamos que foi registrado um(a) <strong style="color:#f8fafc;">${escapeEmailHtml(typeTitle)}</strong> no seu histórico disciplinar na <strong style="color:#f8fafc;">UFRJ Autônomos</strong>.
     </p>
 
     <div style="background-color:${t.highlightBg};border-left:4px solid ${t.highlightBorder};border-radius:10px;padding:14px 16px;margin-bottom:18px;">
-      <div style="font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;color:#475569;margin-bottom:4px;">
+      <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;color:${t.highlightTitle};margin-bottom:4px;">
         Motivo registrado
       </div>
-      <div style="font-size:14px;font-weight:600;color:#0f172a;">
+      <div style="font-size:14px;font-weight:600;color:#f8fafc;">
         ${escapeEmailHtml(input.occurrenceReason)}
       </div>
       ${notesHtml}
     </div>
 
-    <div style="background-color:#f8fafc;border:1px solid #e2e8f0;border-radius:12px;padding:16px;margin-bottom:18px;">
-      <div style="font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;color:#475569;margin-bottom:12px;">
+    <div style="background-color:#111c33;border:1px solid #1e293b;border-radius:12px;padding:16px;margin-bottom:18px;">
+      <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;color:#94a3b8;margin-bottom:12px;">
         Seu Score Disciplinar Atual
       </div>
       <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0">
         <tr>
-          <td width="33%" style="padding:8px;background:#ffffff;border:1px solid #e2e8f0;border-radius:8px;text-align:center;">
-            <div style="font-size:11px;color:#64748b;text-transform:uppercase;font-weight:700;">Avisos</div>
-            <div style="font-size:20px;font-weight:800;color:#0f172a;margin-top:2px;">${input.avisosCount}</div>
+          <td width="33%" style="padding:10px 8px;background:#080f1d;border:1px solid #1e293b;border-radius:8px;text-align:center;">
+            <div style="font-size:11px;color:#94a3b8;text-transform:uppercase;font-weight:700;">Avisos</div>
+            <div style="font-size:20px;font-weight:800;color:#f8fafc;margin-top:2px;">${input.avisosCount}</div>
           </td>
           <td width="4"></td>
-          <td width="33%" style="padding:8px;background:#ffffff;border:1px solid #e2e8f0;border-radius:8px;text-align:center;">
-            <div style="font-size:11px;color:#64748b;text-transform:uppercase;font-weight:700;">Adv. Diretas</div>
-            <div style="font-size:20px;font-weight:800;color:#0f172a;margin-top:2px;">${input.directWarningsCount}</div>
+          <td width="33%" style="padding:10px 8px;background:#080f1d;border:1px solid #1e293b;border-radius:8px;text-align:center;">
+            <div style="font-size:11px;color:#94a3b8;text-transform:uppercase;font-weight:700;">Adv. Diretas</div>
+            <div style="font-size:20px;font-weight:800;color:#f8fafc;margin-top:2px;">${input.directWarningsCount}</div>
           </td>
           <td width="4"></td>
-          <td width="33%" style="padding:8px;background:#ffffff;border:1px solid #e2e8f0;border-radius:8px;text-align:center;">
-            <div style="font-size:11px;color:#64748b;text-transform:uppercase;font-weight:700;">Total Adv.</div>
-            <div style="font-size:20px;font-weight:800;color:#dc2626;margin-top:2px;">${input.totalWarnings} / 3</div>
+          <td width="33%" style="padding:10px 8px;background:#080f1d;border:1px solid #1e293b;border-radius:8px;text-align:center;">
+            <div style="font-size:11px;color:#94a3b8;text-transform:uppercase;font-weight:700;">Total Adv.</div>
+            <div style="font-size:20px;font-weight:800;color:#f87171;margin-top:2px;">${input.totalWarnings} / 3</div>
           </td>
         </tr>
       </table>
-      <p style="margin:12px 0 0;font-size:13px;color:#334155;">
-        <strong>Status atual:</strong> ${escapeEmailHtml(input.statusLabel)}
+      <p style="margin:12px 0 0;font-size:13px;color:#cbd5e1;">
+        <strong style="color:#f8fafc;">Status atual:</strong> ${escapeEmailHtml(input.statusLabel)}
         (incluindo ${input.warningFromAvisos} advertência(s) convertida(s) por avisos).
       </p>
-      <p style="margin:6px 0 0;font-size:13px;color:#475569;">
+      <p style="margin:6px 0 0;font-size:13px;color:#94a3b8;">
         ${escapeEmailHtml(statusRiskNote)}
       </p>
     </div>
 
-    <div style="background-color:#0f172a;color:#e2e8f0;border-radius:12px;padding:14px 16px;font-size:13px;line-height:1.55;">
+    <div style="background-color:#080f1d;border:1px solid #1e293b;color:#cbd5e1;border-radius:12px;padding:14px 16px;font-size:13px;line-height:1.55;">
       <strong style="color:#38bdf8;">Regra Disciplinar da Equipe:</strong><br />
-      &bull; <strong>2 avisos</strong> se convertem em <strong>1 advertência</strong>.<br />
-      &bull; <strong>2 advertências</strong> colocam o membro em <strong>risco de expulsão</strong>.<br />
-      &bull; Na <strong>3ª advertência</strong>, o desligamento (<strong>expulsão</strong>) é aplicado automaticamente.
+      &bull; <strong style="color:#f8fafc;">2 avisos</strong> se convertem em <strong style="color:#f8fafc;">1 advertência</strong>.<br />
+      &bull; <strong style="color:#f8fafc;">2 advertências</strong> colocam o membro em <strong style="color:#f8fafc;">risco de expulsão</strong>.<br />
+      &bull; Na <strong style="color:#f8fafc;">3ª advertência</strong>, o desligamento (<strong style="color:#f8fafc;">expulsão</strong>) é aplicado automaticamente.
     </div>
   `;
 
@@ -311,41 +316,41 @@ export function buildLabHoursAlertEmail(input: LabHoursAlertEmailInput): BuiltEm
   const subject = `⚠️ [Autônomos] Alerta de Horas Pendentes (${input.periodLabel}) — Faltam ${input.remainingFormatted}`;
 
   const bodyHtml = `
-    <p style="margin:0 0 14px;">Olá, <strong>${escapeEmailHtml(input.recipientName)}</strong> (${escapeEmailHtml(input.area)}).</p>
-    <p style="margin:0 0 16px;">
-      Identificamos que você <strong>ainda não completou suas horas obrigatórias</strong> referentes a <strong>${escapeEmailHtml(input.periodLabel)}</strong>.
+    <p style="margin:0 0 14px;color:#cbd5e1;">Olá, <strong style="color:#f8fafc;">${escapeEmailHtml(input.recipientName)}</strong> (${escapeEmailHtml(input.area)}).</p>
+    <p style="margin:0 0 16px;color:#cbd5e1;">
+      Identificamos que você <strong style="color:#f8fafc;">ainda não completou suas horas obrigatórias</strong> referentes a <strong style="color:#f8fafc;">${escapeEmailHtml(input.periodLabel)}</strong>.
     </p>
 
-    <div style="background-color:#fef2f2;border:2px solid #ef4444;border-radius:12px;padding:16px;margin-bottom:18px;">
-      <div style="font-size:12px;font-weight:800;text-transform:uppercase;letter-spacing:0.08em;color:#b91c1c;margin-bottom:10px;">
+    <div style="background-color:#271014;border:1px solid #991b1b;border-radius:12px;padding:16px;margin-bottom:18px;">
+      <div style="font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:0.08em;color:#fca5a5;margin-bottom:10px;">
         ⚠️ Status de Presença &bull; ${escapeEmailHtml(modeTitle)}
       </div>
       <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0">
         <tr>
-          <td width="33%" style="padding:8px;background:#ffffff;border:1px solid #fecaca;border-radius:8px;text-align:center;">
-            <div style="font-size:11px;color:#64748b;font-weight:700;text-transform:uppercase;">Cumprido</div>
-            <div style="font-size:18px;font-weight:800;color:#0f172a;margin-top:2px;">${escapeEmailHtml(input.completedFormatted)}</div>
+          <td width="33%" style="padding:10px 8px;background:#080f1d;border:1px solid #7f1d1d;border-radius:8px;text-align:center;">
+            <div style="font-size:11px;color:#94a3b8;font-weight:700;text-transform:uppercase;">Cumprido</div>
+            <div style="font-size:18px;font-weight:800;color:#f8fafc;margin-top:2px;">${escapeEmailHtml(input.completedFormatted)}</div>
           </td>
           <td width="4"></td>
-          <td width="33%" style="padding:8px;background:#ffffff;border:1px solid #fecaca;border-radius:8px;text-align:center;">
-            <div style="font-size:11px;color:#64748b;font-weight:700;text-transform:uppercase;">Meta</div>
-            <div style="font-size:18px;font-weight:800;color:#0f172a;margin-top:2px;">${escapeEmailHtml(input.requiredFormatted)}</div>
+          <td width="33%" style="padding:10px 8px;background:#080f1d;border:1px solid #7f1d1d;border-radius:8px;text-align:center;">
+            <div style="font-size:11px;color:#94a3b8;font-weight:700;text-transform:uppercase;">Meta</div>
+            <div style="font-size:18px;font-weight:800;color:#f8fafc;margin-top:2px;">${escapeEmailHtml(input.requiredFormatted)}</div>
           </td>
           <td width="4"></td>
-          <td width="33%" style="padding:8px;background:#ffffff;border:1px solid #fecaca;border-radius:8px;text-align:center;">
-            <div style="font-size:11px;color:#b91c1c;font-weight:700;text-transform:uppercase;">Faltando</div>
-            <div style="font-size:18px;font-weight:800;color:#dc2626;margin-top:2px;">${escapeEmailHtml(input.remainingFormatted)}</div>
+          <td width="33%" style="padding:10px 8px;background:#080f1d;border:1px solid #7f1d1d;border-radius:8px;text-align:center;">
+            <div style="font-size:11px;color:#fca5a5;font-weight:700;text-transform:uppercase;">Faltando</div>
+            <div style="font-size:18px;font-weight:800;color:#f87171;margin-top:2px;">${escapeEmailHtml(input.remainingFormatted)}</div>
           </td>
         </tr>
       </table>
-      <p style="margin:12px 0 0;font-size:13px;font-weight:600;color:#991b1b;">
+      <p style="margin:12px 0 0;font-size:13px;font-weight:600;color:#fca5a5;">
         Prazo final para regularização: ${escapeEmailHtml(input.deadlineText)}.
       </p>
     </div>
 
-    <div style="background-color:#fffbeb;border-left:4px solid #f59e0b;border-radius:10px;padding:14px 16px;font-size:13px;color:#78350f;">
-      <strong>Atenção à regra automática de presença:</strong><br />
-      Caso um integrante deixe de cumprir as horas obrigatórias <strong>duas vezes seguidas</strong> (excluindo semanas marcadas como férias), o sistema aplica <strong>automaticamente um Aviso disciplinar</strong>. Se houver motivo justificado, registre sua justificativa ou alinhe com a Gestão antes do fechamento.
+    <div style="background-color:#271a08;border-left:4px solid #f59e0b;border-radius:10px;padding:14px 16px;font-size:13px;color:#fde68a;">
+      <strong style="color:#fcd34d;">Atenção:</strong><br />
+      A falta de presença no laboratório é passível de receber um <strong style="color:#ffffff;">aviso disciplinar</strong>. Caso haja algum imprevisto, registre sua justificativa no sistema ou alinhe com a Gestão antes do fechamento.
     </div>
   `;
 
@@ -369,7 +374,7 @@ export function buildLabHoursAlertEmail(input: LabHoursAlertEmailInput): BuiltEm
     `- Restante: ${input.remainingFormatted}`,
     `- Prazo final: ${input.deadlineText}`,
     '',
-    'ATENÇÃO: Não cumprir a meta duas vezes seguidas gera automaticamente um Aviso disciplinar no sistema.',
+    'ATENÇÃO: A falta de presença é passível de receber um aviso disciplinar.',
     `Acesse: ${baseUrl}/presenca`,
   ].join('\n');
 
@@ -421,51 +426,51 @@ export function buildReimbursementEmail(input: ReimbursementEmailInput): BuiltEm
     : 'Não informada no pedido';
 
   const reviewNotesHtml = input.reviewNotes?.trim()
-    ? `<div style="margin-top:12px;padding:12px 14px;background-color:${t.highlightBg};border-left:4px solid ${t.highlightBorder};border-radius:8px;font-size:13px;color:#1e293b;">
-         <strong>Parecer / Observação da Gestão:</strong><br />
+    ? `<div style="margin-top:12px;padding:12px 14px;background-color:${t.highlightBg};border-left:4px solid ${t.highlightBorder};border-radius:8px;font-size:13px;color:#cbd5e1;">
+         <strong style="color:${t.highlightTitle};">Parecer / Observação da Gestão:</strong><br />
          ${escapeEmailHtml(input.reviewNotes.trim())}
        </div>`
     : '';
 
   const bodyHtml = `
-    <p style="margin:0 0 14px;">Olá, <strong>${escapeEmailHtml(input.recipientName)}</strong>.</p>
-    <p style="margin:0 0 16px;">
+    <p style="margin:0 0 14px;color:#cbd5e1;">Olá, <strong style="color:#f8fafc;">${escapeEmailHtml(input.recipientName)}</strong>.</p>
+    <p style="margin:0 0 16px;color:#cbd5e1;">
       ${
         isCreated
           ? 'Recebemos sua solicitação de reembolso no Sistema Autônomos. Confira os dados registrados:'
-          : `O andamento da sua solicitação de reembolso foi atualizado pela equipe financeira:`
+          : 'O andamento da sua solicitação de reembolso foi atualizado pela equipe financeira:'
       }
     </p>
 
-    <div style="background-color:#f8fafc;border:1px solid #e2e8f0;border-radius:12px;padding:16px;">
+    <div style="background-color:#111c33;border:1px solid #1e293b;border-radius:12px;padding:16px;">
       <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="font-size:14px;">
         <tr>
-          <td style="padding:5px 0;color:#64748b;width:130px;">Código:</td>
-          <td style="padding:5px 0;font-weight:700;color:#0f172a;">${escapeEmailHtml(input.code)}</td>
+          <td style="padding:6px 0;color:#94a3b8;width:130px;">Código:</td>
+          <td style="padding:6px 0;font-weight:700;color:#f8fafc;">${escapeEmailHtml(input.code)}</td>
         </tr>
         <tr>
-          <td style="padding:5px 0;color:#64748b;">Descrição:</td>
-          <td style="padding:5px 0;font-weight:600;color:#0f172a;">${escapeEmailHtml(input.title)}</td>
+          <td style="padding:6px 0;color:#94a3b8;">Descrição:</td>
+          <td style="padding:6px 0;font-weight:600;color:#f8fafc;">${escapeEmailHtml(input.title)}</td>
         </tr>
         <tr>
-          <td style="padding:5px 0;color:#64748b;">Valor:</td>
-          <td style="padding:5px 0;font-weight:800;color:#0f172a;">${escapeEmailHtml(input.amountFormatted)}</td>
+          <td style="padding:6px 0;color:#94a3b8;">Valor:</td>
+          <td style="padding:6px 0;font-weight:800;color:#f8fafc;">${escapeEmailHtml(input.amountFormatted)}</td>
         </tr>
         <tr>
-          <td style="padding:5px 0;color:#64748b;">Status:</td>
-          <td style="padding:5px 0;font-weight:700;color:${t.ctaBg};">${escapeEmailHtml(input.statusLabel)}</td>
+          <td style="padding:6px 0;color:#94a3b8;">Status:</td>
+          <td style="padding:6px 0;font-weight:700;color:${t.badgeText};">${escapeEmailHtml(input.statusLabel)}</td>
         </tr>
         ${
           input.teamLabel
             ? `<tr>
-                <td style="padding:5px 0;color:#64748b;">Equipe:</td>
-                <td style="padding:5px 0;color:#0f172a;">${escapeEmailHtml(input.teamLabel)}</td>
+                <td style="padding:6px 0;color:#94a3b8;">Equipe:</td>
+                <td style="padding:6px 0;color:#f8fafc;">${escapeEmailHtml(input.teamLabel)}</td>
               </tr>`
             : ''
         }
         <tr>
-          <td style="padding:5px 0;color:#64748b;">Chave PIX:</td>
-          <td style="padding:5px 0;color:#0f172a;font-family:monospace;">${escapeEmailHtml(pixInfo)}</td>
+          <td style="padding:6px 0;color:#94a3b8;">Chave PIX:</td>
+          <td style="padding:6px 0;color:#e2e8f0;font-family:monospace;">${escapeEmailHtml(pixInfo)}</td>
         </tr>
       </table>
       ${reviewNotesHtml}
