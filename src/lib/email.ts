@@ -7,6 +7,7 @@ import {
   type LabHoursAlertEmailInput,
   type ReimbursementEmailInput,
 } from './email-templates';
+import { recordEmailDispatchLog, type EmailLogCategory } from './email-logs';
 
 function getTransport() {
   const host = process.env.SMTP_HOST?.trim();
@@ -40,15 +41,30 @@ async function dispatchEmail(params: {
   subject: string;
   html: string;
   text: string;
+  category: EmailLogCategory;
+  recipientName?: string | null;
+  previewText?: string | null;
+  metadata?: Record<string, unknown> | null;
 }): Promise<DispatchEmailResult> {
   const to = params.to?.trim();
   if (!to) {
     return { sent: false, skipped: true };
   }
 
+  const previewText = params.previewText ?? params.text;
   const transport = getTransport();
   if (!transport) {
     console.warn(`[email] SMTP não configurado; e-mail "${params.subject}" não enviado para ${to}.`);
+    await recordEmailDispatchLog({
+      category: params.category,
+      recipientEmail: to,
+      recipientName: params.recipientName,
+      subject: params.subject,
+      previewText,
+      status: 'SKIPPED',
+      errorMessage: 'SMTP não configurado no ambiente.',
+      metadata: params.metadata,
+    });
     return { sent: false, skipped: true };
   }
 
@@ -60,12 +76,32 @@ async function dispatchEmail(params: {
       text: params.text,
       html: params.html,
     });
+    await recordEmailDispatchLog({
+      category: params.category,
+      recipientEmail: to,
+      recipientName: params.recipientName,
+      subject: params.subject,
+      previewText,
+      status: 'SENT',
+      metadata: params.metadata,
+    });
     return { sent: true };
   } catch (err) {
+    const errorMsg = err instanceof Error ? err.message : 'Erro desconhecido ao enviar e-mail.';
     console.error(`[email] Falha ao enviar "${params.subject}" para ${to}:`, err);
+    await recordEmailDispatchLog({
+      category: params.category,
+      recipientEmail: to,
+      recipientName: params.recipientName,
+      subject: params.subject,
+      previewText,
+      status: 'FAILED',
+      errorMessage: errorMsg,
+      metadata: params.metadata,
+    });
     return {
       sent: false,
-      error: err instanceof Error ? err.message : 'Erro desconhecido ao enviar e-mail.',
+      error: errorMsg,
     };
   }
 }
@@ -75,7 +111,18 @@ export async function sendDisciplinaryNotificationEmail(
   input: DisciplinaryEmailInput
 ): Promise<DispatchEmailResult> {
   const built = buildDisciplinaryEmail(input);
-  return dispatchEmail({ to, ...built });
+  return dispatchEmail({
+    to,
+    ...built,
+    category: 'DISCIPLINARY',
+    recipientName: input.recipientName,
+    metadata: {
+      occurrenceType: input.occurrenceType,
+      status: input.status,
+      totalWarnings: input.totalWarnings,
+      wasAutoExpelled: input.wasAutoExpelled,
+    },
+  });
 }
 
 export async function sendLabHoursAlertEmail(
@@ -83,7 +130,18 @@ export async function sendLabHoursAlertEmail(
   input: LabHoursAlertEmailInput
 ): Promise<DispatchEmailResult> {
   const built = buildLabHoursAlertEmail(input);
-  return dispatchEmail({ to, ...built });
+  return dispatchEmail({
+    to,
+    ...built,
+    category: 'LAB_HOURS_ALERT',
+    recipientName: input.recipientName,
+    metadata: {
+      mode: input.mode,
+      area: input.area,
+      periodLabel: input.periodLabel,
+      remainingFormatted: input.remainingFormatted,
+    },
+  });
 }
 
 export async function sendReimbursementStatusEmail(
@@ -91,7 +149,18 @@ export async function sendReimbursementStatusEmail(
   input: ReimbursementEmailInput
 ): Promise<DispatchEmailResult> {
   const built = buildReimbursementEmail(input);
-  return dispatchEmail({ to, ...built });
+  return dispatchEmail({
+    to,
+    ...built,
+    category: 'REIMBURSEMENT',
+    recipientName: input.recipientName,
+    metadata: {
+      event: input.event,
+      code: input.code,
+      status: input.status,
+      amountFormatted: input.amountFormatted,
+    },
+  });
 }
 
 export async function sendPasswordResetCodeEmail(params: {
@@ -132,16 +201,46 @@ export async function sendPasswordResetCodeEmail(params: {
     if (process.env.NODE_ENV !== 'test') {
       console.warn(`[EMAIL FALLBACK] Código para ${params.to}: ${params.code}`);
     }
+    await recordEmailDispatchLog({
+      category: 'AUTH_CODE',
+      recipientEmail: params.to,
+      recipientName: params.name,
+      subject: '[UFRJ Autônomos] Código de verificação de senha',
+      previewText: `Código de verificação de ${expiresInMinutes} min enviado (código omitido no log por segurança).`,
+      status: 'SKIPPED',
+      errorMessage: 'SMTP não configurado no ambiente.',
+    });
     return { delivered: false };
   }
 
-  await transport.sendMail({
-    from: getFromAddress(),
-    to: params.to,
-    subject,
-    text,
-    html,
-  });
+  try {
+    await transport.sendMail({
+      from: getFromAddress(),
+      to: params.to,
+      subject,
+      text,
+      html,
+    });
+    await recordEmailDispatchLog({
+      category: 'AUTH_CODE',
+      recipientEmail: params.to,
+      recipientName: params.name,
+      subject: '[UFRJ Autônomos] Código de verificação de senha',
+      previewText: `Código de verificação válido por ${expiresInMinutes} min (código omitido no log por segurança).`,
+      status: 'SENT',
+    });
+  } catch (err) {
+    await recordEmailDispatchLog({
+      category: 'AUTH_CODE',
+      recipientEmail: params.to,
+      recipientName: params.name,
+      subject: '[UFRJ Autônomos] Código de verificação de senha',
+      previewText: `Tentativa de envio de código de verificação (código omitido no log por segurança).`,
+      status: 'FAILED',
+      errorMessage: err instanceof Error ? err.message : 'Erro ao enviar código.',
+    });
+    throw err;
+  }
 
   return { delivered: true };
 }
@@ -151,13 +250,25 @@ export async function sendAccountApprovedEmail(params: {
   name: string;
 }): Promise<void> {
   const transport = getTransport();
-  if (!transport) return;
+  const approvedSubject = '[UFRJ Autônomos] Sua conta foi aprovada!';
+  if (!transport) {
+    await recordEmailDispatchLog({
+      category: 'ACCOUNT_APPROVED',
+      recipientEmail: params.to,
+      recipientName: params.name,
+      subject: approvedSubject,
+      previewText: `Notificação de aprovação da conta para ${params.name}.`,
+      status: 'SKIPPED',
+      errorMessage: 'SMTP não configurado no ambiente.',
+    });
+    return;
+  }
   const appUrl = process.env.NEXT_PUBLIC_APP_URL?.trim() || 'http://localhost:3000';
   try {
     await transport.sendMail({
       from: getFromAddress(),
       to: params.to,
-      subject: '[UFRJ Autônomos] Sua conta foi aprovada!',
+      subject: approvedSubject,
       text: `Olá, ${params.name}!\n\nSua conta na plataforma UFRJ Autônomos foi aprovada pela gestão.\nAcesse ${appUrl}/login para entrar e preencher seu perfil de integrante.\n\nEquipe UFRJ Autônomos`,
       html: `
         <div style="font-family: system-ui, -apple-system, sans-serif; max-width: 520px; margin: 0 auto; padding: 24px; background: #0a0a0b; color: #f4f4f5; border-radius: 12px; border: 1px solid #27272a;">
@@ -168,8 +279,25 @@ export async function sendAccountApprovedEmail(params: {
         </div>
       `,
     });
+    await recordEmailDispatchLog({
+      category: 'ACCOUNT_APPROVED',
+      recipientEmail: params.to,
+      recipientName: params.name,
+      subject: approvedSubject,
+      previewText: `Bem-vindo(a), ${params.name}! Seu cadastro foi aprovado pela gestão.`,
+      status: 'SENT',
+    });
   } catch (error) {
     console.error('Aviso: falha ao enviar e-mail de aprovação:', error);
+    await recordEmailDispatchLog({
+      category: 'ACCOUNT_APPROVED',
+      recipientEmail: params.to,
+      recipientName: params.name,
+      subject: approvedSubject,
+      previewText: `Tentativa de notificação de aprovação da conta para ${params.name}.`,
+      status: 'FAILED',
+      errorMessage: error instanceof Error ? error.message : 'Erro desconhecido.',
+    });
   }
 }
 
