@@ -516,3 +516,37 @@ test('image upload requires live management privileges and rejects oversized mul
   users[1].role = 'MEMBER';
   assert.equal((await uploadImage(request('/api/admin/images', token, {}, 'POST'))).status, 403);
 });
+
+test('cron endpoints bypass session proxy without a cookie and enforce CRON_SECRET bearer auth', async () => {
+  const { GET: cronAttendanceAlerts } = await import('../src/app/api/cron/attendance-alerts/route');
+  const prevCronSecret = process.env.CRON_SECRET;
+  const origFindUnique = prisma.attendanceSettings.findUnique;
+  process.env.CRON_SECRET = 'cron-test-secret-123456';
+  stub(prisma.attendanceSettings, 'findUnique', async () => null);
+  try {
+    assert.equal((await proxy(request('/api/cron/attendance-alerts'))).status, 200);
+    assert.equal((await proxy(request('/api/cron/maintenance'))).status, 200);
+
+    assert.equal((await cronAttendanceAlerts(new NextRequest('http://localhost/api/cron/attendance-alerts'))).status, 401);
+    assert.equal(
+      (await cronAttendanceAlerts(new NextRequest('http://localhost/api/cron/attendance-alerts', {
+        headers: { authorization: 'Bearer wrong-secret' },
+      }))).status,
+      401
+    );
+
+    const okRes = await cronAttendanceAlerts(
+      new NextRequest('http://localhost/api/cron/attendance-alerts', {
+        headers: { authorization: 'Bearer cron-test-secret-123456' },
+      })
+    );
+    assert.equal(okRes.status, 200);
+    const body = await okRes.json();
+    assert.equal(body.ok, true);
+    assert.equal(body.skippedReason, 'AttendanceSettings not initialized.');
+  } finally {
+    prisma.attendanceSettings.findUnique = origFindUnique;
+    if (prevCronSecret === undefined) delete process.env.CRON_SECRET;
+    else process.env.CRON_SECRET = prevCronSecret;
+  }
+});

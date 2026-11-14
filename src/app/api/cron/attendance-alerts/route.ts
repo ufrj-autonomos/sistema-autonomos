@@ -1,8 +1,10 @@
 import { timingSafeEqual } from 'node:crypto';
 import { NextRequest, NextResponse } from 'next/server';
 import { runAttendanceAlertsAndAutoPunishments } from '@/lib/attendance/alerts';
+import { closeEmailTransport } from '@/lib/email';
 
 export const dynamic = 'force-dynamic';
+export const maxDuration = 60;
 
 function isAuthorizedCron(req: NextRequest): boolean {
   const secret = process.env.CRON_SECRET?.trim();
@@ -27,5 +29,7 @@ export async function GET(req: NextRequest) {
   } catch (error) {
     console.error('[cron/attendance-alerts] Erro ao executar rotina de alertas:', error);
     return NextResponse.json({ error: 'Erro interno na rotina de presença.' }, { status: 500 });
+  } finally {
+    closeEmailTransport();
   }
 }

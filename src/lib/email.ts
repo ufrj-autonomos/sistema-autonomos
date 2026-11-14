@@ -13,6 +13,9 @@ import {
 } from './email-templates';
 import { recordEmailDispatchLog, type EmailLogCategory } from './email-logs';
 
+let cachedPoolKey: string | null = null;
+let cachedTransport: ReturnType<typeof nodemailer.createTransport> | null = null;
+
 function getTransport() {
   const host = process.env.SMTP_HOST?.trim();
   const port = Number(process.env.SMTP_PORT || 465);
@@ -20,14 +23,39 @@ function getTransport() {
   const user = process.env.SMTP_USER?.trim();
   const pass = process.env.SMTP_PASS?.trim();
 
-  if (!host || !user || !pass) return null;
+  if (!host || !user || !pass) {
+    closeEmailTransport();
+    return null;
+  }
 
-  return nodemailer.createTransport({
+  const key = `${host}:${port}:${secure}:${user}:${pass}`;
+  if (cachedTransport && cachedPoolKey === key) {
+    return cachedTransport;
+  }
+
+  cachedTransport?.close();
+  cachedPoolKey = key;
+  cachedTransport = nodemailer.createTransport({
     host,
     port,
     secure,
+    pool: true,
+    maxConnections: 3,
+    maxMessages: 100,
+    connectionTimeout: 10_000,
+    greetingTimeout: 10_000,
+    socketTimeout: 15_000,
     auth: { user, pass },
   });
+  return cachedTransport;
+}
+
+export function closeEmailTransport() {
+  if (cachedTransport) {
+    cachedTransport.close();
+    cachedTransport = null;
+    cachedPoolKey = null;
+  }
 }
 
 function getFromAddress() {

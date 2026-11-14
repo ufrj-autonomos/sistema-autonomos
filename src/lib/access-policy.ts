@@ -29,6 +29,7 @@ export function isPublicPath(pathname: string) {
     '/api/health',
     '/api/institutional/contact',
     '/api/cron/maintenance',
+    '/api/cron/attendance-alerts',
   ].includes(pathname);
 }
 
