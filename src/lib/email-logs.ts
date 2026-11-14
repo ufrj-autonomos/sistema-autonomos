@@ -3,22 +3,32 @@ import { prisma } from './prisma';
 
 export type EmailLogCategory =
   | 'DISCIPLINARY'
+  | 'DISCIPLINARY_RISK'
   | 'LAB_HOURS_ALERT'
+  | 'INCOMPLETE_PROFILE'
+  | 'MEETING_LOW_ATTENDANCE'
+  | 'ACCESS_SETUP'
   | 'REIMBURSEMENT'
   | 'ACCOUNT_APPROVED'
   | 'AUTH_CODE'
   | 'EMAIL_CHANGE'
+  | 'ANNOUNCEMENT'
   | 'OTHER';
 
 export type EmailLogStatus = 'SENT' | 'FAILED' | 'SKIPPED';
 
 export const EMAIL_CATEGORY_LABELS: Record<EmailLogCategory, string> = {
   DISCIPLINARY: 'Disciplinar',
+  DISCIPLINARY_RISK: 'Alerta Disciplinar',
   LAB_HOURS_ALERT: 'Alerta de Horas',
+  INCOMPLETE_PROFILE: 'Perfil Incompleto',
+  MEETING_LOW_ATTENDANCE: 'Baixa Presença em Reuniões',
+  ACCESS_SETUP: 'Ativação de Acesso',
   REIMBURSEMENT: 'Reembolso',
   ACCOUNT_APPROVED: 'Aprovação de Conta',
   AUTH_CODE: 'Código de Segurança',
   EMAIL_CHANGE: 'Troca de E-mail',
+  ANNOUNCEMENT: 'Comunicado',
   OTHER: 'Sistema',
 };
 
@@ -35,6 +45,7 @@ export interface EmailDispatchLogDTO {
   status: EmailLogStatus;
   errorMessage: string | null;
   metadata: Record<string, unknown> | null;
+  canResend: boolean;
   createdAt: string;
 }
 
@@ -57,6 +68,7 @@ export async function recordEmailDispatchLog(input: {
   memberId?: string | null;
   subject: string;
   previewText?: string | null;
+  htmlBody?: string | null;
   status: EmailLogStatus;
   errorMessage?: string | null;
   metadata?: Record<string, unknown> | null;
@@ -88,6 +100,7 @@ export async function recordEmailDispatchLog(input: {
         memberId,
         subject: input.subject.slice(0, 300),
         previewText: input.previewText ? input.previewText.slice(0, 4000) : null,
+        htmlBody: input.htmlBody ? input.htmlBody.slice(0, 64000) : null,
         status: input.status,
         errorMessage: input.errorMessage ? input.errorMessage.slice(0, 1000) : null,
         metadata: input.metadata
@@ -180,6 +193,7 @@ export async function getEmailLogsDashboard(params: {
         row.metadata && typeof row.metadata === 'object' && !Array.isArray(row.metadata)
           ? (row.metadata as Record<string, unknown>)
           : null,
+      canResend: Boolean(row.recipientEmail && cat !== 'AUTH_CODE'),
       createdAt: row.createdAt.toISOString(),
     };
   });

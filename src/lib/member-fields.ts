@@ -88,3 +88,33 @@ export function memberRoleTranslations(role: string) {
     'Alumni': { roleEn: 'Alumni', roleFr: 'Ancien élève' },
   } as Record<string, { roleEn: string; roleFr: string }>)[normalizeMemberRole(role)];
 }
+
+export function computeMissingProfileFields(input: {
+  photo?: string | null;
+  bio?: string | null;
+  siteCourse?: string | null;
+  hasInternalAccount: boolean;
+  course?: string | null;
+  phone?: string | null;
+  cpf?: string | null;
+  dre?: string | null;
+  birthDate?: Date | string | null;
+  profileCompletedAt?: Date | string | null;
+}): string[] {
+  const missing: string[] = [];
+  if (!input.photo?.trim()) missing.push('Foto');
+  if (!input.bio?.trim()) missing.push('Biografia');
+  if (!(input.siteCourse?.trim() || input.course?.trim())) missing.push('Curso');
+  if (!input.hasInternalAccount) {
+    missing.push('Conta vinculada / Dados internos');
+  } else {
+    if (!input.phone?.trim()) missing.push('WhatsApp');
+    if (!input.cpf?.trim()) missing.push('CPF');
+    if (!input.dre?.trim()) missing.push('DRE');
+    if (!input.birthDate) missing.push('Data de nascimento');
+    if (!input.profileCompletedAt && missing.length === 0) {
+      missing.push('Confirmação inicial do perfil');
+    }
+  }
+  return missing;
+}

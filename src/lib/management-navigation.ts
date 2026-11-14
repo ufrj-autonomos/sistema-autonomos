@@ -17,6 +17,7 @@ export const MANAGEMENT_SECTIONS = [
   { href: '/gestao/site/membros', label: 'Exibição de membros', group: 'Site', icon: 'siteMembers', description: 'Visibilidade pública, preview dos cards e aprovações de perfil do site.' },
   { href: '/gestao/projetos', label: 'Projetos', group: 'Site', icon: 'projects', description: 'Administrar projetos, informações internas e exibição no site.' },
   { href: '/gestao/melhorias', label: 'Ideias & Bugs', group: 'Sistema', icon: 'feedback', description: 'Recepção de bugs, melhorias propostas e ideias da equipe, lab, sistema e site.' },
+  { href: '/gestao/emails', label: 'Central de E-mails', group: 'Sistema', icon: 'emails', description: 'Automações, disparos por situação, criação com IA, envio individual e histórico.' },
   { href: '/gestao/logs', label: 'Logs de atividade', group: 'Sistema', icon: 'logs', adminOnly: true, description: 'Histórico das interações e ações no servidor. Exclusivo de Admin.' },
   { href: '/gestao/sistema', label: 'Sistema', group: 'Sistema', icon: 'system', description: 'Verificar a infraestrutura e o catálogo de ensino.' },
 ] as const;

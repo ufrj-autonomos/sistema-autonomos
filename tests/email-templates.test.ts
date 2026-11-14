@@ -1,10 +1,16 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import {
+  buildAccessSetupEmail,
+  buildCustomNoticeEmail,
   buildDisciplinaryEmail,
+  buildDisciplinaryRiskEmail,
+  buildIncompleteProfileEmail,
   buildLabHoursAlertEmail,
+  buildMeetingLowAttendanceEmail,
   buildReimbursementEmail,
 } from '../src/lib/email-templates';
+import { computeMissingProfileFields } from '../src/lib/member-fields';
 
 test('buildDisciplinaryEmail explains 2 avisos = 1 advertência, 2 = risco, 3 = expulsão + score', () => {
   const email = buildDisciplinaryEmail({
@@ -106,4 +112,113 @@ test('buildReimbursementEmail formats creation and payment status updates', () =
   });
   assert.match(paid.subject, /PAGO/);
   assert.match(paid.html, /Transferência realizada via conta livre/);
+});
+
+test('buildIncompleteProfileEmail explains official member rule and lists missing fields', () => {
+  const email = buildIncompleteProfileEmail({
+    recipientName: 'Beatriz',
+    area: 'Software',
+    missingFields: ['Foto', 'CPF', 'DRE'],
+  });
+  assert.match(email.subject, /oficializar/i);
+  assert.match(email.html, /membro oficial/i);
+  assert.match(email.html, /Foto/);
+  assert.match(email.html, /CPF/);
+  assert.match(email.html, /DRE/);
+  assert.match(email.text, /membro oficial/i);
+});
+
+test('buildMeetingLowAttendanceEmail, buildDisciplinaryRiskEmail, buildAccessSetupEmail and buildCustomNoticeEmail render properly', () => {
+  const meeting = buildMeetingLowAttendanceEmail({
+    recipientName: 'Carlos',
+    area: 'Eletrônica',
+    periodCode: '26.2',
+    attendancePct: 55,
+    presences: 5.5,
+    absences: 4.5,
+    totalMeetings: 10,
+  });
+  assert.match(meeting.subject, /55%/);
+  assert.match(meeting.html, /55%/);
+  assert.match(meeting.html, /5\.5/);
+
+  const risk = buildDisciplinaryRiskEmail({
+    recipientName: 'Carlos',
+    area: 'Eletrônica',
+    avisosCount: 1,
+    directWarningsCount: 2,
+    totalWarnings: 2,
+    statusLabel: 'Risco de expulsão',
+  });
+  assert.match(risk.subject, /2\/3 advertências/);
+  assert.match(risk.html, /2 \/ 3/);
+
+  const access = buildAccessSetupEmail({
+    recipientName: 'Marina',
+    area: 'Gestão',
+    email: 'marina@poli.ufrj.br',
+  });
+  assert.match(access.html, /forgot-password/);
+  assert.match(access.html, /marina@poli\.ufrj\.br/);
+
+  const custom = buildCustomNoticeEmail({
+    recipientName: 'Marina',
+    subject: 'Mutirão no laboratório',
+    bodyText: 'Olá, Marina!\n\nAmanhã teremos mutirão às 14h.',
+    ctaLabel: 'Confirmar Presença',
+    ctaPath: '/presenca',
+  });
+  assert.equal(custom.subject, '[Autônomos] Mutirão no laboratório');
+  assert.match(custom.html, /Mutirão no laboratório/);
+  assert.match(custom.html, /Confirmar Presença/);
+});
+
+test('computeMissingProfileFields accurately detects pending fields and initial confirmation', () => {
+  assert.deepEqual(
+    computeMissingProfileFields({
+      photo: null,
+      bio: '',
+      siteCourse: null,
+      hasInternalAccount: true,
+      course: 'Engenharia',
+      phone: '',
+      cpf: '',
+      dre: '123456',
+      birthDate: null,
+      profileCompletedAt: null,
+    }),
+    ['Foto', 'Biografia', 'WhatsApp', 'CPF', 'Data de nascimento']
+  );
+
+  assert.deepEqual(
+    computeMissingProfileFields({
+      photo: 'https://img.example/a.jpg',
+      bio: 'Bio ok',
+      siteCourse: 'Engenharia',
+      hasInternalAccount: true,
+      course: 'Engenharia',
+      phone: '21999999999',
+      cpf: '11122233344',
+      dre: '123456',
+      birthDate: new Date('2002-01-01'),
+      profileCompletedAt: null,
+    }),
+    ['Confirmação inicial do perfil']
+  );
+
+  assert.deepEqual(
+    computeMissingProfileFields({
+      photo: 'https://img.example/a.jpg',
+      bio: 'Bio ok',
+      siteCourse: 'Engenharia',
+      hasInternalAccount: true,
+      course: 'Engenharia',
+      phone: '21999999999',
+      cpf: '11122233344',
+      dre: '123456',
+      birthDate: new Date('2002-01-01'),
+      profileCompletedAt: new Date(),
+    }),
+    []
+  );
 });

@@ -1,12 +1,13 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
   AlertCircle,
   CheckCircle2,
   Eye,
   Mail,
   RefreshCw,
+  RotateCw,
   Search,
   SkipForward,
   X,
@@ -16,11 +17,16 @@ import type { EmailDispatchLogDTO, EmailLogCategory, EmailLogsDashboardData } fr
 
 const CATEGORY_BADGE: Record<EmailLogCategory, string> = {
   DISCIPLINARY: 'bg-red-500/15 text-red-700 dark:text-red-300 border-red-500/30',
+  DISCIPLINARY_RISK: 'bg-orange-500/15 text-orange-700 dark:text-orange-300 border-orange-500/30',
   LAB_HOURS_ALERT: 'bg-amber-500/15 text-amber-700 dark:text-amber-300 border-amber-500/30',
+  INCOMPLETE_PROFILE: 'bg-yellow-500/15 text-yellow-700 dark:text-yellow-300 border-yellow-500/30',
+  MEETING_LOW_ATTENDANCE: 'bg-rose-500/15 text-rose-700 dark:text-rose-300 border-rose-500/30',
+  ACCESS_SETUP: 'bg-indigo-500/15 text-indigo-700 dark:text-indigo-300 border-indigo-500/30',
   REIMBURSEMENT: 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border-emerald-500/30',
   ACCOUNT_APPROVED: 'bg-cyan-500/15 text-cyan-700 dark:text-cyan-300 border-cyan-500/30',
   AUTH_CODE: 'bg-purple-500/15 text-purple-700 dark:text-purple-300 border-purple-500/30',
   EMAIL_CHANGE: 'bg-sky-500/15 text-sky-700 dark:text-sky-300 border-sky-500/30',
+  ANNOUNCEMENT: 'bg-blue-500/15 text-blue-700 dark:text-blue-300 border-blue-500/30',
   OTHER: 'bg-muted text-muted-foreground border-border',
 };
 
@@ -38,16 +44,30 @@ function formatDateTimeBr(iso: string): string {
 
 export function EmailLogsPanel({
   initialData,
+  refreshKey = 0,
+  onResent,
 }: {
   initialData: EmailLogsDashboardData;
+  refreshKey?: number;
+  onResent?: () => void;
 }) {
   const [data, setData] = useState<EmailLogsDashboardData>(initialData);
   const [category, setCategory] = useState('ALL');
   const [status, setStatus] = useState('ALL');
   const [search, setSearch] = useState('');
   const [loading, setLoading] = useState(false);
+  const [resendingId, setResendingId] = useState<string | null>(null);
+  const [overrideEmail, setOverrideEmail] = useState('');
+  const [feedback, setFeedback] = useState<{ kind: 'ok' | 'err'; text: string } | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [selectedLog, setSelectedLog] = useState<EmailDispatchLogDTO | null>(null);
+
+  useEffect(() => {
+    if (refreshKey > 0) {
+      void refresh();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [refreshKey]);
 
   async function refresh(nextCategory = category, nextStatus = status, nextSearch = search) {
     setLoading(true);
@@ -74,8 +94,48 @@ export function EmailLogsPanel({
     }
   }
 
+  async function handleResend(log: EmailDispatchLogDTO, customEmail?: string) {
+    setResendingId(log.id);
+    setFeedback(null);
+    setError(null);
+    try {
+      const res = await fetch('/api/gestao/emails/send', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'resend_log',
+          logId: log.id,
+          ...(customEmail?.trim() ? { overrideEmail: customEmail.trim() } : {}),
+        }),
+      });
+      const payload = await res.json().catch(() => null);
+      if (!res.ok) {
+        setFeedback({ kind: 'err', text: payload?.error || 'Não foi possível reenviar o e-mail.' });
+        return;
+      }
+      if (payload?.result?.sent) {
+        setFeedback({
+          kind: 'ok',
+          text: `E-mail reenviado com sucesso para ${payload.result.targetEmail}.`,
+        });
+      } else {
+        setFeedback({
+          kind: 'err',
+          text: payload?.result?.error || 'Envio pulado (verifique a configuração SMTP).',
+        });
+      }
+      setOverrideEmail('');
+      await refresh();
+      onResent?.();
+    } catch {
+      setFeedback({ kind: 'err', text: 'Erro de conexão ao reenviar o e-mail.' });
+    } finally {
+      setResendingId(null);
+    }
+  }
+
   return (
-    <section className="space-y-4 pt-6 border-t border-border">
+    <section className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <div className="inline-flex items-center gap-1.5 font-mono text-xs uppercase tracking-wider text-muted-foreground">
@@ -164,11 +224,17 @@ export function EmailLogsPanel({
           className="h-9 px-3 rounded-lg border border-border bg-background text-xs text-foreground focus:outline-hidden focus:ring-2 focus:ring-ring"
         >
           <option value="ALL">Todas as categorias</option>
-          <option value="DISCIPLINARY">Disciplinar</option>
           <option value="LAB_HOURS_ALERT">Alerta de Horas</option>
+          <option value="INCOMPLETE_PROFILE">Perfil Incompleto</option>
+          <option value="MEETING_LOW_ATTENDANCE">Baixa Presença em Reuniões</option>
+          <option value="DISCIPLINARY">Disciplinar</option>
+          <option value="DISCIPLINARY_RISK">Alerta Disciplinar</option>
+          <option value="ACCESS_SETUP">Ativação de Acesso</option>
+          <option value="ANNOUNCEMENT">Comunicado</option>
           <option value="REIMBURSEMENT">Reembolso</option>
           <option value="ACCOUNT_APPROVED">Aprovação de Conta</option>
-          <option value="AUTH_CODE">Código de Senha</option>
+          <option value="EMAIL_CHANGE">Troca de E-mail</option>
+          <option value="AUTH_CODE">Código de Segurança</option>
         </select>
 
         <select
@@ -194,6 +260,19 @@ export function EmailLogsPanel({
           Filtrar
         </button>
       </form>
+
+      {feedback && (
+        <p
+          className={cn(
+            'rounded-lg border px-4 py-2.5 text-xs font-medium',
+            feedback.kind === 'ok'
+              ? 'border-emerald-500/30 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300'
+              : 'border-red-500/30 bg-red-500/10 text-red-700 dark:text-red-300'
+          )}
+        >
+          {feedback.text}
+        </p>
+      )}
 
       {error && (
         <p className="rounded-lg border border-red-500/30 bg-red-500/10 px-4 py-2.5 text-xs text-red-700 dark:text-red-300">
@@ -284,14 +363,31 @@ export function EmailLogsPanel({
                     </td>
 
                     <td className="px-4 py-3 text-right whitespace-nowrap">
-                      <button
-                        type="button"
-                        onClick={() => setSelectedLog(log)}
-                        className="inline-flex items-center gap-1 rounded-lg border border-border px-2.5 py-1 text-[11px] font-medium text-foreground hover:bg-muted transition cursor-pointer"
-                      >
-                        <Eye className="h-3 w-3" />
-                        <span>Ver</span>
-                      </button>
+                      <div className="inline-flex items-center gap-1.5">
+                        {log.canResend && (
+                          <button
+                            type="button"
+                            disabled={resendingId === log.id}
+                            onClick={() => void handleResend(log)}
+                            title="Reenviar este e-mail"
+                            className="inline-flex items-center gap-1 rounded-lg border border-cyan-500/30 bg-cyan-500/10 px-2.5 py-1 text-[11px] font-semibold text-cyan-700 dark:text-cyan-300 hover:bg-cyan-500/20 disabled:opacity-50 transition cursor-pointer"
+                          >
+                            <RotateCw className={cn('h-3 w-3', resendingId === log.id && 'animate-spin')} />
+                            <span>Reenviar</span>
+                          </button>
+                        )}
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setOverrideEmail(log.recipientEmail);
+                            setSelectedLog(log);
+                          }}
+                          className="inline-flex items-center gap-1 rounded-lg border border-border px-2.5 py-1 text-[11px] font-medium text-foreground hover:bg-muted transition cursor-pointer"
+                        >
+                          <Eye className="h-3 w-3" />
+                          <span>Ver</span>
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))
@@ -373,6 +469,27 @@ export function EmailLogsPanel({
                 <pre className="whitespace-pre-wrap rounded-xl border border-border bg-muted/30 p-3 font-mono text-[11px] text-muted-foreground">
                   {JSON.stringify(selectedLog.metadata, null, 2)}
                 </pre>
+              </div>
+            )}
+
+            {selectedLog.canResend && (
+              <div className="pt-3 border-t border-border flex flex-wrap items-center gap-2">
+                <input
+                  type="email"
+                  value={overrideEmail}
+                  onChange={(e) => setOverrideEmail(e.target.value)}
+                  placeholder="Destinatário para reenvio"
+                  className="flex-1 min-w-52 h-9 px-3 rounded-lg border border-border bg-background text-xs text-foreground focus:outline-hidden focus:ring-2 focus:ring-ring"
+                />
+                <button
+                  type="button"
+                  disabled={resendingId === selectedLog.id}
+                  onClick={() => void handleResend(selectedLog, overrideEmail)}
+                  className="inline-flex items-center gap-1.5 h-9 px-3.5 rounded-lg bg-primary text-primary-foreground text-xs font-semibold hover:bg-primary/90 disabled:opacity-50 transition cursor-pointer"
+                >
+                  <RotateCw className={cn('h-3.5 w-3.5', resendingId === selectedLog.id && 'animate-spin')} />
+                  <span>{resendingId === selectedLog.id ? 'Reenviando...' : 'Reenviar E-mail'}</span>
+                </button>
               </div>
             )}
           </div>

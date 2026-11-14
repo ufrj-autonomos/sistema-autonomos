@@ -229,14 +229,14 @@ export function findConsecutiveMissPairsToWarn(params: {
   return candidates;
 }
 
-function formatWeekPeriodLabel(mondayKey: string): string {
+export function formatWeekPeriodLabel(mondayKey: string): string {
   const wr = weekRange(mondayKey);
   const startBr = mondayKey.split('-').reverse().join('/');
   const sundayBr = wr.sunday.split('-').reverse().join('/');
   return `Semana ${startBr} a ${sundayBr}`;
 }
 
-function formatMonthPeriodLabel(monthKey: string): string {
+export function formatMonthPeriodLabel(monthKey: string): string {
   const [y, m] = monthKey.split('-').map(Number);
   const months = [
     'Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',
@@ -281,6 +281,18 @@ export async function runAttendanceAlertsAndAutoPunishments(
       autoExpulsionsTriggered: 0,
       skippedReason: 'AttendanceSettings not initialized.',
     };
+  }
+
+  let effectiveRunWeekly = runWeekly;
+  let effectiveRunMonthly = runMonthly;
+  if (!options.forceWeeklyAlerts && !options.forceMonthlyAlerts) {
+    const labRule = await (prisma as any).emailAutomationRule
+      ?.findUnique?.({ where: { situationKey: 'LAB_HOURS_PENDING' } })
+      .catch(() => null);
+    if (labRule && labRule.enabled === false) {
+      effectiveRunWeekly = false;
+      effectiveRunMonthly = false;
+    }
   }
 
   const vacationKeys = await getVacationWeekKeys();
@@ -348,7 +360,7 @@ export async function runAttendanceAlertsAndAutoPunishments(
     );
 
     // 1) Friday 19:00 alert for Technical areas
-    if (runWeekly && !isMonthly && !vacationSet.has(clock.weekMondayKey)) {
+    if (effectiveRunWeekly && !isMonthly && !vacationSet.has(clock.weekMondayKey)) {
       const logKey = `ALERT_WEEKLY:${clock.weekMondayKey}`;
       if (
         !existingLogs.has(logKey) &&
@@ -380,7 +392,7 @@ export async function runAttendanceAlertsAndAutoPunishments(
     }
 
     // 2) Last business day of month alert for Gestão & Marketing
-    if (runMonthly && isMonthly) {
+    if (effectiveRunMonthly && isMonthly) {
       const logKey = `ALERT_MONTHLY:${clock.monthKey}`;
       if (
         !existingLogs.has(logKey) &&
@@ -472,6 +484,23 @@ export async function runAttendanceAlertsAndAutoPunishments(
         }
       }
     }
+  }
+
+  const totalAlertsSent = weeklyAlertsSent + monthlyAlertsSent;
+  if (totalAlertsSent > 0) {
+    await (prisma as any).emailAutomationRule
+      ?.upsert?.({
+        where: { situationKey: 'LAB_HOURS_PENDING' },
+        update: { lastTriggeredAt: now, lastSentCount: totalAlertsSent },
+        create: {
+          situationKey: 'LAB_HOURS_PENDING',
+          enabled: true,
+          cooldownDays: 6,
+          lastTriggeredAt: now,
+          lastSentCount: totalAlertsSent,
+        },
+      })
+      .catch(() => {});
   }
 
   return {

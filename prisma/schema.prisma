@@ -916,6 +916,7 @@ model EmailDispatchLog {
   member         Member?  @relation(fields: [memberId], references: [id], onDelete: SetNull)
   subject        String
   previewText    String?  @db.Text
+  htmlBody       String?  @db.Text
   status         String   @default("SENT")
   errorMessage   String?
   metadata       Json?
@@ -925,4 +926,14 @@ model EmailDispatchLog {
   @@index([category, createdAt])
   @@index([recipientEmail, createdAt])
   @@index([status, createdAt])
+}
+
+model EmailAutomationRule {
+  situationKey    String    @id
+  enabled         Boolean   @default(false)
+  cooldownDays    Int       @default(7)
+  lastTriggeredAt DateTime? @db.Timestamptz(3)
+  lastSentCount   Int       @default(0)
+  updatedById     String?
+  updatedAt       DateTime  @updatedAt @db.Timestamptz(3)
 }

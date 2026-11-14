@@ -5,11 +5,22 @@ import {
   buildReimbursementEmail,
   buildSecurityCodeEmail,
   buildEmailChangeStatusEmail,
+  buildIncompleteProfileEmail,
+  buildMeetingLowAttendanceEmail,
+  buildDisciplinaryRiskEmail,
+  buildAccessSetupEmail,
+  buildCustomNoticeEmail,
+  buildFallbackResendHtml,
   type DisciplinaryEmailInput,
   type LabHoursAlertEmailInput,
   type ReimbursementEmailInput,
   type SecurityCodePurpose,
   type EmailChangeStatusEmailInput,
+  type IncompleteProfileEmailInput,
+  type MeetingLowAttendanceEmailInput,
+  type DisciplinaryRiskEmailInput,
+  type AccessSetupEmailInput,
+  type CustomNoticeEmailInput,
 } from './email-templates';
 import { recordEmailDispatchLog, type EmailLogCategory } from './email-logs';
 
@@ -86,6 +97,7 @@ async function dispatchEmail(params: {
 
   const logSubject = params.logSubject ?? params.subject;
   const previewText = params.previewText ?? params.text;
+  const storedHtml = params.category === 'AUTH_CODE' ? null : params.html;
   const transport = getTransport();
   if (!transport) {
     console.warn(`[email] SMTP não configurado; e-mail "${logSubject}" não enviado para ${to}.`);
@@ -95,6 +107,7 @@ async function dispatchEmail(params: {
       recipientName: params.recipientName,
       subject: logSubject,
       previewText,
+      htmlBody: storedHtml,
       status: 'SKIPPED',
       errorMessage: 'SMTP não configurado no ambiente.',
       metadata: params.metadata,
@@ -116,6 +129,7 @@ async function dispatchEmail(params: {
       recipientName: params.recipientName,
       subject: logSubject,
       previewText,
+      htmlBody: storedHtml,
       status: 'SENT',
       metadata: params.metadata,
     });
@@ -129,6 +143,7 @@ async function dispatchEmail(params: {
       recipientName: params.recipientName,
       subject: logSubject,
       previewText,
+      htmlBody: storedHtml,
       status: 'FAILED',
       errorMessage: errorMsg,
       metadata: params.metadata,
@@ -390,6 +405,126 @@ export async function sendEmailChangeStatusEmail(
       newEmail: input.newEmail,
       approved: input.approved,
     },
+  });
+}
+
+export async function sendIncompleteProfileEmail(
+  to: string | null | undefined,
+  input: IncompleteProfileEmailInput
+): Promise<DispatchEmailResult> {
+  const built = buildIncompleteProfileEmail(input);
+  return dispatchEmail({
+    to,
+    ...built,
+    category: 'INCOMPLETE_PROFILE',
+    recipientName: input.recipientName,
+    metadata: {
+      situationKey: 'INCOMPLETE_PROFILE',
+      area: input.area ?? null,
+      missingFields: input.missingFields,
+    },
+  });
+}
+
+export async function sendMeetingLowAttendanceEmail(
+  to: string | null | undefined,
+  input: MeetingLowAttendanceEmailInput
+): Promise<DispatchEmailResult> {
+  const built = buildMeetingLowAttendanceEmail(input);
+  return dispatchEmail({
+    to,
+    ...built,
+    category: 'MEETING_LOW_ATTENDANCE',
+    recipientName: input.recipientName,
+    metadata: {
+      situationKey: 'MEETING_LOW_ATTENDANCE',
+      area: input.area,
+      periodCode: input.periodCode,
+      attendancePct: Math.round(input.attendancePct),
+      presences: input.presences,
+      absences: input.absences,
+      totalMeetings: input.totalMeetings,
+    },
+  });
+}
+
+export async function sendDisciplinaryRiskEmail(
+  to: string | null | undefined,
+  input: DisciplinaryRiskEmailInput
+): Promise<DispatchEmailResult> {
+  const built = buildDisciplinaryRiskEmail(input);
+  return dispatchEmail({
+    to,
+    ...built,
+    category: 'DISCIPLINARY_RISK',
+    recipientName: input.recipientName,
+    metadata: {
+      situationKey: 'DISCIPLINARY_AT_RISK',
+      area: input.area,
+      avisosCount: input.avisosCount,
+      directWarningsCount: input.directWarningsCount,
+      totalWarnings: input.totalWarnings,
+      statusLabel: input.statusLabel,
+    },
+  });
+}
+
+export async function sendAccessSetupEmail(
+  to: string | null | undefined,
+  input: AccessSetupEmailInput
+): Promise<DispatchEmailResult> {
+  const built = buildAccessSetupEmail(input);
+  return dispatchEmail({
+    to,
+    ...built,
+    category: 'ACCESS_SETUP',
+    recipientName: input.recipientName,
+    metadata: {
+      situationKey: 'ACCESS_SETUP',
+      area: input.area ?? null,
+    },
+  });
+}
+
+export async function sendCustomNoticeEmail(
+  to: string | null | undefined,
+  input: CustomNoticeEmailInput,
+  metadata?: Record<string, unknown> | null
+): Promise<DispatchEmailResult> {
+  const built = buildCustomNoticeEmail(input);
+  return dispatchEmail({
+    to,
+    ...built,
+    category: 'ANNOUNCEMENT',
+    recipientName: input.recipientName ?? null,
+    metadata: metadata ?? null,
+  });
+}
+
+export async function resendLoggedMessage(params: {
+  to: string;
+  recipientName?: string | null;
+  category: EmailLogCategory;
+  subject: string;
+  text: string;
+  htmlBody?: string | null;
+  metadata?: Record<string, unknown> | null;
+}): Promise<DispatchEmailResult> {
+  const html =
+    params.htmlBody?.trim() ||
+    buildFallbackResendHtml({
+      recipientName: params.recipientName,
+      subject: params.subject,
+      text: params.text,
+    });
+  return dispatchEmail({
+    to: params.to,
+    recipientName: params.recipientName,
+    category: params.category,
+    subject: params.subject,
+    text: params.text,
+    html,
+    metadata: params.metadata ?? null,
   });
 }
 

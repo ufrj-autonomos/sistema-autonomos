@@ -1,6 +1,7 @@
 import { timingSafeEqual } from 'node:crypto';
 import { NextRequest, NextResponse } from 'next/server';
 import { runAttendanceAlertsAndAutoPunishments } from '@/lib/attendance/alerts';
+import { runScheduledEmailAutomations } from '@/lib/email-center';
 import { closeEmailTransport } from '@/lib/email';
 
 export const dynamic = 'force-dynamic';
@@ -25,7 +26,14 @@ export async function GET(req: NextRequest) {
 
   try {
     const result = await runAttendanceAlertsAndAutoPunishments();
-    return NextResponse.json({ ok: true, ...result });
+    if (result.skippedReason) {
+      return NextResponse.json({ ok: true, ...result });
+    }
+    const automations = await runScheduledEmailAutomations().catch((err) => {
+      console.warn('[cron/attendance-alerts] Falha em automações complementares:', err);
+      return { triggeredSituations: [] };
+    });
+    return NextResponse.json({ ok: true, ...result, automations });
   } catch (error) {
     console.error('[cron/attendance-alerts] Erro ao executar rotina de alertas:', error);
     return NextResponse.json({ error: 'Erro interno na rotina de presença.' }, { status: 500 });

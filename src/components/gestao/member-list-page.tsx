@@ -2,7 +2,7 @@ import Link from 'next/link';
 import { Plus } from 'lucide-react';
 import { requirePageUser } from '@/lib/session';
 import { prisma } from '@/lib/prisma';
-import { resolveMemberAreas } from '@/lib/member-fields';
+import { computeMissingProfileFields, resolveMemberAreas } from '@/lib/member-fields';
 import { db } from '@/lib/institutional/db';
 import { memberSummary } from '@/lib/attendance/summary';
 import { getVacationWeekKeys } from '@/lib/attendance/vacations';
@@ -98,23 +98,20 @@ export async function MemberListPage({ mode = 'active' }: { mode?: 'active' | 'a
     } catch { /* Legacy malformed project lists do not prevent reading the roster. */ }
 
     const areas = resolveMemberAreas(record.area, member?.area);
-    const missingProfileFields: string[] = [];
-    if (!isAlumniMode) {
-      if (!record.photo) missingProfileFields.push('Foto');
-      if (!record.bio?.trim()) missingProfileFields.push('Biografia');
-      if (!(record.course?.trim() || member?.course?.trim())) missingProfileFields.push('Curso');
-      if (!member) {
-        missingProfileFields.push('Conta vinculada / Dados internos');
-      } else {
-        if (!member.phone?.trim()) missingProfileFields.push('WhatsApp');
-        if (!member.cpf?.trim()) missingProfileFields.push('CPF');
-        if (!member.dre?.trim()) missingProfileFields.push('DRE');
-        if (!member.birthDate) missingProfileFields.push('Data de nascimento');
-        if (!member.profileCompletedAt && missingProfileFields.length === 0) {
-          missingProfileFields.push('Confirmação inicial do perfil');
-        }
-      }
-    }
+    const missingProfileFields: string[] = isAlumniMode
+      ? []
+      : computeMissingProfileFields({
+          photo: record.photo,
+          bio: record.bio,
+          siteCourse: record.course,
+          hasInternalAccount: Boolean(member),
+          course: member?.course,
+          phone: member?.phone,
+          cpf: member?.cpf,
+          dre: member?.dre,
+          birthDate: member?.birthDate,
+          profileCompletedAt: member?.profileCompletedAt,
+        });
 
     return {
       id: record.id,
