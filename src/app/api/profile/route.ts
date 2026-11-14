@@ -180,7 +180,7 @@ export async function PUT(req: NextRequest) {
       return NextResponse.json({ error: 'Dados inválidos.' }, { status: 400 });
     }
 
-    // Validate required fields for profile completion (phone, course, dre, emergency contact)
+    // Validate ALL required operational registration fields for profile completion
     if (!validatedInternal.phone) {
       return NextResponse.json({ error: 'O telefone / WhatsApp é obrigatório.' }, { status: 400 });
     }
@@ -189,6 +189,18 @@ export async function PUT(req: NextRequest) {
     }
     if (!validatedInternal.dre) {
       return NextResponse.json({ error: 'O DRE é obrigatório.' }, { status: 400 });
+    }
+    if (!validatedInternal.academicPeriod) {
+      return NextResponse.json({ error: 'O período acadêmico é obrigatório.' }, { status: 400 });
+    }
+    if (!normalizeMemberArea(validatedInternal.area)) {
+      return NextResponse.json({ error: 'A área na equipe é obrigatória.' }, { status: 400 });
+    }
+    if (!validatedInternal.cpf) {
+      return NextResponse.json({ error: 'O CPF é obrigatório no cadastro operacional.' }, { status: 400 });
+    }
+    if (!validatedInternal.birthDate) {
+      return NextResponse.json({ error: 'A data de nascimento é obrigatória no cadastro operacional.' }, { status: 400 });
     }
     if (!validatedInternal.emergencyContactName || !validatedInternal.emergencyContactPhone) {
       return NextResponse.json({ error: 'O nome e o telefone do contato de emergência são obrigatórios.' }, { status: 400 });

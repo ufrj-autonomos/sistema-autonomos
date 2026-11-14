@@ -13,6 +13,68 @@ export type FeedbackValidityValue =
   | 'PARCIALMENTE_VALIDA'
   | 'INVALIDA_OU_DUPLICADA';
 export type FeedbackPriorityValue = 'BAIXA' | 'MEDIA' | 'ALTA' | 'CRITICA';
+export type FeedbackTargetTeamValue = 'TECH' | 'MANAGEMENT';
+
+export const FEEDBACK_TARGET_TEAM_META: Record<
+  FeedbackTargetTeamValue,
+  {
+    label: string;
+    shortLabel: string;
+    description: string;
+    tone: 'indigo' | 'amber';
+  }
+> = {
+  TECH: {
+    label: 'Time de Tecnologia',
+    shortLabel: 'Tecnologia',
+    description: 'Bugs, melhorias no sistema interno, site institucional ou ferramentas digitais.',
+    tone: 'indigo',
+  },
+  MANAGEMENT: {
+    label: 'Gestão',
+    shortLabel: 'Gestão',
+    description: 'Operação do laboratório, regras da equipe, pessoas, compras ou organização interna.',
+    tone: 'amber',
+  },
+};
+
+export function inferDefaultTargetTeam(scope: FeedbackScopeValue): FeedbackTargetTeamValue {
+  return scope === 'SISTEMA' || scope === 'SITE' ? 'TECH' : 'MANAGEMENT';
+}
+
+export function getFeedbackCardBorderClasses(item: {
+  validity: FeedbackValidityValue;
+  category: FeedbackCategoryValue;
+  priority: FeedbackPriorityValue;
+}): string {
+  if (item.validity === 'VALIDA') {
+    const categoryBorderMap: Record<FeedbackCategoryValue, string> = {
+      BUG: 'border-rose-500/75',
+      PROBLEMA_LAB: 'border-amber-500/75',
+      MELHORIA: 'border-sky-500/75',
+      IDEIA: 'border-violet-500/75',
+      PROCESSO: 'border-emerald-500/75',
+    };
+    const priorityBorderMap: Record<FeedbackPriorityValue, string> = {
+      CRITICA:
+        'border-l-[6px] border-l-red-600 dark:border-l-red-500 ring-1 ring-red-500/25 bg-red-500/[0.03]',
+      ALTA: 'border-l-[6px] border-l-orange-500 ring-1 ring-orange-500/20 bg-orange-500/[0.025]',
+      MEDIA: 'border-l-[6px] border-l-sky-500 bg-sky-500/[0.02]',
+      BAIXA: 'border-l-[6px] border-l-slate-400 dark:border-l-slate-500',
+    };
+    return `border-2 ${categoryBorderMap[item.category]} ${priorityBorderMap[item.priority]}`;
+  }
+
+  if (item.validity === 'PARCIALMENTE_VALIDA') {
+    return 'border border-dashed border-amber-500/50 bg-amber-500/[0.015]';
+  }
+
+  if (item.validity === 'INVALIDA_OU_DUPLICADA') {
+    return 'border border-border/70 opacity-75';
+  }
+
+  return 'border border-border';
+}
 
 export const FEEDBACK_SCOPE_META: Record<
   FeedbackScopeValue,
@@ -122,6 +184,7 @@ export interface FeedbackItemDTO {
   code: string;
   scope: FeedbackScopeValue;
   category: FeedbackCategoryValue;
+  targetTeam: FeedbackTargetTeamValue;
   title: string;
   description: string;
   pageOrLocation: string | null;
@@ -155,6 +218,12 @@ export interface FeedbackSummary {
   validAcceptedCount: number;
   appliedCount: number;
   byScope: { scope: FeedbackScopeValue; label: string; count: number; appliedCount: number }[];
+  byTargetTeam?: {
+    targetTeam: FeedbackTargetTeamValue;
+    label: string;
+    count: number;
+    openCount: number;
+  }[];
 }
 
 export interface FeedbackDashboardData {

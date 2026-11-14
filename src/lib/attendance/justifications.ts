@@ -3,6 +3,7 @@ import { hasManagementAccess } from '@/lib/access-policy';
 import { AttendanceError, selectedWeek } from './service';
 import { JUSTIFICATION_REASONS, type JustificationList } from './justification-fields';
 import { dateKey } from './time';
+import { createNotification } from '@/lib/notifications';
 
 function inputObject(input: unknown, fields: string[]) {
   if (!input || typeof input !== 'object' || Array.isArray(input) || Object.keys(input).some(key => !fields.includes(key))) throw new AttendanceError('Dados da solicitação inválidos.');
@@ -40,7 +41,7 @@ export async function submitJustification(memberId: string, input: unknown) {
 }
 export async function reviewJustification(actorId: string, input: unknown) {
   const data = justificationDecision(input);
-  return prisma.$transaction(async tx => {
+  const updated = await prisma.$transaction(async tx => {
     const actor = await tx.member.findUnique({ where: { id: actorId } });
     if (!actor || actor.status !== 'APPROVED' || !hasManagementAccess(actor.role)) throw new AttendanceError('Acesso exclusivo para Gestão e Admin.', 403);
     const request = await tx.attendanceJustification.findUnique({ where: { id: data.id } });
@@ -52,6 +53,23 @@ export async function reviewJustification(actorId: string, input: unknown) {
     if (current.status !== 'PENDING') throw new AttendanceError('Esta solicitação já foi analisada. Atualize a lista.', 409);
     return tx.attendanceJustification.update({ where: { id: current.id }, data: { status: data.status, reviewNote: data.reviewNote, reviewedById: actorId, reviewerName: actor.name, reviewedAt: new Date() } });
   }, { timeout: 15000, maxWait: 10000 });
+
+  await createNotification({
+    recipientId: updated.memberId,
+    category: 'ATTENDANCE_JUSTIFICATION',
+    title:
+      updated.status === 'APPROVED'
+        ? 'Justificativa de presença aprovada'
+        : 'Justificativa de presença recusada',
+    message: updated.reviewNote
+      ? `Semana de ${dateKey(updated.weekStartsOn)} — Observação: ${updated.reviewNote}`
+      : `Sua justificativa para a semana de ${dateKey(updated.weekStartsOn)} foi ${updated.status === 'APPROVED' ? 'aprovada' : 'recusada'}.`,
+    link: '/presenca',
+    actorName: updated.reviewerName ?? 'Gestão',
+    metadata: { justificationId: updated.id, status: updated.status },
+  });
+
+  return updated;
 }
 export async function listJustifications(params: URLSearchParams, memberId?: string): Promise<JustificationList> {
   const status = params.get('status') || (memberId ? 'ALL' : 'PENDING');

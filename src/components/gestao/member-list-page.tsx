@@ -101,15 +101,16 @@ export async function MemberListPage({ mode = 'active' }: { mode?: 'active' | 'a
     const missingProfileFields: string[] = isAlumniMode
       ? []
       : computeMissingProfileFields({
-          photo: record.photo,
-          bio: record.bio,
-          siteCourse: record.course,
           hasInternalAccount: Boolean(member),
+          area: areas.internal,
           course: member?.course,
+          academicPeriod: member?.academicPeriod,
           phone: member?.phone,
           cpf: member?.cpf,
           dre: member?.dre,
           birthDate: member?.birthDate,
+          emergencyContactName: member?.emergencyContactName,
+          emergencyContactPhone: member?.emergencyContactPhone,
           profileCompletedAt: member?.profileCompletedAt,
         });
 

@@ -8,6 +8,7 @@ import { db as institutionalDb } from '@/lib/institutional/db';
 import { translateMemberFieldsPtToEnFr } from '@/lib/translation';
 import { calculateAgeFromBirthDate } from '@/lib/birthdays';
 import { publishInstitutionalSite } from '@/lib/institutional/publish';
+import { createNotification } from '@/lib/notifications';
 
 export async function GET(req: NextRequest) {
   return traceApi(req, "GET /api/admin/profile-changes", async () => {
@@ -101,6 +102,16 @@ export async function POST(req: NextRequest) {
             reviewNote: cleanNotes,
           },
         });
+        await createNotification({
+          recipientId: pending.memberId,
+          category: 'PROFILE_OR_EMAIL_CHANGE',
+          title: 'Alteração de perfil no site recusada',
+          message: cleanNotes
+            ? `Sua solicitação de alteração no perfil público foi recusada. Motivo: ${cleanNotes}`
+            : 'Sua solicitação de alteração no perfil público foi recusada pela Gestão.',
+          link: '/perfil',
+          actorName: access.user.name,
+        });
         return NextResponse.json({
           success: true,
           status: 'REJECTED',
@@ -162,6 +173,17 @@ export async function POST(req: NextRequest) {
       });
 
       const warning = await publishInstitutionalSite();
+
+      await createNotification({
+        recipientId: pending.memberId,
+        category: 'PROFILE_OR_EMAIL_CHANGE',
+        title: 'Perfil no site aprovado e publicado',
+        message: cleanNotes
+          ? `Suas alterações no perfil do site foram aprovadas. Observação: ${cleanNotes}`
+          : 'Suas alterações no perfil público foram aprovadas e publicadas no site institucional.',
+        link: '/perfil',
+        actorName: access.user.name,
+      });
 
       return NextResponse.json({
         success: true,

@@ -1,7 +1,7 @@
 import { requirePageUser } from '@/lib/session';
 import { prisma } from '@/lib/prisma';
 import { db } from '@/lib/institutional/db';
-import { resolveMemberAreas } from '@/lib/member-fields';
+import { computeMissingProfileFields, resolveMemberAreas } from '@/lib/member-fields';
 import type { PendingProfileChangeDto } from '@/lib/member-directory';
 import { SiteMembersShowcase, type SiteMemberShowcaseRow } from '@/components/gestao/site-members-showcase';
 
@@ -89,20 +89,21 @@ export default async function SiteMembersPage({
       missingSiteFields.push('Redes sociais');
     }
 
-    const missingInternalFields: string[] = [];
-    if (record.active) {
-      if (!member) {
-        missingInternalFields.push('Conta vinculada');
-      } else {
-        if (!member.phone?.trim()) missingInternalFields.push('WhatsApp');
-        if (!member.cpf?.trim()) missingInternalFields.push('CPF');
-        if (!member.dre?.trim()) missingInternalFields.push('DRE');
-        if (!member.birthDate) missingInternalFields.push('Data de nascimento');
-        if (!member.profileCompletedAt && missingInternalFields.length === 0) {
-          missingInternalFields.push('Confirmação inicial');
-        }
-      }
-    }
+    const missingInternalFields: string[] = record.active
+      ? computeMissingProfileFields({
+          hasInternalAccount: Boolean(member),
+          area: areas.internal,
+          course: member?.course,
+          academicPeriod: member?.academicPeriod,
+          phone: member?.phone,
+          cpf: member?.cpf,
+          dre: member?.dre,
+          birthDate: member?.birthDate,
+          emergencyContactName: member?.emergencyContactName,
+          emergencyContactPhone: member?.emergencyContactPhone,
+          profileCompletedAt: member?.profileCompletedAt,
+        })
+      : [];
 
     return {
       id: record.id,

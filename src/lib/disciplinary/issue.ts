@@ -2,6 +2,7 @@ import type { DisciplinaryWarningType } from '@prisma/client';
 import { prisma } from '@/lib/prisma';
 import { db as institutionalDb } from '@/lib/institutional/db';
 import { sendDisciplinaryNotificationEmail, type DispatchEmailResult } from '@/lib/email';
+import { createNotification } from '@/lib/notifications';
 import {
   getMemberDisciplinarySummary,
   type MemberDisciplinarySummary,
@@ -138,6 +139,24 @@ export async function issueDisciplinaryOccurrence(
     status: summary.status,
     statusLabel: summary.statusLabel,
     wasAutoExpelled: expelled,
+  });
+
+  await createNotification({
+    recipientId: member.id,
+    category: 'DISCIPLINARY',
+    title: isDirectExpulsion
+      ? 'Desligamento disciplinar registrado'
+      : warningType === 'ADVERTENCIA_DIRETA'
+        ? 'Advertência disciplinar registrada'
+        : 'Novo aviso disciplinar registrado',
+    message: `${trimmedReason}. Acumulado: ${summary.totalWarnings} advertência(s) (${summary.avisosCount} aviso(s)).`,
+    link: '/',
+    actorName: warning.issuedBy?.name ?? 'Gestão / Diretoria',
+    metadata: {
+      warningId: warning.id,
+      type: input.type,
+      expelled,
+    },
   });
 
   return {

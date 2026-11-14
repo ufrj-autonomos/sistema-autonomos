@@ -69,6 +69,9 @@ test('buildLabHoursAlertEmail builds alerting email for both weekly and monthly 
   assert.match(weekly.subject, /Alerta de Horas Pendentes/);
   assert.match(weekly.html, /1h 30m/);
   assert.match(weekly.html, /passível de receber um/i);
+  assert.match(weekly.html, /Justificar Falta \/ Recorrer/);
+  assert.match(weekly.html, /\/presenca#justificativas/);
+  assert.match(weekly.text, /justificar falta ou recorrer/i);
 
   const monthly = buildLabHoursAlertEmail({
     recipientName: 'Beatriz',
@@ -173,34 +176,43 @@ test('buildMeetingLowAttendanceEmail, buildDisciplinaryRiskEmail, buildAccessSet
   assert.match(custom.html, /Confirmar Presença/);
 });
 
-test('computeMissingProfileFields accurately detects pending fields and initial confirmation', () => {
+test('computeMissingProfileFields accurately detects pending operational fields and initial confirmation', () => {
   assert.deepEqual(
     computeMissingProfileFields({
-      photo: null,
-      bio: '',
-      siteCourse: null,
       hasInternalAccount: true,
+      area: 'Software',
       course: 'Engenharia',
+      academicPeriod: '',
       phone: '',
       cpf: '',
       dre: '123456',
       birthDate: null,
+      emergencyContactName: '',
+      emergencyContactPhone: null,
       profileCompletedAt: null,
     }),
-    ['Foto', 'Biografia', 'WhatsApp', 'CPF', 'Data de nascimento']
+    [
+      'WhatsApp',
+      'Período acadêmico',
+      'CPF',
+      'Data de nascimento',
+      'Contato de emergência (nome)',
+      'Contato de emergência (telefone)',
+    ]
   );
 
   assert.deepEqual(
     computeMissingProfileFields({
-      photo: 'https://img.example/a.jpg',
-      bio: 'Bio ok',
-      siteCourse: 'Engenharia',
       hasInternalAccount: true,
+      area: 'Software',
       course: 'Engenharia',
+      academicPeriod: '5º período',
       phone: '21999999999',
       cpf: '11122233344',
       dre: '123456',
       birthDate: new Date('2002-01-01'),
+      emergencyContactName: 'Responsável',
+      emergencyContactPhone: '21988888888',
       profileCompletedAt: null,
     }),
     ['Confirmação inicial do perfil']
@@ -208,15 +220,16 @@ test('computeMissingProfileFields accurately detects pending fields and initial 
 
   assert.deepEqual(
     computeMissingProfileFields({
-      photo: 'https://img.example/a.jpg',
-      bio: 'Bio ok',
-      siteCourse: 'Engenharia',
       hasInternalAccount: true,
+      area: 'Gestão',
       course: 'Engenharia',
+      academicPeriod: '5º período',
       phone: '21999999999',
       cpf: '11122233344',
       dre: '123456',
       birthDate: new Date('2002-01-01'),
+      emergencyContactName: 'Responsável',
+      emergencyContactPhone: '21988888888',
       profileCompletedAt: new Date(),
     }),
     []

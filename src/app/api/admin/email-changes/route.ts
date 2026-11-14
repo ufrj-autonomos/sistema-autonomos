@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { traceApi } from '@/lib/activity/server';
 import { sendEmailChangeStatusEmail } from '@/lib/email';
+import { createNotification } from '@/lib/notifications';
 import { prisma } from '@/lib/prisma';
 import { authorizeApi } from '@/lib/session';
 
@@ -95,6 +96,7 @@ export async function POST(req: NextRequest) {
         | {
             ok: true;
             approved: boolean;
+            memberId: string;
             memberName: string;
             previousEmail: string;
             newEmail: string;
@@ -146,6 +148,7 @@ export async function POST(req: NextRequest) {
           return {
             ok: true,
             approved: false,
+            memberId: pending.memberId,
             memberName: pending.member.name,
             previousEmail: pending.currentEmail || pending.member.email || '',
             newEmail: pending.newEmail,
@@ -185,6 +188,7 @@ export async function POST(req: NextRequest) {
         return {
           ok: true,
           approved: true,
+          memberId: pending.memberId,
           memberName: pending.member.name,
           previousEmail: pending.currentEmail || pending.member.email || '',
           newEmail: pending.newEmail,
@@ -200,6 +204,19 @@ export async function POST(req: NextRequest) {
         newEmail: result.newEmail,
         approved: result.approved,
         reviewNotes: cleanNotes,
+      });
+
+      await createNotification({
+        recipientId: result.memberId,
+        category: 'PROFILE_OR_EMAIL_CHANGE',
+        title: result.approved
+          ? 'Alteração de e-mail aprovada'
+          : 'Alteração de e-mail recusada',
+        message: result.approved
+          ? `Seu e-mail de acesso foi atualizado para ${result.newEmail}.`
+          : `Sua solicitação para ${result.newEmail} foi recusada.${cleanNotes ? ` Motivo: ${cleanNotes}` : ''}`,
+        link: '/perfil',
+        actorName: access.user.name,
       });
 
       return NextResponse.json({

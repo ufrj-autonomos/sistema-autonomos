@@ -3,6 +3,7 @@ import { prisma } from '@/lib/prisma';
 import { resolveMemberAreas } from '@/lib/member-fields';
 import { db as institutionalDb } from '@/lib/institutional/db';
 import { sendLabHoursAlertEmail } from '@/lib/email';
+import { createNotification } from '@/lib/notifications';
 import { issueDisciplinaryOccurrence } from '@/lib/disciplinary/issue';
 import {
   ATTENDANCE_TIME_ZONE,
@@ -386,6 +387,14 @@ export async function runAttendanceAlertsAndAutoPunishments(
               memberId: member.id,
             },
           }).catch(() => {});
+          await createNotification({
+            recipientId: member.id,
+            category: 'ATTENDANCE_ALERT',
+            title: 'Horas semanais no laboratório pendentes',
+            message: `Você completou ${formatDuration(summary.completedSeconds)} de ${formatDuration(summary.requiredSeconds)} (${formatWeekPeriodLabel(clock.weekMondayKey)}). Faltam ${formatDuration(summary.remainingSeconds)}.`,
+            link: '/presenca',
+            metadata: { periodKey: clock.weekMondayKey, mode: 'WEEKLY' },
+          });
           weeklyAlertsSent++;
         }
       }
@@ -418,6 +427,14 @@ export async function runAttendanceAlertsAndAutoPunishments(
               memberId: member.id,
             },
           }).catch(() => {});
+          await createNotification({
+            recipientId: member.id,
+            category: 'ATTENDANCE_ALERT',
+            title: 'Horas mensais no laboratório pendentes',
+            message: `Você completou ${formatDuration(summary.completedSeconds)} de ${formatDuration(summary.requiredSeconds)} (${formatMonthPeriodLabel(clock.monthKey)}). Faltam ${formatDuration(summary.remainingSeconds)}.`,
+            link: '/presenca',
+            metadata: { periodKey: clock.monthKey, mode: 'MONTHLY' },
+          });
           monthlyAlertsSent++;
         }
       }

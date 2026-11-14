@@ -152,6 +152,39 @@ export function EmailCenterClient({
     }
   }
 
+  async function handleUpdateRecurrence(sit: EmailSituationSnapshot, nextDays: number) {
+    const clamped = Math.min(Math.max(Math.round(nextDays || 7), 1), 90);
+    setBusyKey(`recurrence:${sit.key}`);
+    setGlobalBanner(null);
+    try {
+      const res = await fetch('/api/gestao/emails/send', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'toggle_rule',
+          situationKey: sit.key,
+          enabled: sit.automation.enabled,
+          cooldownDays: clamped,
+        }),
+      });
+      const payload = await res.json().catch(() => null);
+      if (!res.ok) {
+        setGlobalBanner({
+          kind: 'err',
+          text: payload?.error || 'Erro ao alterar recorrência dos envios.',
+        });
+        return;
+      }
+      setGlobalBanner({
+        kind: 'ok',
+        text: `Recorrência de "${sit.title}" atualizada para a cada ${clamped} dia(s).`,
+      });
+      await refreshAll(false);
+    } finally {
+      setBusyKey(null);
+    }
+  }
+
   async function handleSendSituation(
     situationKey: EmailSituationKey,
     options: { memberId?: string; memberName?: string; onlyPendingInWindow?: boolean }
@@ -512,9 +545,53 @@ export function EmailCenterClient({
                           <Power className="h-3 w-3" />
                           {sit.automation.enabled ? 'Automático Ativo' : 'Automático Pausado'}
                         </span>
-                        <span className="rounded-full border border-border bg-background px-2.5 py-0.5 text-[11px] font-medium text-muted-foreground">
-                          Cooldown: {sit.automation.cooldownDays}d
-                        </span>
+                        <label className="inline-flex items-center gap-1.5 rounded-full border border-border bg-background px-2.5 py-0.5 text-[11px] font-medium text-foreground">
+                          <span>Recorrência:</span>
+                          <select
+                            aria-label={`Recorrência de ${sit.title}`}
+                            disabled={busyKey === `recurrence:${sit.key}`}
+                            value={
+                              [1, 2, 3, 5, 6, 7, 14, 30].includes(sit.automation.cooldownDays)
+                                ? String(sit.automation.cooldownDays)
+                                : 'CUSTOM'
+                            }
+                            onChange={(e) => {
+                              const val = e.target.value;
+                              if (val === 'CUSTOM') {
+                                const typed = window.prompt(
+                                  `Informe a recorrência em dias (1 a 90) para "${sit.title}":`,
+                                  String(sit.automation.cooldownDays)
+                                );
+                                if (!typed) return;
+                                const parsed = Number(typed);
+                                if (!Number.isFinite(parsed) || parsed < 1 || parsed > 90) {
+                                  setGlobalBanner({
+                                    kind: 'err',
+                                    text: 'Informe um número entre 1 e 90 dias.',
+                                  });
+                                  return;
+                                }
+                                void handleUpdateRecurrence(sit, parsed);
+                              } else {
+                                void handleUpdateRecurrence(sit, Number(val));
+                              }
+                            }}
+                            className="bg-transparent font-semibold text-primary focus:outline-hidden cursor-pointer"
+                          >
+                            <option value="1">A cada 1 dia (diário)</option>
+                            <option value="2">A cada 2 dias</option>
+                            <option value="3">A cada 3 dias</option>
+                            <option value="5">A cada 5 dias</option>
+                            <option value="6">A cada 6 dias</option>
+                            <option value="7">A cada 7 dias (semanal)</option>
+                            <option value="14">A cada 14 dias (quinzenal)</option>
+                            <option value="30">A cada 30 dias (mensal)</option>
+                            {![1, 2, 3, 5, 6, 7, 14, 30].includes(sit.automation.cooldownDays) && (
+                              <option value="CUSTOM">A cada {sit.automation.cooldownDays} dias (personalizado)</option>
+                            )}
+                            <option value="CUSTOM">Personalizar dias…</option>
+                          </select>
+                        </label>
                         <span className="rounded-full border border-border bg-background px-2.5 py-0.5 text-[11px] font-semibold text-foreground">
                           {sit.totalCount} pessoa(s) nesta situação ({sit.emailableCount} com e-mail)
                         </span>
@@ -702,7 +779,7 @@ export function EmailCenterClient({
                   rows={4}
                   value={aiPrompt}
                   onChange={(e) => setAiPrompt(e.target.value)}
-                  placeholder="Ex.: Avise aos integrantes com perfil incompleto que precisam preencher CPF, DRE, foto e biografia até quarta-feira às 20h, pois só se tornam membros oficiais após concluir o perfil."
+                  placeholder="Ex.: Avise aos integrantes com perfil incompleto que precisam preencher CPF, DRE, período acadêmico, WhatsApp e contato de emergência até quarta-feira às 20h."
                   className="w-full rounded-xl border border-border bg-background p-3 text-xs text-foreground focus:outline-hidden focus:ring-2 focus:ring-ring"
                 />
               </div>

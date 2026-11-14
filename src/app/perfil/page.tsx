@@ -399,9 +399,10 @@ function ProfileFormContent() {
             </label>
 
             <label className="block text-sm font-medium text-foreground">
-              Período Acadêmico
+              Período Acadêmico <span className="text-amber-700 dark:text-amber-400">*</span>
               <input
                 type="text"
+                required
                 value={academicPeriod}
                 onChange={(e) => setAcademicPeriod(e.target.value)}
                 placeholder="Ex.: 5º período"
@@ -410,7 +411,7 @@ function ProfileFormContent() {
             </label>
 
             <label className="block text-sm font-medium text-foreground">
-              Área na Equipe
+              Área na Equipe <span className="text-amber-700 dark:text-amber-400">*</span>
               <select
                 value={area}
                 required
@@ -437,10 +438,11 @@ function ProfileFormContent() {
             </label>
 
             <label className="block text-sm font-medium text-foreground">
-              CPF
+              CPF <span className="text-amber-700 dark:text-amber-400">*</span>
               <input
                 type="text"
                 inputMode="numeric"
+                required
                 value={cpf}
                 onChange={(e) => setCpf(e.target.value)}
                 placeholder="000.000.000-00"
@@ -449,13 +451,17 @@ function ProfileFormContent() {
             </label>
 
             <label className="block text-sm font-medium text-foreground">
-              Data de Nascimento (opcional — calcula idade no site)
+              Data de Nascimento <span className="text-amber-700 dark:text-amber-400">*</span>
               <input
                 type="date"
+                required
                 value={birthDate}
                 onChange={(e) => setBirthDate(e.target.value)}
                 className={inputClass}
               />
+              <span className="mt-1 block text-[11px] font-normal text-muted-foreground">
+                Privada da equipe — usada para seguro/cadastro e para calcular sua idade no site.
+              </span>
             </label>
           </div>
 

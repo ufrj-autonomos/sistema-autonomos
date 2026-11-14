@@ -1,6 +1,7 @@
 import { prisma } from '@/lib/prisma';
 import { hasManagementAccess } from '@/lib/access-policy';
 import { sendReimbursementStatusEmail } from '@/lib/email';
+import { createNotification } from '@/lib/notifications';
 import type { SafeUser } from '@/lib/session';
 import {
   FINANCE_CATEGORIES,
@@ -490,23 +491,38 @@ async function notifyReimbursementChange(
   if (!row.isReimbursement) return;
 
   let toEmail = row.requester?.email ?? null;
+  let recipientId = row.requesterId ?? null;
   const recipientName = row.requester?.name || row.requesterName;
 
-  if (!toEmail && row.requesterName) {
+  if ((!toEmail || !recipientId) && row.requesterName) {
     const fallback = await prisma.member.findFirst({
       where: {
         name: { equals: row.requesterName, mode: 'insensitive' },
-        email: { not: null },
       },
-      select: { email: true },
+      select: { id: true, email: true },
     });
-    toEmail = fallback?.email ?? null;
+    if (!toEmail) toEmail = fallback?.email ?? null;
+    if (!recipientId) recipientId = fallback?.id ?? null;
   }
-
-  if (!toEmail) return;
 
   const statusValue = row.status as FinancialEntryStatusValue;
   const statusLabel = FINANCIAL_STATUS_META[statusValue]?.label || row.status;
+
+  if (recipientId) {
+    await createNotification({
+      recipientId,
+      category: 'REIMBURSEMENT',
+      title:
+        event === 'CREATED'
+          ? `Reembolso ${row.code} registrado`
+          : `Reembolso ${row.code}: ${statusLabel}`,
+      message: `${row.title} (${formatBRL(row.amountCents)})${row.reviewNotes ? ` — ${row.reviewNotes}` : ''}`,
+      link: '/reembolsos',
+      metadata: { entryId: row.id, code: row.code, status: row.status, event },
+    });
+  }
+
+  if (!toEmail) return;
 
   await sendReimbursementStatusEmail(toEmail, {
     recipientName,

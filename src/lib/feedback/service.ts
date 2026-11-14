@@ -1,12 +1,15 @@
 import { prisma } from '@/lib/prisma';
 import { hasManagementAccess } from '@/lib/access-policy';
 import type { SafeUser } from '@/lib/session';
+import { createNotification, notifyManagementMembers } from '@/lib/notifications';
 import {
   FEEDBACK_CATEGORY_META,
   FEEDBACK_PRIORITY_META,
   FEEDBACK_SCOPE_META,
   FEEDBACK_STATUS_META,
+  FEEDBACK_TARGET_TEAM_META,
   FEEDBACK_VALIDITY_META,
+  inferDefaultTargetTeam,
   type FeedbackCategoryValue,
   type FeedbackDashboardData,
   type FeedbackItemDTO,
@@ -14,6 +17,7 @@ import {
   type FeedbackScopeValue,
   type FeedbackStatusValue,
   type FeedbackSummary,
+  type FeedbackTargetTeamValue,
   type FeedbackValidityValue,
 } from './constants';
 
@@ -30,7 +34,9 @@ export class FeedbackServiceError extends Error {
 
 export function computeFeedbackSummary(
   items: Array<
-    Pick<FeedbackItemDTO, 'scope' | 'category' | 'status' | 'validity'>
+    Pick<FeedbackItemDTO, 'scope' | 'category' | 'status' | 'validity'> & {
+      targetTeam?: FeedbackTargetTeamValue;
+    }
   >
 ): FeedbackSummary {
   let pendingTriageCount = 0;
@@ -47,6 +53,14 @@ export function computeFeedbackSummary(
       { count: 0, appliedCount: 0 },
     ])
   );
+
+  const teamStats = new Map<
+    FeedbackTargetTeamValue,
+    { count: number; openCount: number }
+  >([
+    ['TECH', { count: 0, openCount: 0 }],
+    ['MANAGEMENT', { count: 0, openCount: 0 }],
+  ]);
 
   for (const item of items) {
     if (item.status === 'RECEBIDA' || item.validity === 'PENDENTE') {
@@ -75,6 +89,15 @@ export function computeFeedbackSummary(
       bucket.count += 1;
       if (item.status === 'APLICADA') bucket.appliedCount += 1;
     }
+
+    const resolvedTeam = item.targetTeam ?? inferDefaultTargetTeam(item.scope);
+    const tBucket = teamStats.get(resolvedTeam);
+    if (tBucket) {
+      tBucket.count += 1;
+      if (item.status !== 'APLICADA' && item.status !== 'ARQUIVADA') {
+        tBucket.openCount += 1;
+      }
+    }
   }
 
   return {
@@ -94,6 +117,17 @@ export function computeFeedbackSummary(
         };
       }
     ),
+    byTargetTeam: (['TECH', 'MANAGEMENT'] as FeedbackTargetTeamValue[]).map(
+      targetTeam => {
+        const stats = teamStats.get(targetTeam)!;
+        return {
+          targetTeam,
+          label: FEEDBACK_TARGET_TEAM_META[targetTeam].label,
+          count: stats.count,
+          openCount: stats.openCount,
+        };
+      }
+    ),
   };
 }
 
@@ -103,6 +137,7 @@ function serializeFeedbackItem(
     code: string;
     scope: string;
     category: string;
+    targetTeam: string;
     title: string;
     description: string;
     pageOrLocation: string | null;
@@ -141,6 +176,7 @@ function serializeFeedbackItem(
     code: row.code,
     scope: row.scope as FeedbackScopeValue,
     category: row.category as FeedbackCategoryValue,
+    targetTeam: (row.targetTeam || inferDefaultTargetTeam(row.scope as FeedbackScopeValue)) as FeedbackTargetTeamValue,
     title: row.title,
     description: row.description,
     pageOrLocation: row.pageOrLocation,
@@ -218,6 +254,7 @@ async function generateNextFeedbackCode(): Promise<string> {
 export interface FeedbackCreateInput {
   scope?: FeedbackScopeValue;
   category?: FeedbackCategoryValue;
+  targetTeam?: FeedbackTargetTeamValue;
   title?: string;
   description?: string;
   pageOrLocation?: string | null;
@@ -239,6 +276,11 @@ export async function createFeedbackItem(actor: SafeUser, input: FeedbackCreateI
     throw new FeedbackServiceError('Tipo de reporte inválido.');
   }
 
+  const targetTeam = (input.targetTeam || inferDefaultTargetTeam(scope)) as FeedbackTargetTeamValue;
+  if (!(targetTeam in FEEDBACK_TARGET_TEAM_META)) {
+    throw new FeedbackServiceError('Equipe responsável inválida. Escolha Tecnologia ou Gestão.');
+  }
+
   const title = (input.title || '').trim();
   const description = (input.description || '').trim();
   if (!title || title.length < 3) {
@@ -254,6 +296,7 @@ export async function createFeedbackItem(actor: SafeUser, input: FeedbackCreateI
       code,
       scope,
       category,
+      targetTeam,
       title,
       description,
       pageOrLocation: input.pageOrLocation?.trim() || null,
@@ -275,6 +318,16 @@ export async function createFeedbackItem(actor: SafeUser, input: FeedbackCreateI
       reviewedBy: { select: { name: true } },
       votes: { select: { memberId: true } },
     },
+  });
+
+  await notifyManagementMembers({
+    category: 'FEEDBACK_NEW',
+    title: `${code} · ${FEEDBACK_CATEGORY_META[category].shortLabel} (${FEEDBACK_TARGET_TEAM_META[targetTeam].shortLabel})`,
+    message: `${title} — enviado por ${created.isAnonymous ? 'Integrante anônimo' : actor.name}.`,
+    link: '/gestao/melhorias',
+    actorName: created.isAnonymous ? 'Integrante anônimo' : actor.name,
+    excludeMemberId: actor.id,
+    metadata: { feedbackId: created.id, code, targetTeam, category, scope },
   });
 
   return serializeFeedbackItem(created, actor.id);
@@ -314,6 +367,7 @@ export interface FeedbackReviewInput {
   status?: FeedbackStatusValue;
   validity?: FeedbackValidityValue;
   priority?: FeedbackPriorityValue;
+  targetTeam?: FeedbackTargetTeamValue;
   assignedArea?: string | null;
   assignedToId?: string | null;
   responseNotes?: string | null;
@@ -357,6 +411,13 @@ export async function reviewFeedbackItem(
     throw new FeedbackServiceError('Prioridade inválida.');
   }
 
+  const nextTargetTeam = (input.targetTeam ||
+    existing.targetTeam ||
+    inferDefaultTargetTeam(existing.scope as FeedbackScopeValue)) as FeedbackTargetTeamValue;
+  if (!(nextTargetTeam in FEEDBACK_TARGET_TEAM_META)) {
+    throw new FeedbackServiceError('Equipe responsável inválida.');
+  }
+
   let nextAppliedAt = existing.appliedAt;
   if (nextStatus === 'APLICADA' && !existing.appliedAt) {
     nextAppliedAt = new Date();
@@ -364,12 +425,18 @@ export async function reviewFeedbackItem(
     nextAppliedAt = null;
   }
 
+  const nextResponseNotes =
+    input.responseNotes !== undefined
+      ? input.responseNotes?.trim() || null
+      : existing.responseNotes;
+
   const updated = await prisma.feedbackItem.update({
     where: { id },
     data: {
       status: nextStatus,
       validity: nextValidity,
       priority: nextPriority,
+      targetTeam: nextTargetTeam,
       assignedArea:
         input.assignedArea !== undefined
           ? input.assignedArea?.trim() || null
@@ -378,10 +445,7 @@ export async function reviewFeedbackItem(
         input.assignedToId !== undefined
           ? input.assignedToId?.trim() || null
           : existing.assignedToId,
-      responseNotes:
-        input.responseNotes !== undefined
-          ? input.responseNotes?.trim() || null
-          : existing.responseNotes,
+      responseNotes: nextResponseNotes,
       appliedAt: nextAppliedAt,
       reviewedById: actor.id,
       reviewedAt: new Date(),
@@ -392,6 +456,47 @@ export async function reviewFeedbackItem(
       votes: { select: { memberId: true } },
     },
   });
+
+  if (existing.authorId) {
+    const replyChanged =
+      input.responseNotes !== undefined &&
+      Boolean(nextResponseNotes) &&
+      nextResponseNotes !== existing.responseNotes;
+    const triageChanged =
+      nextStatus !== existing.status ||
+      nextValidity !== existing.validity ||
+      nextPriority !== existing.priority ||
+      nextTargetTeam !== existing.targetTeam;
+
+    if (replyChanged && nextResponseNotes) {
+      await createNotification({
+        recipientId: existing.authorId,
+        category: 'FEEDBACK_REPLY',
+        title: `Nova resposta em ${updated.code}: ${updated.title}`,
+        message: nextResponseNotes,
+        link: '/melhorias',
+        actorName: actor.name,
+        metadata: { feedbackId: updated.id, code: updated.code },
+      });
+    } else if (triageChanged) {
+      await createNotification({
+        recipientId: existing.authorId,
+        category: 'FEEDBACK_TRIAGE',
+        title: `Avaliação atualizada em ${updated.code}`,
+        message: `${updated.title} · Validade: ${FEEDBACK_VALIDITY_META[nextValidity].shortLabel} · Status: ${FEEDBACK_STATUS_META[nextStatus].shortLabel} · Responsável: ${FEEDBACK_TARGET_TEAM_META[nextTargetTeam].shortLabel}.`,
+        link: '/melhorias',
+        actorName: actor.name,
+        metadata: {
+          feedbackId: updated.id,
+          code: updated.code,
+          validity: nextValidity,
+          status: nextStatus,
+          priority: nextPriority,
+          targetTeam: nextTargetTeam,
+        },
+      });
+    }
+  }
 
   return serializeFeedbackItem(updated, actor.id);
 }

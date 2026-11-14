@@ -90,6 +90,8 @@ function wrapAutonomosShell(params: {
   bodyHtml: string;
   ctaLabel?: string;
   ctaUrl?: string;
+  secondaryCtaLabel?: string;
+  secondaryCtaUrl?: string;
 }): string {
   const t = ACCENT_TOKENS[params.accent];
   return `<!DOCTYPE html>
@@ -131,9 +133,15 @@ function wrapAutonomosShell(params: {
               ${
                 params.ctaLabel && params.ctaUrl
                   ? `<div style="margin-top:24px;text-align:center;">
-                      <a href="${escapeEmailHtml(params.ctaUrl)}" style="display:inline-block;padding:12px 24px;border-radius:10px;background-color:${t.ctaBg};color:#ffffff;font-size:14px;font-weight:700;text-decoration:none;letter-spacing:0.01em;">
+                      <a href="${escapeEmailHtml(params.ctaUrl)}" style="display:inline-block;padding:12px 24px;border-radius:10px;background-color:${t.ctaBg};color:#ffffff;font-size:14px;font-weight:700;text-decoration:none;letter-spacing:0.01em;margin:4px;">
                         ${escapeEmailHtml(params.ctaLabel)}
-                      </a>
+                      </a>${
+                        params.secondaryCtaLabel && params.secondaryCtaUrl
+                          ? `<a href="${escapeEmailHtml(params.secondaryCtaUrl)}" style="display:inline-block;padding:11px 20px;border-radius:10px;background-color:#111c33;border:1px solid #334155;color:#e2e8f0;font-size:14px;font-weight:700;text-decoration:none;letter-spacing:0.01em;margin:4px;">
+                              ${escapeEmailHtml(params.secondaryCtaLabel)}
+                            </a>`
+                          : ''
+                      }
                     </div>`
                   : ''
               }
@@ -348,9 +356,14 @@ export function buildLabHoursAlertEmail(input: LabHoursAlertEmailInput): BuiltEm
       </p>
     </div>
 
-    <div style="background-color:#271a08;border-left:4px solid #f59e0b;border-radius:10px;padding:14px 16px;font-size:13px;color:#fde68a;">
+    <div style="background-color:#271a08;border-left:4px solid #f59e0b;border-radius:10px;padding:14px 16px;font-size:13px;color:#fde68a;margin-bottom:14px;">
       <strong style="color:#fcd34d;">Atenção:</strong><br />
-      A falta de presença no laboratório é passível de receber um <strong style="color:#ffffff;">aviso disciplinar</strong>. Caso haja algum imprevisto, registre sua justificativa no sistema ou alinhe com a Gestão antes do fechamento.
+      A falta de presença no laboratório é passível de receber um <strong style="color:#ffffff;">aviso disciplinar</strong> caso a meta não seja cumprida ou justificada antes do fechamento do período.
+    </div>
+
+    <div style="background-color:#0f172a;border:1px solid #334155;border-radius:10px;padding:14px 16px;font-size:13px;color:#cbd5e1;">
+      <strong style="color:#38bdf8;">Precisa justificar falta ou recorrer?</strong><br />
+      Se você enfrentou algum imprevisto (saúde, prova, viagem, estágio ou compromisso acadêmico) ou acredita haver alguma divergência na contagem, acesse a página de <strong style="color:#ffffff;">Presença</strong> e envie uma <strong style="color:#ffffff;">justificativa/recurso</strong> para análise da Gestão.
     </div>
   `;
 
@@ -362,6 +375,8 @@ export function buildLabHoursAlertEmail(input: LabHoursAlertEmailInput): BuiltEm
     bodyHtml,
     ctaLabel: 'Registrar Presença / Ver Horas',
     ctaUrl: `${baseUrl}/presenca`,
+    secondaryCtaLabel: 'Justificar Falta / Recorrer',
+    secondaryCtaUrl: `${baseUrl}/presenca#justificativas`,
   });
 
   const text = [
@@ -375,7 +390,8 @@ export function buildLabHoursAlertEmail(input: LabHoursAlertEmailInput): BuiltEm
     `- Prazo final: ${input.deadlineText}`,
     '',
     'ATENÇÃO: A falta de presença é passível de receber um aviso disciplinar.',
-    `Acesse: ${baseUrl}/presenca`,
+    `Precisa justificar falta ou recorrer? Envie sua justificativa antes do fechamento em: ${baseUrl}/presenca#justificativas`,
+    `Ver horas no sistema: ${baseUrl}/presenca`,
   ].join('\n');
 
   return { subject, html, text };
@@ -731,7 +747,7 @@ export function buildIncompleteProfileEmail(input: IncompleteProfileEmailInput):
         Regra de Oficialização
       </div>
       <div style="font-size:14px;line-height:1.55;color:#f8fafc;">
-        Você só passa a ser considerado(a) <strong>membro oficial</strong> da equipe após preencher e salvar todos os dados obrigatórios do seu perfil (dados internos, contato de emergência, foto e biografia para o site).
+        Você só passa a ser considerado(a) <strong>membro oficial</strong> da equipe após preencher e salvar todos os campos obrigatórios do cadastro operacional (WhatsApp, curso, DRE, período acadêmico, área, CPF, data de nascimento e contato de emergência completo).
       </div>
     </div>
 
@@ -837,6 +853,8 @@ export function buildMeetingLowAttendanceEmail(input: MeetingLowAttendanceEmailI
     bodyHtml,
     ctaLabel: 'Consultar Histórico de Reuniões',
     ctaUrl: `${baseUrl}/reunioes`,
+    secondaryCtaLabel: 'Justificar / Recorrer Presença',
+    secondaryCtaUrl: `${baseUrl}/presenca#justificativas`,
   });
 
   const text = [

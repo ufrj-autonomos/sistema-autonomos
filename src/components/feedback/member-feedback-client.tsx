@@ -26,13 +26,18 @@ import {
 import { toast } from 'sonner';
 import {
   FEEDBACK_CATEGORY_META,
+  FEEDBACK_PRIORITY_META,
   FEEDBACK_SCOPE_META,
   FEEDBACK_STATUS_META,
+  FEEDBACK_TARGET_TEAM_META,
   FEEDBACK_VALIDITY_META,
+  getFeedbackCardBorderClasses,
+  inferDefaultTargetTeam,
   type FeedbackCategoryValue,
   type FeedbackDashboardData,
   type FeedbackItemDTO,
   type FeedbackScopeValue,
+  type FeedbackTargetTeamValue,
 } from '@/lib/feedback/constants';
 import { cn } from '@/lib/utils';
 
@@ -64,12 +69,14 @@ export function MemberFeedbackClient({
   const [tab, setTab] = useState<'board' | 'mine' | 'applied'>('board');
   const [scopeFilter, setScopeFilter] = useState<'ALL' | FeedbackScopeValue>('ALL');
   const [categoryFilter, setCategoryFilter] = useState<'ALL' | FeedbackCategoryValue>('ALL');
+  const [targetTeamFilter, setTargetTeamFilter] = useState<'ALL' | FeedbackTargetTeamValue>('ALL');
   const [search, setSearch] = useState('');
 
   // Form state
   const [formOpen, setFormOpen] = useState(true);
   const [scope, setScope] = useState<FeedbackScopeValue>('SISTEMA');
   const [category, setCategory] = useState<FeedbackCategoryValue>('IDEIA');
+  const [targetTeam, setTargetTeam] = useState<FeedbackTargetTeamValue>('TECH');
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [pageOrLocation, setPageOrLocation] = useState('');
@@ -126,6 +133,7 @@ export function MemberFeedbackClient({
         body: JSON.stringify({
           scope,
           category,
+          targetTeam,
           title: title.trim(),
           description: description.trim(),
           pageOrLocation: pageOrLocation.trim() || null,
@@ -204,13 +212,14 @@ export function MemberFeedbackClient({
     return source.filter(item => {
       if (scopeFilter !== 'ALL' && item.scope !== scopeFilter) return false;
       if (categoryFilter !== 'ALL' && item.category !== categoryFilter) return false;
+      if (targetTeamFilter !== 'ALL' && item.targetTeam !== targetTeamFilter) return false;
       if (q) {
         const hay = `${item.code} ${item.title} ${item.description} ${item.pageOrLocation || ''} ${item.responseNotes || ''}`.toLocaleLowerCase('pt-BR');
         if (!hay.includes(q)) return false;
       }
       return true;
     });
-  }, [data.items, myItems, appliedItems, tab, scopeFilter, categoryFilter, search]);
+  }, [data.items, myItems, appliedItems, tab, scopeFilter, categoryFilter, targetTeamFilter, search]);
 
   const showReproFields = category === 'BUG' || category === 'PROBLEMA_LAB';
 
@@ -337,7 +346,10 @@ export function MemberFeedbackClient({
                   <button
                     key={sc}
                     type="button"
-                    onClick={() => setScope(sc)}
+                    onClick={() => {
+                      setScope(sc);
+                      setTargetTeam(inferDefaultTargetTeam(sc));
+                    }}
                     className={cn(
                       'rounded-xl border p-3 text-left transition-all cursor-pointer',
                       active
@@ -358,34 +370,66 @@ export function MemberFeedbackClient({
             </div>
           </div>
 
-          {/* Tipo */}
-          <div className="space-y-2">
-            <label className="block text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-              2. Tipo de registro
-            </label>
-            <div className="flex flex-wrap gap-2">
-              {(Object.keys(FEEDBACK_CATEGORY_META) as FeedbackCategoryValue[]).map(cat => {
-                const meta = FEEDBACK_CATEGORY_META[cat];
-                const active = category === cat;
-                return (
-                  <button
-                    key={cat}
-                    type="button"
-                    onClick={() => setCategory(cat)}
-                    className={cn(
-                      'min-h-9 rounded-lg border px-3 text-xs font-semibold transition-colors cursor-pointer inline-flex items-center gap-1.5',
-                      active
-                        ? 'border-primary bg-primary text-primary-foreground'
-                        : 'border-border bg-background text-muted-foreground hover:text-foreground'
-                    )}
-                  >
-                    {cat === 'BUG' && <Bug className="h-3.5 w-3.5" />}
-                    {cat === 'IDEIA' && <Lightbulb className="h-3.5 w-3.5" />}
-                    {cat === 'MELHORIA' && <Rocket className="h-3.5 w-3.5" />}
-                    {meta.label}
-                  </button>
-                );
-              })}
+          {/* Tipo + Time responsável */}
+          <div className="grid gap-4 lg:grid-cols-2">
+            <div className="space-y-2">
+              <label className="block text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                2. Tipo de registro
+              </label>
+              <div className="flex flex-wrap gap-2">
+                {(Object.keys(FEEDBACK_CATEGORY_META) as FeedbackCategoryValue[]).map(cat => {
+                  const meta = FEEDBACK_CATEGORY_META[cat];
+                  const active = category === cat;
+                  return (
+                    <button
+                      key={cat}
+                      type="button"
+                      onClick={() => setCategory(cat)}
+                      className={cn(
+                        'min-h-9 rounded-lg border px-3 text-xs font-semibold transition-colors cursor-pointer inline-flex items-center gap-1.5',
+                        active
+                          ? 'border-primary bg-primary text-primary-foreground'
+                          : 'border-border bg-background text-muted-foreground hover:text-foreground'
+                      )}
+                    >
+                      {cat === 'BUG' && <Bug className="h-3.5 w-3.5" />}
+                      {cat === 'IDEIA' && <Lightbulb className="h-3.5 w-3.5" />}
+                      {cat === 'MELHORIA' && <Rocket className="h-3.5 w-3.5" />}
+                      {meta.label}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <label className="block text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                3. Para qual equipe é este item?
+              </label>
+              <div className="grid gap-2 sm:grid-cols-2">
+                {(['TECH', 'MANAGEMENT'] as FeedbackTargetTeamValue[]).map(teamKey => {
+                  const tMeta = FEEDBACK_TARGET_TEAM_META[teamKey];
+                  const active = targetTeam === teamKey;
+                  return (
+                    <button
+                      key={teamKey}
+                      type="button"
+                      onClick={() => setTargetTeam(teamKey)}
+                      className={cn(
+                        'rounded-lg border p-2.5 text-left transition-all cursor-pointer',
+                        active
+                          ? 'border-primary bg-primary/10 shadow-xs'
+                          : 'border-border bg-background/60 hover:bg-accent/50'
+                      )}
+                    >
+                      <div className="text-xs font-semibold text-foreground">{tMeta.label}</div>
+                      <div className="mt-0.5 text-[11px] text-muted-foreground leading-snug">
+                        {tMeta.description}
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
             </div>
           </div>
 
@@ -570,6 +614,16 @@ export function MemberFeedbackClient({
             </select>
 
             <select
+              value={targetTeamFilter}
+              onChange={e => setTargetTeamFilter(e.target.value as typeof targetTeamFilter)}
+              className="min-h-9 rounded-lg border border-input bg-background px-2.5 text-xs text-foreground"
+            >
+              <option value="ALL">Todas as equipes</option>
+              <option value="TECH">Time de Tecnologia</option>
+              <option value="MANAGEMENT">Gestão</option>
+            </select>
+
+            <select
               value={categoryFilter}
               onChange={e => setCategoryFilter(e.target.value as typeof categoryFilter)}
               className="min-h-9 rounded-lg border border-input bg-background px-2.5 text-xs text-foreground"
@@ -584,6 +638,12 @@ export function MemberFeedbackClient({
           </div>
         </div>
 
+        <div className="border-b border-border bg-muted/20 px-4 py-2 text-[11px] text-muted-foreground flex flex-wrap items-center gap-x-4 gap-y-1">
+          <span className="font-semibold text-foreground">Itens válidos têm borda dupla:</span>
+          <span>Contorno externo = tipo (Bug rose · Lab âmbar · Melhoria azul · Ideia roxo · Processo verde)</span>
+          <span>Barra lateral grossa = prioridade (Crítica vermelha · Alta laranja · Média azul · Baixa cinza)</span>
+        </div>
+
         {filteredItems.length === 0 ? (
           <div className="px-6 py-12 text-center space-y-2">
             <Lightbulb className="mx-auto h-8 w-8 text-muted-foreground" />
@@ -595,15 +655,23 @@ export function MemberFeedbackClient({
             </p>
           </div>
         ) : (
-          <div className="divide-y divide-border">
+          <div className="p-4 space-y-3">
             {filteredItems.map(item => {
               const scopeMeta = FEEDBACK_SCOPE_META[item.scope];
               const catMeta = FEEDBACK_CATEGORY_META[item.category];
               const statusMeta = FEEDBACK_STATUS_META[item.status];
               const validityMeta = FEEDBACK_VALIDITY_META[item.validity];
+              const teamMeta = FEEDBACK_TARGET_TEAM_META[item.targetTeam];
+              const prioMeta = FEEDBACK_PRIORITY_META[item.priority];
 
               return (
-                <div key={item.id} className="p-4 sm:p-5 flex flex-col sm:flex-row gap-4 justify-between">
+                <div
+                  key={item.id}
+                  className={cn(
+                    'rounded-xl p-4 sm:p-5 flex flex-col sm:flex-row gap-4 justify-between transition-all',
+                    getFeedbackCardBorderClasses(item)
+                  )}
+                >
                   <div className="flex gap-3.5 min-w-0 flex-1">
                     {/* Upvote column */}
                     <button
@@ -628,6 +696,14 @@ export function MemberFeedbackClient({
                       <div className="flex flex-wrap items-center gap-1.5">
                         <span className="font-mono text-xs font-semibold text-primary">
                           {item.code}
+                        </span>
+                        <span
+                          className={cn(
+                            'rounded-full border px-2 py-0.5 text-[11px] font-semibold',
+                            TONE_CLASSES[teamMeta.tone]
+                          )}
+                        >
+                          {teamMeta.shortLabel}
                         </span>
                         <span
                           className={cn(
@@ -661,6 +737,16 @@ export function MemberFeedbackClient({
                             )}
                           >
                             {validityMeta.shortLabel}
+                          </span>
+                        )}
+                        {item.validity === 'VALIDA' && (
+                          <span
+                            className={cn(
+                              'rounded-full border px-2 py-0.5 text-[11px] font-semibold',
+                              TONE_CLASSES[prioMeta.tone]
+                            )}
+                          >
+                            Prioridade {prioMeta.shortLabel}
                           </span>
                         )}
                       </div>

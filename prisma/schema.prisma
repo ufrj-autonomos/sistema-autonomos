@@ -172,6 +172,9 @@ model Member {
   emailChangeRequests  EmailChangeRequest[] @relation("MemberEmailChanges")
   reviewedEmailChanges EmailChangeRequest[] @relation("ReviewedEmailChanges")
 
+  // In-app notifications
+  notifications Notification[] @relation("MemberNotifications")
+
   @@index([email])
   @@index([institutionalMemberId])
 }
@@ -857,39 +860,46 @@ enum FeedbackPriority {
   CRITICA
 }
 
+enum FeedbackTargetTeam {
+  TECH
+  MANAGEMENT
+}
+
 model FeedbackItem {
-  id               String           @id @default(cuid())
-  code             String           @unique // ex: FB-001
-  scope            FeedbackScope    @default(SISTEMA)
-  category         FeedbackCategory @default(IDEIA)
+  id               String             @id @default(cuid())
+  code             String             @unique // ex: FB-001
+  scope            FeedbackScope      @default(SISTEMA)
+  category         FeedbackCategory   @default(IDEIA)
+  targetTeam       FeedbackTargetTeam @default(TECH)
   title            String
-  description      String           @db.Text
+  description      String             @db.Text
   pageOrLocation   String?
-  stepsToReproduce String?          @db.Text
-  expectedOutcome  String?          @db.Text
+  stepsToReproduce String?            @db.Text
+  expectedOutcome  String?            @db.Text
   attachmentUrl    String?
   attachmentName   String?
-  isAnonymous      Boolean          @default(false)
+  isAnonymous      Boolean            @default(false)
   authorId         String?
-  author           Member?          @relation("FeedbackAuthor", fields: [authorId], references: [id], onDelete: SetNull)
+  author           Member?            @relation("FeedbackAuthor", fields: [authorId], references: [id], onDelete: SetNull)
   authorName       String
-  status           FeedbackStatus   @default(RECEBIDA)
-  validity         FeedbackValidity @default(PENDENTE)
-  priority         FeedbackPriority @default(MEDIA)
+  status           FeedbackStatus     @default(RECEBIDA)
+  validity         FeedbackValidity   @default(PENDENTE)
+  priority         FeedbackPriority   @default(MEDIA)
   assignedArea     String?
   assignedToId     String?
-  assignedTo       Member?          @relation("FeedbackAssignee", fields: [assignedToId], references: [id], onDelete: SetNull)
-  responseNotes    String?          @db.Text
-  appliedAt        DateTime?        @db.Timestamptz(3)
+  assignedTo       Member?            @relation("FeedbackAssignee", fields: [assignedToId], references: [id], onDelete: SetNull)
+  responseNotes    String?            @db.Text
+  appliedAt        DateTime?          @db.Timestamptz(3)
   reviewedById     String?
-  reviewedBy       Member?          @relation("FeedbackReviewer", fields: [reviewedById], references: [id], onDelete: SetNull)
-  reviewedAt       DateTime?        @db.Timestamptz(3)
+  reviewedBy       Member?            @relation("FeedbackReviewer", fields: [reviewedById], references: [id], onDelete: SetNull)
+  reviewedAt       DateTime?          @db.Timestamptz(3)
   votes            FeedbackVote[]
-  createdAt        DateTime         @default(now()) @db.Timestamptz(3)
-  updatedAt        DateTime         @updatedAt @db.Timestamptz(3)
+  createdAt        DateTime           @default(now()) @db.Timestamptz(3)
+  updatedAt        DateTime           @updatedAt @db.Timestamptz(3)
 
   @@index([scope, status])
   @@index([category, status])
+  @@index([targetTeam, status])
   @@index([validity])
   @@index([authorId])
   @@index([createdAt])
@@ -936,4 +946,30 @@ model EmailAutomationRule {
   lastSentCount   Int       @default(0)
   updatedById     String?
   updatedAt       DateTime  @updatedAt @db.Timestamptz(3)
+}
+
+model Notification {
+  id          String    @id @default(cuid())
+  recipientId String
+  recipient   Member    @relation("MemberNotifications", fields: [recipientId], references: [id], onDelete: Cascade)
+  category    String
+  title       String
+  message     String    @db.Text
+  link        String?
+  readAt      DateTime? @db.Timestamptz(3)
+  actorName   String?
+  metadata    Json?
+  createdAt   DateTime  @default(now()) @db.Timestamptz(3)
+
+  @@index([recipientId, readAt, createdAt])
+  @@index([recipientId, createdAt])
+  @@index([category, createdAt])
+}
+
+model NotificationRule {
+  category         String   @id
+  enabled          Boolean  @default(true)
+  sendToManagement Boolean  @default(false)
+  updatedById      String?
+  updatedAt        DateTime @updatedAt @db.Timestamptz(3)
 }

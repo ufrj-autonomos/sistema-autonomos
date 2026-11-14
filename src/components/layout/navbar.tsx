@@ -20,6 +20,7 @@ import {
   Lightbulb,
 } from "lucide-react";
 import { ThemeToggle } from "./theme-toggle";
+import { NotificationBell } from "./notification-bell";
 import { Logo } from "@/components/brand/logo";
 import { cn } from "@/lib/utils";
 import { useSession, SafeUser } from "@/contexts/auth-context";
@@ -217,6 +218,7 @@ export function Navbar({ className }: NavbarProps) {
           )}
 
           <ThemeToggle />
+          {user && <NotificationBell />}
           {/* Widget de Autenticação */}
           {isLoadingAuth ? (
             <div className="h-8 w-24 rounded-lg bg-foreground/5 animate-pulse" />

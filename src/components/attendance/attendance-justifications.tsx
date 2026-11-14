@@ -27,6 +27,11 @@ export function AttendanceJustifications({ admin, selectedWeek, currentWeek, ref
   const cursor = cursors.at(-1);
   const endpoint = admin ? '/api/admin/attendance/justifications' : '/api/attendance/justifications';
   useEffect(() => {
+    if (!admin && typeof window !== 'undefined' && window.location.hash === '#justificativas') {
+      setOpen(true);
+    }
+  }, [admin]);
+  useEffect(() => {
     const controller = new AbortController(); setLoading(true); setError('');
     const params = new URLSearchParams({ status }); if (cursor) params.set('cursor', cursor);
     void fetch(`${endpoint}?${params}`, { cache: 'no-store', signal: controller.signal }).then(async response => {
@@ -46,7 +51,7 @@ export function AttendanceJustifications({ admin, selectedWeek, currentWeek, ref
     } catch (error) { setFormError(error instanceof Error ? error.message : 'Não foi possível salvar.'); }
     finally { setBusy(false); }
   }
-  return <section className="my-6 space-y-4 rounded-xl border border-border bg-card p-4 sm:p-6" aria-labelledby="justification-heading">
+  return <section id="justificativas" className="my-6 space-y-4 rounded-xl border border-border bg-card p-4 sm:p-6" aria-labelledby="justification-heading">
     <div className="flex flex-wrap items-start justify-between gap-4"><div><h2 id="justification-heading" className="text-lg font-semibold">{admin ? 'Solicitações de justificativa' : 'Justificativas e recursos'}{result && result.pending > 0 && <span className="ml-2 rounded-full bg-amber-500/15 px-2 py-1 text-xs font-medium text-amber-800 dark:text-amber-300">{result.pending} pendente{result.pending > 1 ? 's' : ''}</span>}</h2><p className="mt-2 max-w-3xl text-sm leading-relaxed text-muted-foreground">{admin ? 'Pedidos de todas as semanas. A aprovação completa as 2 horas semanais sem duplicar horas já registradas. A negativa mantém a presença como está.' : 'Justifique uma falta ou recorra de um registro. Se aprovada, a solicitação garante pelo menos 2 horas na semana escolhida; horas já registradas são preservadas.'}</p></div>{!admin && <button type="button" onClick={startRequest} className="inline-flex min-h-11 items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90"><FilePenLine size={17} />Justificar falta / recorrer</button>}</div>
     <div className="flex flex-wrap items-center justify-between gap-3"><label className="flex items-center gap-3 text-sm">Situação<select value={status} disabled={loading} onChange={event => { setStatus(event.target.value); setCursors([null]); }} className={control}><option value="ALL">Todas</option>{Object.entries(JUSTIFICATION_STATUSES).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></label><p role="status" className="text-xs text-muted-foreground">{loading ? 'Consultando solicitações…' : result ? `${result.total} solicitação(ões)` : 'Solicitações indisponíveis'}</p></div>
     {message && <p role="status" className="text-sm text-emerald-700 dark:text-emerald-300">{message}</p>}{error && <p role="alert" className="text-sm text-red-700 dark:text-red-300">{error}</p>}

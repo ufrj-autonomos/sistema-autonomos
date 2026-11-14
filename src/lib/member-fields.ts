@@ -90,28 +90,31 @@ export function memberRoleTranslations(role: string) {
 }
 
 export function computeMissingProfileFields(input: {
-  photo?: string | null;
-  bio?: string | null;
-  siteCourse?: string | null;
   hasInternalAccount: boolean;
+  area?: string | null;
   course?: string | null;
+  academicPeriod?: string | null;
   phone?: string | null;
   cpf?: string | null;
   dre?: string | null;
   birthDate?: Date | string | null;
+  emergencyContactName?: string | null;
+  emergencyContactPhone?: string | null;
   profileCompletedAt?: Date | string | null;
 }): string[] {
   const missing: string[] = [];
-  if (!input.photo?.trim()) missing.push('Foto');
-  if (!input.bio?.trim()) missing.push('Biografia');
-  if (!(input.siteCourse?.trim() || input.course?.trim())) missing.push('Curso');
   if (!input.hasInternalAccount) {
-    missing.push('Conta vinculada / Dados internos');
+    missing.push('Conta vinculada / Cadastro operacional');
   } else {
     if (!input.phone?.trim()) missing.push('WhatsApp');
-    if (!input.cpf?.trim()) missing.push('CPF');
+    if (!input.course?.trim()) missing.push('Curso');
     if (!input.dre?.trim()) missing.push('DRE');
+    if (!input.academicPeriod?.trim()) missing.push('Período acadêmico');
+    if (!normalizeMemberArea(input.area)) missing.push('Área na equipe');
+    if (!input.cpf?.trim()) missing.push('CPF');
     if (!input.birthDate) missing.push('Data de nascimento');
+    if (!input.emergencyContactName?.trim()) missing.push('Contato de emergência (nome)');
+    if (!input.emergencyContactPhone?.trim()) missing.push('Contato de emergência (telefone)');
     if (!input.profileCompletedAt && missing.length === 0) {
       missing.push('Confirmação inicial do perfil');
     }

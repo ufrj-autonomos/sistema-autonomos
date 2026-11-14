@@ -71,7 +71,7 @@ export const EMAIL_SITUATION_DEFINITIONS: Record<EmailSituationKey, SituationDef
     key: 'INCOMPLETE_PROFILE',
     title: 'Perfil Incompleto (Oficialização Pendente)',
     description:
-      'Integrantes que ainda não preencheram todos os campos obrigatórios (dados internos, emergência, foto e bio). Só é membro oficial após concluir.',
+      'Integrantes que ainda não preencheram todos os campos obrigatórios do cadastro operacional (WhatsApp, curso, DRE, período, área, CPF, nascimento e contato de emergência). Só é membro oficial após concluir.',
     category: 'INCOMPLETE_PROFILE',
     defaultEnabled: false,
     defaultCooldownDays: 7,
@@ -264,7 +264,7 @@ export async function getEmailCenterData(now = new Date()): Promise<EmailCenterD
     disciplinaryRows,
   ] = await Promise.all([
     getStoredAutomationRules(),
-    getRecentSentLogMap(35 * 24 * 60 * 60 * 1000),
+    getRecentSentLogMap(95 * 24 * 60 * 60 * 1000),
     getVacationWeekKeys().catch(() => [] as string[]),
     prisma.attendanceSettings.findFirst().catch(() => null),
     prisma.member.findMany({
@@ -372,15 +372,16 @@ export async function getEmailCenterData(now = new Date()): Promise<EmailCenterD
     const email = m.email?.trim() || null;
 
     const missingFields = computeMissingProfileFields({
-      photo: inst?.photo || m.avatar,
-      bio: inst?.bio,
-      siteCourse: inst?.course,
       hasInternalAccount: true,
+      area,
       course: m.course,
+      academicPeriod: m.academicPeriod,
       phone: m.phone,
       cpf: m.cpf,
       dre: m.dre,
       birthDate: m.birthDate,
+      emergencyContactName: m.emergencyContactName,
+      emergencyContactPhone: m.emergencyContactPhone,
       profileCompletedAt: m.profileCompletedAt,
     });
 
@@ -418,14 +419,22 @@ export async function getEmailCenterData(now = new Date()): Promise<EmailCenterD
           (l) => l.kind === expectedKind && l.periodKey === expectedPeriodKey
         );
         const lastCategorySent = recentLogsMap.get(`${m.id}:LAB_HOURS_ALERT`);
+        const labRuleCooldown =
+          rulesMap.get('LAB_HOURS_PENDING')?.cooldownDays ??
+          EMAIL_SITUATION_DEFINITIONS.LAB_HOURS_PENDING.defaultCooldownDays;
+        const labMeta = getSentMeta('LAB_HOURS_ALERT', labRuleCooldown);
+        const alreadySentInWindow =
+          labRuleCooldown === EMAIL_SITUATION_DEFINITIONS.LAB_HOURS_PENDING.defaultCooldownDays
+            ? Boolean(alertRow || labMeta.inWindow)
+            : labMeta.inWindow;
         labHoursMembers.push({
           memberId: m.id,
           name: displayName,
           email,
           area,
           reasonSummary: `${isMonthly ? 'Mensal' : 'Semanal'}: ${formatDuration(summary.completedSeconds)} / ${formatDuration(summary.requiredSeconds)} (faltam ${formatDuration(summary.remainingSeconds)})`,
-          alreadySentInWindow: Boolean(alertRow),
-          lastSentAt: (alertRow?.sentAt || lastCategorySent)?.toISOString() ?? null,
+          alreadySentInWindow,
+          lastSentAt: (lastCategorySent || alertRow?.sentAt)?.toISOString() ?? null,
           payload: {
             mode: isMonthly ? 'MONTHLY' : 'WEEKLY',
             periodKey: expectedPeriodKey,
