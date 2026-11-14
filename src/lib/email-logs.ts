@@ -7,6 +7,7 @@ export type EmailLogCategory =
   | 'REIMBURSEMENT'
   | 'ACCOUNT_APPROVED'
   | 'AUTH_CODE'
+  | 'EMAIL_CHANGE'
   | 'OTHER';
 
 export type EmailLogStatus = 'SENT' | 'FAILED' | 'SKIPPED';
@@ -16,7 +17,8 @@ export const EMAIL_CATEGORY_LABELS: Record<EmailLogCategory, string> = {
   LAB_HOURS_ALERT: 'Alerta de Horas',
   REIMBURSEMENT: 'Reembolso',
   ACCOUNT_APPROVED: 'Aprovação de Conta',
-  AUTH_CODE: 'Código de Senha',
+  AUTH_CODE: 'Código de Segurança',
+  EMAIL_CHANGE: 'Troca de E-mail',
   OTHER: 'Sistema',
 };
 

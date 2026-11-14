@@ -4,6 +4,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { db as institutionalDb } from '@/lib/institutional/db';
 import { hashPassword } from '@/lib/auth';
+import { verifyOtpChallenge } from '@/lib/auth-challenges';
 import { Prisma } from '@prisma/client';
 import { checkRateLimit, clientAddress } from '@/lib/rate-limit';
 
@@ -15,7 +16,7 @@ export async function POST(req: NextRequest) {
     const payload = await readAuthPayload(req);
     if (payload.error) return payload.error;
     const body = payload.body;
-    const { email, name, password } = body;
+    const { email, name, password, code } = body;
 
     if (typeof email !== 'string' || typeof name !== 'string' || !name.trim() || name.trim().length < 2 || name.length > 150 || !password) {
       return NextResponse.json(
@@ -38,6 +39,13 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    if (typeof code !== 'string' || !/^\d{6}$/.test(code.trim())) {
+      return NextResponse.json(
+        { error: 'Informe o código de validação de 6 dígitos enviado para o seu email.' },
+        { status: 400 }
+      );
+    }
+
     const normalizedEmail = email.toLowerCase().trim();
     const existingMember = await prisma.member.findUnique({
       where: { email: normalizedEmail },
@@ -48,6 +56,19 @@ export async function POST(req: NextRequest) {
         { error: 'Já existe uma conta vinculada a este email. Caso já seja integrante, utilize "Esqueci minha senha" na tela de login.' },
         { status: 409 }
       );
+    }
+
+    const challengeCheck = await verifyOtpChallenge({
+      memberId: null,
+      email: normalizedEmail,
+      scopeKey: `register:${normalizedEmail}`,
+      purpose: 'REGISTER_VERIFY',
+      code: code.trim(),
+      consume: true,
+    });
+
+    if (!challengeCheck.ok) {
+      return NextResponse.json({ error: challengeCheck.error }, { status: 400 });
     }
 
     const passwordHash = await hashPassword(password);

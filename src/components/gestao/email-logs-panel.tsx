@@ -20,6 +20,7 @@ const CATEGORY_BADGE: Record<EmailLogCategory, string> = {
   REIMBURSEMENT: 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border-emerald-500/30',
   ACCOUNT_APPROVED: 'bg-cyan-500/15 text-cyan-700 dark:text-cyan-300 border-cyan-500/30',
   AUTH_CODE: 'bg-purple-500/15 text-purple-700 dark:text-purple-300 border-purple-500/30',
+  EMAIL_CHANGE: 'bg-sky-500/15 text-sky-700 dark:text-sky-300 border-sky-500/30',
   OTHER: 'bg-muted text-muted-foreground border-border',
 };
 

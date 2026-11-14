@@ -505,3 +505,197 @@ export function buildReimbursementEmail(input: ReimbursementEmailInput): BuiltEm
 
   return { subject, html, text };
 }
+
+export type SecurityCodePurpose =
+  | 'REGISTER_VERIFY'
+  | 'PROFILE_PASSWORD_CHANGE'
+  | 'PROFILE_EMAIL_CHANGE';
+
+export interface SecurityCodeEmailInput {
+  purpose: SecurityCodePurpose;
+  recipientName: string;
+  code: string;
+  expiresInMinutes?: number;
+  targetEmail?: string;
+  appUrl?: string;
+}
+
+export function buildSecurityCodeEmail(input: SecurityCodeEmailInput): BuiltEmail {
+  const baseUrl = resolveAppBaseUrl(input.appUrl);
+  const expiresInMinutes = input.expiresInMinutes ?? 15;
+  const displayName = input.recipientName.trim() || 'Integrante';
+
+  const config: Record<
+    SecurityCodePurpose,
+    {
+      subject: string;
+      eyebrow: string;
+      heading: string;
+      subtitle: string;
+      descriptionHtml: string;
+      ctaLabel: string;
+      ctaPath: string;
+    }
+  > = {
+    REGISTER_VERIFY: {
+      subject: `[Autônomos] Confirme seu e-mail para concluir o cadastro`,
+      eyebrow: 'Validação de Cadastro',
+      heading: 'Confirme seu endereço de e-mail',
+      subtitle: 'Use o código de 6 dígitos abaixo para validar sua conta na UFRJ Autônomos.',
+      descriptionHtml:
+        'Para garantir que este endereço de e-mail realmente pertence a você, insira o código abaixo na tela de cadastro:',
+      ctaLabel: 'Voltar para o Cadastro',
+      ctaPath: '/register',
+    },
+    PROFILE_PASSWORD_CHANGE: {
+      subject: `[Autônomos] Código para alteração de senha no Perfil`,
+      eyebrow: 'Segurança da Conta',
+      heading: 'Confirmação de alteração de senha',
+      subtitle: 'Solicitação iniciada a partir da sua tela de Perfil.',
+      descriptionHtml:
+        'Recebemos uma solicitação para alterar sua senha pelo seu Perfil. Digite o código de 6 dígitos abaixo para concluir a troca:',
+      ctaLabel: 'Abrir Meu Perfil',
+      ctaPath: '/perfil',
+    },
+    PROFILE_EMAIL_CHANGE: {
+      subject: `[Autônomos] Confirme seu novo e-mail (${input.targetEmail || ''})`.trim(),
+      eyebrow: 'Alteração de E-mail',
+      heading: 'Confirmação do novo endereço de e-mail',
+      subtitle: 'Após validar este código, sua solicitação seguirá para aprovação da Gestão.',
+      descriptionHtml: `Você solicitou a troca do seu e-mail de acesso${
+        input.targetEmail ? ` para <strong style="color:#f8fafc;">${escapeEmailHtml(input.targetEmail)}</strong>` : ''
+      }. Informe o código de 6 dígitos abaixo no seu Perfil para enviar a solicitação à Gestão em Integrantes:`,
+      ctaLabel: 'Confirmar no Meu Perfil',
+      ctaPath: '/perfil',
+    },
+  };
+
+  const meta = config[input.purpose];
+
+  const bodyHtml = `
+    <p style="margin:0 0 14px;color:#cbd5e1;">Olá, <strong style="color:#f8fafc;">${escapeEmailHtml(displayName)}</strong>.</p>
+    <p style="margin:0 0 18px;color:#cbd5e1;">${meta.descriptionHtml}</p>
+
+    <div style="margin:20px 0;padding:22px 16px;background-color:#080f1d;border:1px solid #334155;border-radius:12px;text-align:center;">
+      <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.12em;color:#38bdf8;margin-bottom:8px;">
+        Código de Verificação (válido por ${expiresInMinutes} min)
+      </div>
+      <div style="font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,monospace;font-size:32px;font-weight:800;letter-spacing:0.28em;color:#f8fafc;">
+        ${escapeEmailHtml(input.code)}
+      </div>
+    </div>
+
+    <div style="background-color:#111c33;border-left:4px solid #0284c7;border-radius:8px;padding:12px 14px;font-size:13px;color:#cbd5e1;">
+      Se você não solicitou esta ação, ignore este e-mail com segurança e não compartilhe este código com ninguém.
+    </div>
+  `;
+
+  const html = wrapAutonomosShell({
+    accent: 'cyan',
+    eyebrow: meta.eyebrow,
+    heading: meta.heading,
+    subtitle: meta.subtitle,
+    bodyHtml,
+    ctaLabel: meta.ctaLabel,
+    ctaUrl: `${baseUrl}${meta.ctaPath}`,
+  });
+
+  const text = [
+    `Olá, ${displayName}.`,
+    '',
+    meta.subtitle,
+    `Seu código de verificação é: ${input.code}`,
+    `Válido por ${expiresInMinutes} minutos.`,
+    '',
+    'Se você não solicitou esta operação, ignore este e-mail.',
+  ].join('\n');
+
+  return { subject: meta.subject, html, text };
+}
+
+export interface EmailChangeStatusEmailInput {
+  recipientName: string;
+  previousEmail: string;
+  newEmail: string;
+  approved: boolean;
+  reviewNotes?: string | null;
+  appUrl?: string;
+}
+
+export function buildEmailChangeStatusEmail(input: EmailChangeStatusEmailInput): BuiltEmail {
+  const baseUrl = resolveAppBaseUrl(input.appUrl);
+  const accent: EmailAccent = input.approved ? 'emerald' : 'red';
+  const t = ACCENT_TOKENS[accent];
+
+  const subject = input.approved
+    ? `[Autônomos] Seu novo e-mail de acesso foi aprovado (${input.newEmail})`
+    : `[Autônomos] Solicitação de alteração de e-mail recusada`;
+
+  const heading = input.approved
+    ? 'Alteração de E-mail Aprovada'
+    : 'Alteração de E-mail Recusada';
+
+  const subtitle = input.approved
+    ? 'A Gestão validou sua solicitação e seu acesso já usa o novo e-mail.'
+    : 'A solicitação de alteração de e-mail foi recusada pela Gestão.';
+
+  const notesHtml = input.reviewNotes?.trim()
+    ? `<div style="margin-top:12px;padding:12px 14px;background-color:${t.highlightBg};border-left:4px solid ${t.highlightBorder};border-radius:8px;font-size:13px;color:#cbd5e1;">
+         <strong style="color:${t.highlightTitle};">Observação da Gestão:</strong><br />
+         ${escapeEmailHtml(input.reviewNotes.trim())}
+       </div>`
+    : '';
+
+  const bodyHtml = `
+    <p style="margin:0 0 14px;color:#cbd5e1;">Olá, <strong style="color:#f8fafc;">${escapeEmailHtml(input.recipientName)}</strong>.</p>
+    <p style="margin:0 0 16px;color:#cbd5e1;">
+      ${
+        input.approved
+          ? 'Um integrante da Gestão aprovou a alteração do seu e-mail cadastrado na plataforma UFRJ Autônomos.'
+          : 'Um integrante da Gestão analisou sua solicitação de alteração de e-mail e optou por recusá-la.'
+      }
+    </p>
+    <div style="background-color:#111c33;border:1px solid #1e293b;border-radius:12px;padding:16px;">
+      <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="font-size:14px;">
+        <tr>
+          <td style="padding:6px 0;color:#94a3b8;width:140px;">E-mail anterior:</td>
+          <td style="padding:6px 0;color:#cbd5e1;">${escapeEmailHtml(input.previousEmail || 'Não informado')}</td>
+        </tr>
+        <tr>
+          <td style="padding:6px 0;color:#94a3b8;">Novo e-mail:</td>
+          <td style="padding:6px 0;font-weight:700;color:#f8fafc;">${escapeEmailHtml(input.newEmail)}</td>
+        </tr>
+        <tr>
+          <td style="padding:6px 0;color:#94a3b8;">Status:</td>
+          <td style="padding:6px 0;font-weight:700;color:${t.badgeText};">${input.approved ? 'Aprovado pela Gestão' : 'Recusado pela Gestão'}</td>
+        </tr>
+      </table>
+      ${notesHtml}
+    </div>
+  `;
+
+  const html = wrapAutonomosShell({
+    accent,
+    eyebrow: input.approved ? 'E-mail Atualizado' : 'Troca de E-mail Recusada',
+    heading,
+    subtitle,
+    bodyHtml,
+    ctaLabel: 'Acessar Meu Perfil',
+    ctaUrl: `${baseUrl}/perfil`,
+  });
+
+  const text = [
+    `Olá, ${input.recipientName}.`,
+    '',
+    input.approved
+      ? `Sua troca de e-mail de ${input.previousEmail} para ${input.newEmail} foi APROVADA pela Gestão.`
+      : `Sua solicitação de troca de e-mail para ${input.newEmail} foi RECUSADA pela Gestão.`,
+    input.reviewNotes?.trim() ? `Observação: ${input.reviewNotes.trim()}` : null,
+    '',
+    `Acesse em: ${baseUrl}/perfil`,
+  ]
+    .filter((line) => line !== null)
+    .join('\n');
+
+  return { subject, html, text };
+}

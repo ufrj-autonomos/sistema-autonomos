@@ -168,6 +168,10 @@ model Member {
   // Email dispatch logs
   emailLogs         EmailDispatchLog[]
 
+  // Email change requests
+  emailChangeRequests  EmailChangeRequest[] @relation("MemberEmailChanges")
+  reviewedEmailChanges EmailChangeRequest[] @relation("ReviewedEmailChanges")
+
   @@index([email])
   @@index([institutionalMemberId])
 }
@@ -182,8 +186,8 @@ model MemberCredential {
 
 model AuthChallenge {
   id         String    @id @default(cuid())
-  memberId   String
-  member     Member    @relation(fields: [memberId], references: [id], onDelete: Cascade)
+  memberId   String?
+  member     Member?   @relation(fields: [memberId], references: [id], onDelete: Cascade)
   email      String
   purpose    String    @default("PASSWORD_RESET")
   codeHash   String
@@ -194,6 +198,25 @@ model AuthChallenge {
 
   @@index([email, purpose])
   @@index([memberId])
+}
+
+model EmailChangeRequest {
+  id           String              @id @default(cuid())
+  memberId     String
+  member       Member              @relation("MemberEmailChanges", fields: [memberId], references: [id], onDelete: Cascade)
+  currentEmail String
+  newEmail     String
+  status       ChangeRequestStatus @default(PENDING)
+  reviewedById String?
+  reviewedBy   Member?             @relation("ReviewedEmailChanges", fields: [reviewedById], references: [id], onDelete: SetNull)
+  reviewedAt   DateTime?           @db.Timestamptz(3)
+  reviewNote   String?             @db.Text
+  createdAt    DateTime            @default(now()) @db.Timestamptz(3)
+  updatedAt    DateTime            @updatedAt @db.Timestamptz(3)
+
+  @@index([memberId, status])
+  @@index([status, createdAt])
+  @@index([newEmail, status])
 }
 
 model MemberProfileChange {

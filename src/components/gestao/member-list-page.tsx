@@ -9,11 +9,12 @@ import { getVacationWeekKeys } from '@/lib/attendance/vacations';
 import { weekKey } from '@/lib/attendance/time';
 import { initialMemberPreferences, type MemberDirectoryRow, type PendingProfileChangeDto } from '@/lib/member-directory';
 import { MemberDirectory } from './member-directory';
+import { EmailChangeRequestsPanel, type PendingEmailChangeItem } from './email-change-requests-panel';
 
 export async function MemberListPage({ mode = 'active' }: { mode?: 'active' | 'alumni' } = {}) {
   const user = await requirePageUser(true);
   const isAlumniMode = mode === 'alumni';
-  const [records, platformMembers, preferences, projects, vacationWeeks] = await Promise.all([
+  const [records, platformMembers, preferences, projects, vacationWeeks, pendingEmailRequests] = await Promise.all([
     db.institutionalMember.findMany({
       where: { active: !isAlumniMode },
       include: { team: { select: { name: true } } },
@@ -34,7 +35,35 @@ export async function MemberListPage({ mode = 'active' }: { mode?: 'active' | 'a
     prisma.member.findUnique({ where: { id: user.id }, select: { memberDirectoryPreferences: true } }),
     db.project.findMany({ select: { id: true, name: true, slug: true } }),
     getVacationWeekKeys().catch(() => [] as string[]),
+    !isAlumniMode
+      ? prisma.emailChangeRequest.findMany({
+          where: { status: 'PENDING' },
+          include: {
+            member: {
+              select: {
+                id: true,
+                name: true,
+                email: true,
+                area: true,
+                institutionalMemberId: true,
+              },
+            },
+          },
+          orderBy: { createdAt: 'desc' },
+        })
+      : Promise.resolve([]),
   ]);
+
+  const emailChangeRequests: PendingEmailChangeItem[] = pendingEmailRequests.map((item) => ({
+    id: item.id,
+    memberId: item.memberId,
+    memberName: item.member.name,
+    memberArea: item.member.area,
+    institutionalMemberId: item.member.institutionalMemberId,
+    currentEmail: item.currentEmail || item.member.email || '',
+    newEmail: item.newEmail,
+    createdAt: item.createdAt.toISOString(),
+  }));
 
   const byInstId = new Map(
     platformMembers
@@ -171,6 +200,9 @@ export async function MemberListPage({ mode = 'active' }: { mode?: 'active' | 'a
         )}
       </div>
     </header>
+    {!isAlumniMode && emailChangeRequests.length > 0 && (
+      <EmailChangeRequestsPanel requests={emailChangeRequests} />
+    )}
     <MemberDirectory rows={rows} initialPreferences={initialMemberPreferences(preferences?.memberDirectoryPreferences)} mode={mode} />
   </div>;
 }

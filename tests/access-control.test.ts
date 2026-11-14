@@ -6,11 +6,12 @@ import { beforeEach, test } from 'node:test';
 import assert from 'node:assert/strict';
 import { NextRequest } from 'next/server';
 import { prisma } from '../src/lib/prisma';
-import { createSessionToken, hashPassword } from '../src/lib/auth';
+import { createSessionToken, hashPassword, hashVerificationCode } from '../src/lib/auth';
 import { getCurrentUser, SESSION_COOKIE_NAME } from '../src/lib/session';
 import { updateAccount, AccountUpdateError } from '../src/lib/user-administration';
 import { proxy } from '../src/proxy';
 import { POST as register } from '../src/app/api/auth/register/route';
+import { POST as sendRegisterCode } from '../src/app/api/auth/register/send-code/route';
 import { POST as login } from '../src/app/api/auth/login/route';
 import { POST as logout } from '../src/app/api/auth/logout/route';
 import { POST as forgotPassword } from '../src/app/api/auth/forgot-password/route';
@@ -77,7 +78,12 @@ stub(prisma.memberCredential, 'upsert', async ({ where, create, update }: any) =
   return { memberId: where.memberId, passwordHash: update.passwordHash ?? create.passwordHash };
 });
 stub(prisma.authChallenge, 'updateMany', async ({ where, data }: any) => {
-  challenges = challenges.map(c => c.memberId === where.memberId && c.consumedAt === null ? { ...c, ...data } : c);
+  challenges = challenges.map(c => {
+    const matchesMember = where.memberId !== undefined ? c.memberId === where.memberId : true;
+    const matchesEmail = where.email !== undefined ? c.email === where.email : true;
+    const matchesPurpose = where.purpose !== undefined ? c.purpose === where.purpose : true;
+    return matchesMember && matchesEmail && matchesPurpose && c.consumedAt === null ? { ...c, ...data } : c;
+  });
   return { count: 1 };
 });
 stub(prisma.authChallenge, 'create', async ({ data }: any) => {
@@ -86,7 +92,16 @@ stub(prisma.authChallenge, 'create', async ({ data }: any) => {
   return row;
 });
 stub(prisma.authChallenge, 'findFirst', async ({ where }: any) => {
-  return challenges.find(c => c.memberId === where.memberId && c.consumedAt === null && c.expiresAt > new Date()) || null;
+  return (
+    [...challenges]
+      .reverse()
+      .find(c => {
+        const matchesMember = where.memberId !== undefined ? c.memberId === where.memberId : true;
+        const matchesEmail = where.email !== undefined ? c.email === where.email : true;
+        const matchesPurpose = where.purpose !== undefined ? c.purpose === where.purpose : true;
+        return matchesMember && matchesEmail && matchesPurpose && c.consumedAt === null && c.expiresAt > new Date();
+      }) || null
+  );
 });
 stub(prisma.authChallenge, 'update', async ({ where, data }: any) => {
   const idx = challenges.findIndex(c => c.id === where.id);
@@ -150,7 +165,7 @@ test('anonymous visitors cannot access pages or any protected API category', asy
 });
 
 test('login and registration remain publicly accessible', async () => {
-  for (const path of ['/login', '/register', '/api/auth/login', '/api/auth/register']) assert.equal((await proxy(request(path))).status, 200);
+  for (const path of ['/login', '/register', '/api/auth/login', '/api/auth/register', '/api/auth/register/send-code']) assert.equal((await proxy(request(path))).status, 200);
 });
 
 test('invalid JWTs and legacy JWTs without a server session grant no access', async () => {
@@ -159,8 +174,21 @@ test('invalid JWTs and legacy JWTs without a server session grant no access', as
   assert.equal(await getCurrentUser(request('/', token)), null);
 });
 
-test('registration always creates a pending trainee without issuing a session', async () => {
-  const response = await register(request('/api/auth/register', undefined, { name: 'New Person', email: 'NEW@test.local', password: 'valid-password', role: 'ADMIN', status: 'APPROVED' }));
+test('registration requires email verification code and always creates a pending trainee without issuing a session', async () => {
+  const noCode = await register(request('/api/auth/register', undefined, { name: 'New Person', email: 'NEW@test.local', password: 'valid-password' }));
+  assert.equal(noCode.status, 400);
+
+  const sendRes = await sendRegisterCode(request('/api/auth/register/send-code', undefined, { name: 'New Person', email: 'NEW@test.local' }));
+  assert.equal(sendRes.status, 200);
+  assert.equal(challenges.length, 1);
+
+  const wrongCode = await register(request('/api/auth/register', undefined, { name: 'New Person', email: 'NEW@test.local', password: 'valid-password', code: '000000' }));
+  assert.equal(wrongCode.status, 400);
+
+  const validCode = '654321';
+  challenges[challenges.length - 1].codeHash = hashVerificationCode('register:new@test.local', validCode);
+
+  const response = await register(request('/api/auth/register', undefined, { name: 'New Person', email: 'NEW@test.local', password: 'valid-password', code: validCode, role: 'ADMIN', status: 'APPROVED' }));
   assert.equal(response.status, 201);
   const data = await response.json();
   assert.equal(data.user.role, 'TRAINEE');
@@ -284,7 +312,10 @@ test('rejecting an account deletes it and removes it from the API list', async (
   assert.equal(users.some(row => row.id === 'pending'), false);
   const list = await (await accounts(request('/api/admin/users', token))).json();
   assert.equal(list.users.some((row: Row) => row.id === 'pending'), false);
-  const signup = await register(request('/api/auth/register', undefined, { name: 'New Signup', email: 'pending@test.local', password: 'valid-password' }));
+  await sendRegisterCode(request('/api/auth/register/send-code', undefined, { name: 'New Signup', email: 'pending@test.local' }));
+  const reSignupCode = '112233';
+  challenges[challenges.length - 1].codeHash = hashVerificationCode('register:pending@test.local', reSignupCode);
+  const signup = await register(request('/api/auth/register', undefined, { name: 'New Signup', email: 'pending@test.local', password: 'valid-password', code: reSignupCode }));
   assert.equal(signup.status, 201, 'the email is available for a new signup');
   assert.equal((await signup.json()).user.status, 'PENDING');
 });
@@ -416,7 +447,9 @@ test('only Admin grants Gestão or Admin and the last Admin remains protected', 
 
 test('existing directory member with email cannot register a duplicate account and can set password via forgot-password flow', async () => {
   users.push({ id: 'existing-member', email: 'integrante@poli.ufrj.br', name: 'Integrante Existente', role: 'MEMBER', status: 'APPROVED', institutionalMemberId: 50 });
-  const duplicateSignup = await register(request('/api/auth/register', undefined, { name: 'Integrante Existente', email: 'INTEGRANTE@poli.ufrj.br', password: 'valid-password' }));
+  const duplicateCodeSend = await sendRegisterCode(request('/api/auth/register/send-code', undefined, { name: 'Integrante Existente', email: 'INTEGRANTE@poli.ufrj.br' }));
+  assert.equal(duplicateCodeSend.status, 409, 'existing member email must reject verification code request with 409');
+  const duplicateSignup = await register(request('/api/auth/register', undefined, { name: 'Integrante Existente', email: 'INTEGRANTE@poli.ufrj.br', password: 'valid-password', code: '123456' }));
   assert.equal(duplicateSignup.status, 409, 'existing member email must reject registration with 409');
 
   const noPasswordLogin = await login(request('/api/auth/login', undefined, { email: 'integrante@poli.ufrj.br', password: 'valid-password' }));

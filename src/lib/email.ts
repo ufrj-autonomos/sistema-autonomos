@@ -3,9 +3,13 @@ import {
   buildDisciplinaryEmail,
   buildLabHoursAlertEmail,
   buildReimbursementEmail,
+  buildSecurityCodeEmail,
+  buildEmailChangeStatusEmail,
   type DisciplinaryEmailInput,
   type LabHoursAlertEmailInput,
   type ReimbursementEmailInput,
+  type SecurityCodePurpose,
+  type EmailChangeStatusEmailInput,
 } from './email-templates';
 import { recordEmailDispatchLog, type EmailLogCategory } from './email-logs';
 
@@ -39,6 +43,7 @@ export interface DispatchEmailResult {
 async function dispatchEmail(params: {
   to: string | null | undefined;
   subject: string;
+  logSubject?: string;
   html: string;
   text: string;
   category: EmailLogCategory;
@@ -51,15 +56,16 @@ async function dispatchEmail(params: {
     return { sent: false, skipped: true };
   }
 
+  const logSubject = params.logSubject ?? params.subject;
   const previewText = params.previewText ?? params.text;
   const transport = getTransport();
   if (!transport) {
-    console.warn(`[email] SMTP não configurado; e-mail "${params.subject}" não enviado para ${to}.`);
+    console.warn(`[email] SMTP não configurado; e-mail "${logSubject}" não enviado para ${to}.`);
     await recordEmailDispatchLog({
       category: params.category,
       recipientEmail: to,
       recipientName: params.recipientName,
-      subject: params.subject,
+      subject: logSubject,
       previewText,
       status: 'SKIPPED',
       errorMessage: 'SMTP não configurado no ambiente.',
@@ -80,7 +86,7 @@ async function dispatchEmail(params: {
       category: params.category,
       recipientEmail: to,
       recipientName: params.recipientName,
-      subject: params.subject,
+      subject: logSubject,
       previewText,
       status: 'SENT',
       metadata: params.metadata,
@@ -88,12 +94,12 @@ async function dispatchEmail(params: {
     return { sent: true };
   } catch (err) {
     const errorMsg = err instanceof Error ? err.message : 'Erro desconhecido ao enviar e-mail.';
-    console.error(`[email] Falha ao enviar "${params.subject}" para ${to}:`, err);
+    console.error(`[email] Falha ao enviar "${logSubject}" para ${to}:`, err);
     await recordEmailDispatchLog({
       category: params.category,
       recipientEmail: to,
       recipientName: params.recipientName,
-      subject: params.subject,
+      subject: logSubject,
       previewText,
       status: 'FAILED',
       errorMessage: errorMsg,
@@ -299,6 +305,64 @@ export async function sendAccountApprovedEmail(params: {
       errorMessage: error instanceof Error ? error.message : 'Erro desconhecido.',
     });
   }
+}
+
+export async function sendSecurityVerificationCodeEmail(params: {
+  purpose: SecurityCodePurpose;
+  to: string;
+  name: string;
+  code: string;
+  expiresInMinutes?: number;
+  targetEmail?: string;
+}): Promise<DispatchEmailResult> {
+  const expiresInMinutes = params.expiresInMinutes ?? 15;
+  const built = buildSecurityCodeEmail({
+    purpose: params.purpose,
+    recipientName: params.name,
+    code: params.code,
+    expiresInMinutes,
+    targetEmail: params.targetEmail ?? params.to,
+  });
+
+  const actionLabel =
+    params.purpose === 'REGISTER_VERIFY'
+      ? 'validação de cadastro'
+      : params.purpose === 'PROFILE_PASSWORD_CHANGE'
+        ? 'alteração de senha no perfil'
+        : 'validação do novo e-mail no perfil';
+
+  return dispatchEmail({
+    to: params.to,
+    subject: built.subject,
+    logSubject: built.subject,
+    html: built.html,
+    text: built.text,
+    category: 'AUTH_CODE',
+    recipientName: params.name,
+    previewText: `Código de 6 dígitos para ${actionLabel} válido por ${expiresInMinutes} min (código omitido no log por segurança).`,
+    metadata: {
+      purpose: params.purpose,
+      expiresInMinutes,
+    },
+  });
+}
+
+export async function sendEmailChangeStatusEmail(
+  to: string | null | undefined,
+  input: EmailChangeStatusEmailInput
+): Promise<DispatchEmailResult> {
+  const built = buildEmailChangeStatusEmail(input);
+  return dispatchEmail({
+    to,
+    ...built,
+    category: 'EMAIL_CHANGE',
+    recipientName: input.recipientName,
+    metadata: {
+      previousEmail: input.previousEmail,
+      newEmail: input.newEmail,
+      approved: input.approved,
+    },
+  });
 }
 
 function escapeHtml(value: string) {

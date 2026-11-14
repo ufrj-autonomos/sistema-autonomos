@@ -100,7 +100,6 @@ export function Navbar({ className }: NavbarProps) {
     { label: "Reuniões", href: "/reunioes", icon: CalendarCheck },
     { label: "Reembolsos", href: "/reembolsos", icon: Wallet },
     { label: "Ideias & Bugs", href: "/melhorias", icon: Lightbulb },
-    { label: "Meu Perfil", href: "/perfil", icon: UserCircle },
     { label: "Gestão", href: "/gestao", icon: ShieldCheck },
   ].filter(item => Boolean(user) && (item.href !== "/gestao" || canAccessManagement));
 
@@ -527,7 +526,11 @@ export function Navbar({ className }: NavbarProps) {
       <div className="shrink-0 p-5 border-t border-border bg-background/80 backdrop-blur-sm space-y-4">
         {user ? (
           <div className="space-y-3">
-            <div className="flex items-center gap-3 p-2.5 rounded-lg bg-foreground/5 border border-border">
+            <Link
+              href="/perfil"
+              onClick={() => setIsMobileMenuOpen(false)}
+              className="flex items-center gap-3 p-2.5 rounded-lg bg-foreground/5 border border-border hover:bg-foreground/10 transition-colors"
+            >
               {user.avatar ? (
                 <img
                   src={user.avatar}
@@ -564,7 +567,7 @@ export function Navbar({ className }: NavbarProps) {
                   )}
                 </div>
               </div>
-            </div>
+            </Link>
             <button
               type="button"
               onClick={() => handleLogout()}

@@ -18,6 +18,7 @@ import {
 } from "lucide-react";
 import { MEMBER_AREAS, normalizeMemberArea } from "@/lib/member-fields";
 import { useSession } from "@/contexts/auth-context";
+import { ProfileSecuritySection, type PendingEmailChangeData } from "@/components/profile/profile-security-section";
 
 type ProfileData = {
   id: string;
@@ -80,6 +81,7 @@ function ProfileFormContent() {
   const [profile, setProfile] = useState<ProfileData | null>(null);
   const [siteProfile, setSiteProfile] = useState<SiteProfileData>(null);
   const [pendingChange, setPendingChange] = useState<PendingChangeData>(null);
+  const [pendingEmailChange, setPendingEmailChange] = useState<PendingEmailChangeData>(null);
 
   // Form states
   const [name, setName] = useState("");
@@ -118,6 +120,7 @@ function ProfileFormContent() {
       setProfile(p);
       setSiteProfile(sp);
       setPendingChange(pc);
+      setPendingEmailChange(data.pendingEmailChange ?? null);
 
       setName(typeof pendingFields.name === "string" ? pendingFields.name : p.name || sp?.name || "");
       setArea(normalizeMemberArea(p.area) || normalizeMemberArea(sp?.area) || "");
@@ -645,6 +648,16 @@ function ProfileFormContent() {
           </button>
         </div>
       </form>
+
+      {profile && (
+        <ProfileSecuritySection
+          currentEmail={profile.email}
+          initialPendingEmailChange={pendingEmailChange}
+          onChanged={async () => {
+            await refreshSession();
+          }}
+        />
+      )}
     </div>
   );
 }

@@ -32,6 +32,10 @@ function RegisterForm() {
   const [confirmPassword, setConfirmPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [codeSent, setCodeSent] = useState(false);
+  const [verificationCode, setVerificationCode] = useState("");
+  const [sendingCode, setSendingCode] = useState(false);
+  const [infoMessage, setInfoMessage] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -54,40 +58,86 @@ function RegisterForm() {
     }
   }, [isAuthenticated, router, safeRedirect]);
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setErrorMessage(null);
-
+  function validateFields(): boolean {
     const trimmedName = name.trim();
     const trimmedEmail = email.trim();
 
-    // 1. Validação do Nome
     if (!trimmedName || trimmedName.length < 2) {
       setErrorMessage("Por favor, informe seu nome completo (mínimo de 2 caracteres).");
-      return;
+      return false;
     }
 
-    // 2. Validação do Email
     if (!trimmedEmail) {
       setErrorMessage("Por favor, informe seu endereço de email.");
-      return;
+      return false;
     }
 
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(trimmedEmail)) {
       setErrorMessage("Formato de email inválido (ex: aluno@poli.ufrj.br).");
-      return;
+      return false;
     }
 
-    // 3. Validação da Senha (backend exige >= 6 caracteres)
     if (!password || password.length < 6) {
       setErrorMessage("A senha deve conter no mínimo 6 caracteres.");
+      return false;
+    }
+
+    if (password !== confirmPassword) {
+      setErrorMessage("As senhas informadas não coincidem.");
+      return false;
+    }
+
+    return true;
+  }
+
+  async function requestVerificationCode() {
+    setErrorMessage(null);
+    setInfoMessage(null);
+    if (!validateFields()) return;
+
+    setSendingCode(true);
+    try {
+      const res = await fetch("/api/auth/register/send-code", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: name.trim(),
+          email: email.trim(),
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok || !data.success) {
+        setErrorMessage(data.error || "Não foi possível enviar o código para este email.");
+        return;
+      }
+
+      setCodeSent(true);
+      setInfoMessage(
+        data.message ||
+          `Enviamos um código de 6 dígitos para ${email.trim()}. Digite-o abaixo para validar seu cadastro.`
+      );
+    } catch {
+      setErrorMessage("Erro ao solicitar código de verificação. Tente novamente.");
+    } finally {
+      setSendingCode(false);
+    }
+  }
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setErrorMessage(null);
+
+    if (!codeSent) {
+      await requestVerificationCode();
       return;
     }
 
-    // 4. Confirmação de Senha
-    if (password !== confirmPassword) {
-      setErrorMessage("As senhas informadas não coincidem.");
+    if (!validateFields()) return;
+
+    const cleanCode = verificationCode.trim();
+    if (!/^\d{6}$/.test(cleanCode)) {
+      setErrorMessage("Informe o código de verificação de 6 dígitos enviado para o seu email.");
       return;
     }
 
@@ -95,9 +145,10 @@ function RegisterForm() {
 
     try {
       const result = await register({
-        name: trimmedName,
-        email: trimmedEmail,
+        name: name.trim(),
+        email: email.trim(),
         password,
+        code: cleanCode,
       });
 
       if (!result.success) {
@@ -167,6 +218,16 @@ function RegisterForm() {
           </div>
         )}
 
+        {infoMessage && (
+          <div
+            role="status"
+            className="mt-4 p-3 rounded-lg bg-cyan-500/10 border border-cyan-500/30 text-cyan-800 dark:text-cyan-200 text-xs font-mono flex items-start gap-2.5 animate-in fade-in duration-200"
+          >
+            <ShieldCheck className="w-4 h-4 shrink-0 mt-0.5 text-cyan-600 dark:text-cyan-400" />
+            <div className="flex-1 leading-relaxed">{infoMessage}</div>
+          </div>
+        )}
+
         {/* Formulário de Cadastro */}
         <form onSubmit={handleSubmit} className="mt-6 space-y-4" noValidate>
           {/* Campo Nome */}
@@ -185,7 +246,7 @@ function RegisterForm() {
                 id="name"
                 type="text"
                 autoComplete="name"
-                disabled={isSubmitting}
+                disabled={isSubmitting || codeSent}
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 placeholder="Ex: Carlos Eduardo"
@@ -210,7 +271,7 @@ function RegisterForm() {
                 id="email"
                 type="email"
                 autoComplete="email"
-                disabled={isSubmitting}
+                disabled={isSubmitting || codeSent}
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="seu.email@poli.ufrj.br"
@@ -235,7 +296,7 @@ function RegisterForm() {
                 id="password"
                 type={showPassword ? "text" : "password"}
                 autoComplete="new-password"
-                disabled={isSubmitting}
+                disabled={isSubmitting || codeSent}
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="••••••••"
@@ -272,7 +333,7 @@ function RegisterForm() {
                 id="confirmPassword"
                 type={showConfirmPassword ? "text" : "password"}
                 autoComplete="new-password"
-                disabled={isSubmitting}
+                disabled={isSubmitting || codeSent}
                 value={confirmPassword}
                 onChange={(e) => setConfirmPassword(e.target.value)}
                 placeholder="Repita a senha digitada"
@@ -323,20 +384,80 @@ function RegisterForm() {
             )}
           </div>
 
+          {/* Código de Verificação do E-mail (Etapa 2) */}
+          {codeSent && (
+            <div className="rounded-xl border border-cyan-500/30 bg-cyan-500/5 p-4 space-y-3">
+              <div className="flex items-center justify-between gap-2">
+                <label
+                  htmlFor="verificationCode"
+                  className="block text-xs font-mono uppercase tracking-wider text-cyan-700 dark:text-cyan-300"
+                >
+                  Código de Validação (6 dígitos)
+                </label>
+                <button
+                  type="button"
+                  disabled={sendingCode || isSubmitting}
+                  onClick={() => {
+                    setCodeSent(false);
+                    setVerificationCode("");
+                    setInfoMessage(null);
+                    setErrorMessage(null);
+                  }}
+                  className="text-[11px] font-mono text-muted-foreground hover:text-foreground underline underline-offset-4 cursor-pointer"
+                >
+                  Alterar e-mail
+                </button>
+              </div>
+              <input
+                id="verificationCode"
+                type="text"
+                inputMode="numeric"
+                maxLength={6}
+                autoComplete="one-time-code"
+                disabled={isSubmitting}
+                value={verificationCode}
+                onChange={(e) => setVerificationCode(e.target.value.replace(/\D/g, "").slice(0, 6))}
+                placeholder="000000"
+                className="w-full rounded-lg bg-background border border-input px-4 py-2.5 text-center font-mono text-lg tracking-[0.35em] text-foreground placeholder-zinc-500 focus:outline-hidden focus:ring-1 focus:ring-ring"
+              />
+              <div className="flex items-center justify-between text-[11px] text-muted-foreground">
+                <span>Enviado para <strong className="text-foreground">{email.trim()}</strong></span>
+                <button
+                  type="button"
+                  disabled={sendingCode || isSubmitting}
+                  onClick={() => void requestVerificationCode()}
+                  className="font-medium text-cyan-700 dark:text-cyan-300 hover:underline cursor-pointer disabled:opacity-50"
+                >
+                  {sendingCode ? "Reenviando..." : "Reenviar código"}
+                </button>
+              </div>
+            </div>
+          )}
+
           {/* Botão de Envio */}
           <button
             type="submit"
-            disabled={isSubmitting}
+            disabled={isSubmitting || sendingCode}
             className="w-full mt-2 py-2.5 px-4 rounded-lg bg-primary hover:bg-primary/90 text-primary-foreground font-semibold font-display text-sm flex items-center justify-center gap-2 transition-all shadow-sm disabled:opacity-60 disabled:cursor-not-allowed cursor-pointer"
           >
-            {isSubmitting ? (
+            {sendingCode ? (
               <>
                 <Loader2 className="w-4 h-4 animate-spin text-foreground" />
-                <span>Enviando cadastro...</span>
+                <span>Enviando código para o e-mail...</span>
+              </>
+            ) : isSubmitting ? (
+              <>
+                <Loader2 className="w-4 h-4 animate-spin text-foreground" />
+                <span>Validando código e cadastrando...</span>
+              </>
+            ) : codeSent ? (
+              <>
+                <span>Confirmar Código e Cadastrar</span>
+                <ArrowRight className="w-4 h-4" />
               </>
             ) : (
               <>
-                <span>Cadastrar e Continuar</span>
+                <span>Verificar E-mail e Continuar</span>
                 <ArrowRight className="w-4 h-4" />
               </>
             )}

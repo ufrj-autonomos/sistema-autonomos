@@ -109,7 +109,7 @@ async function tokenFor(memberId: string) {
 }
 
 test('EMAIL_CATEGORY_LABELS covers every email category', () => {
-  for (const key of ['DISCIPLINARY', 'LAB_HOURS_ALERT', 'REIMBURSEMENT', 'ACCOUNT_APPROVED', 'AUTH_CODE', 'OTHER'] as const) {
+  for (const key of ['DISCIPLINARY', 'LAB_HOURS_ALERT', 'REIMBURSEMENT', 'ACCOUNT_APPROVED', 'AUTH_CODE', 'EMAIL_CHANGE', 'OTHER'] as const) {
     assert.ok(EMAIL_CATEGORY_LABELS[key]);
   }
 });

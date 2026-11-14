@@ -38,7 +38,7 @@
     "test:finance": "node --import tsx tests/finance.test.ts",
     "test:assets": "node --import tsx tests/assets.test.ts",
     "test:feedback": "node --import tsx tests/feedback.test.ts",
-    "test:emails": "node --import tsx tests/email-templates.test.ts && node --import tsx tests/email-logs.test.ts"
+    "test:emails": "node --import tsx tests/email-templates.test.ts && node --import tsx tests/email-logs.test.ts && node --import tsx tests/profile-security.test.ts"
   },
   "prisma": {
     "seed": "tsx prisma/seed.ts"

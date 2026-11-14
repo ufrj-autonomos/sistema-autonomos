@@ -23,6 +23,11 @@ export async function GET(req: NextRequest) {
           orderBy: { createdAt: 'desc' },
           take: 1,
         },
+        emailChangeRequests: {
+          where: { status: 'PENDING' },
+          orderBy: { createdAt: 'desc' },
+          take: 1,
+        },
       },
     });
 
@@ -39,6 +44,7 @@ export async function GET(req: NextRequest) {
     }
 
     const pendingChange = member.profileChanges[0] || null;
+    const pendingEmailChange = member.emailChangeRequests[0] || null;
 
     return NextResponse.json(
       {
@@ -86,6 +92,14 @@ export async function GET(req: NextRequest) {
               changes: pendingChange.changes,
             }
           : null,
+        pendingEmailChange: pendingEmailChange
+          ? {
+              id: pendingEmailChange.id,
+              currentEmail: pendingEmailChange.currentEmail,
+              newEmail: pendingEmailChange.newEmail,
+              createdAt: pendingEmailChange.createdAt.toISOString(),
+            }
+          : null,
       },
       { headers: { 'Cache-Control': 'private, no-store' } }
     );
@@ -128,6 +142,11 @@ export async function PUT(req: NextRequest) {
       where: { id: access.user.id },
       include: {
         profileChanges: {
+          where: { status: 'PENDING' },
+          orderBy: { createdAt: 'desc' },
+          take: 1,
+        },
+        emailChangeRequests: {
           where: { status: 'PENDING' },
           orderBy: { createdAt: 'desc' },
           take: 1,

@@ -21,6 +21,7 @@ export function isPublicPath(pathname: string) {
     '/reset-password',
     '/api/auth/login',
     '/api/auth/register',
+    '/api/auth/register/send-code',
     '/api/auth/forgot-password',
     '/api/auth/reset-password',
     '/api/auth/me',

@@ -2,6 +2,7 @@
 
 import { useMemo, useRef, useState, useTransition, useEffect } from 'react';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/institutional/ui/dialog';
+import { useInstitutionalAsset } from '@/components/institutional/site-context';
 import { meetingCalendarDate } from '@/lib/meetings/calendar';
 import { MeetingFeed } from './meeting-feed';
 import { MeetingMinutesDialog, type MeetingMinuteCard } from './meeting-minutes-dialog';
@@ -173,6 +174,44 @@ export interface MeetingsData {
     }[];
   };
   detailedAreas: DetailedArea[];
+}
+
+function MeetingMemberAvatar({
+  name,
+  avatar,
+  size = 'sm',
+}: {
+  name: string;
+  avatar: string | null;
+  size?: 'sm' | 'md';
+}) {
+  const asset = useInstitutionalAsset();
+  const [failed, setFailed] = useState(false);
+  const src = avatar?.trim() ? asset(avatar.trim()) : null;
+  const dims = size === 'md' ? 'h-9 w-9 text-sm' : 'h-7 w-7 text-xs';
+
+  if (src && !failed) {
+    return (
+      <img
+        src={src}
+        alt={`Foto de ${name}`}
+        loading="lazy"
+        onError={() => setFailed(true)}
+        className={cn('rounded-full object-cover border border-border shrink-0 bg-muted', dims)}
+      />
+    );
+  }
+
+  return (
+    <div
+      className={cn(
+        'rounded-full bg-accent border border-border flex items-center justify-center font-semibold shrink-0 text-foreground',
+        dims
+      )}
+    >
+      {name.slice(0, 1).toUpperCase()}
+    </div>
+  );
 }
 
 const STATUS_CONFIG: Record<
@@ -1072,6 +1111,7 @@ export function MeetingsView({
                       >
                         {idx + 1}
                       </span>
+                      <MeetingMemberAvatar name={member.name} avatar={member.avatar} size="sm" />
                       <div>
                         <div className="flex items-center gap-1.5">
                           <span className="font-medium text-foreground">{member.name}</span>
@@ -1132,6 +1172,7 @@ export function MeetingsView({
                         <span className="w-5 text-center font-mono text-xs text-red-500 font-semibold">
                           #{idx + 1}
                         </span>
+                        <MeetingMemberAvatar name={member.name} avatar={member.avatar} size="sm" />
                         <div>
                           <span className="font-medium text-foreground">{member.name}</span>
                           <span className="block text-xs text-muted-foreground">
@@ -1382,9 +1423,7 @@ export function MeetingsView({
                                 <span className="text-xs font-mono text-muted-foreground w-4 text-center shrink-0">
                                   {idx + 1}
                                 </span>
-                                <div className="h-9 w-9 rounded-full bg-accent border border-border flex items-center justify-center text-sm font-semibold shrink-0 text-foreground">
-                                  {member.name.slice(0, 1)}
-                                </div>
+                                <MeetingMemberAvatar name={member.name} avatar={member.avatar} size="md" />
                                 <div className="min-w-0">
                                   <p className="font-semibold text-sm text-foreground truncate">
                                     {member.name}
@@ -1576,9 +1615,7 @@ export function MeetingsView({
                                 <span className="font-mono text-xs text-muted-foreground w-5 text-center shrink-0">
                                   {rowIdx + 1}
                                 </span>
-                                <div className="h-7 w-7 rounded-full bg-accent border border-border flex items-center justify-center text-xs font-semibold shrink-0">
-                                  {member.name.slice(0, 1)}
-                                </div>
+                                <MeetingMemberAvatar name={member.name} avatar={member.avatar} size="sm" />
                                 <span className="truncate max-w-[120px] sm:max-w-[160px]" title={member.name}>
                                   {member.name}
                                 </span>

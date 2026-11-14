@@ -283,33 +283,44 @@ export async function getMeetingsDashboardData(user: SafeUser, requestedPeriod?:
   });
 
   // Buscar todos os membros ativos que pertencem a equipes (excluindo alumni / inativos)
+  // e reaproveitar a mesma consulta para resolver fotos institucionais caso Member.avatar esteja vazio
   let inactiveInstIds = new Set<number>();
+  const instPhotoById = new Map<number, string>();
   if (process.env.INSTITUTIONAL_DATABASE_URL) {
     try {
-      const inactiveInst = await institutionalDb.institutionalMember.findMany({
-        where: { OR: [{ active: false }, { role: 'Alumni' }] },
-        select: { id: true },
+      const instRows = await institutionalDb.institutionalMember.findMany({
+        select: { id: true, active: true, role: true, photo: true },
       });
-      inactiveInstIds = new Set(inactiveInst.map((i) => i.id));
+      for (const row of instRows) {
+        if (!row.active || row.role === 'Alumni') {
+          inactiveInstIds.add(row.id);
+        } else if (row.photo?.trim()) {
+          instPhotoById.set(row.id, row.photo.trim());
+        }
+      }
     } catch (e) {
-      console.warn('Falha ao checar status de alumni no banco institucional:', e);
+      console.warn('Falha ao checar status/fotos no banco institucional:', e);
     }
   }
 
-  const allMembers = (
-    await prisma.member.findMany({
-      where: {
-        active: true,
-        status: { notIn: ['SUSPENDED', 'REJECTED'] },
-      },
-      select: { id: true, name: true, avatar: true, area: true, teamId: true, active: true, status: true, institutionalMemberId: true },
-    })
-  ).filter((m) => {
-    if (m.institutionalMemberId && inactiveInstIds.has(m.institutionalMemberId)) {
-      return false;
-    }
-    return true;
+  const rawMembers = await prisma.member.findMany({
+    where: {
+      active: true,
+      status: { notIn: ['SUSPENDED', 'REJECTED'] },
+    },
+    select: { id: true, name: true, avatar: true, area: true, teamId: true, active: true, status: true, institutionalMemberId: true },
   });
+
+  const allMembers = rawMembers
+    .filter((m) => !(m.institutionalMemberId && inactiveInstIds.has(m.institutionalMemberId)))
+    .map((m) => ({
+      ...m,
+      avatar:
+        m.avatar?.trim() ||
+        (m.institutionalMemberId ? instPhotoById.get(m.institutionalMemberId) ?? null : null),
+    }));
+
+  const activeMemberById = new Map(allMembers.map((m) => [m.id, m]));
 
   const activeMemberIds = new Set(allMembers.map((m) => m.id));
 
@@ -337,7 +348,7 @@ export async function getMeetingsDashboardData(user: SafeUser, requestedPeriod?:
         memberStatsMap.set(a.memberId, {
           id: a.memberId,
           name: a.member.name,
-          avatar: a.member.avatar,
+          avatar: activeMemberById.get(a.memberId)?.avatar ?? a.member.avatar ?? null,
           area: m.area,
           teamId: m.teamId,
           presences: 0,
@@ -558,7 +569,7 @@ export async function getMeetingsDashboardData(user: SafeUser, requestedPeriod?:
             memberMap.set(att.memberId, {
               id: att.memberId,
               name: att.member.name,
-              avatar: att.member.avatar,
+              avatar: activeMem.avatar ?? att.member.avatar ?? null,
               attendances: {},
               presences: 0,
               absences: 0,
