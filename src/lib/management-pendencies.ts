@@ -5,6 +5,11 @@ import { calculateDisciplinaryStatus } from '@/lib/disciplinary/service';
 import { formatBRL } from '@/lib/finance/constants';
 import { pendingMeetingMinutes } from '@/lib/meetings/service';
 import {
+  canAccessEvaluations,
+  getPendingEvaluationsSummary,
+} from '@/lib/evaluations/service';
+import type { PendingEvaluationsSummaryDTO } from '@/lib/evaluations/types';
+import {
   computeMissingProfileFields,
   isOperationalActiveMember,
   isProfessorAdvisor,
@@ -32,6 +37,7 @@ export interface ManagementPendencyQueue {
     | 'emailChanges'
     | 'cashEntries'
     | 'meetingMinutes'
+    | 'evaluations'
     | 'incompleteProfiles'
     | 'disciplinaryRisk'
     | 'assets';
@@ -127,6 +133,7 @@ export async function getManagementPendencies(
     cashEntriesCountRes,
     cashEntriesRowsRes,
     meetingMinutesRes,
+    evaluationsPendingRes,
     activeMembersRes,
     instMembersRes,
     assetsCountRes,
@@ -237,6 +244,9 @@ export async function getManagementPendencies(
       select: { id: true, code: true, title: true, amountCents: true, status: true },
     }),
     pendingMeetingMinutes(effectiveUser),
+    canAccessEvaluations(effectiveUser.role)
+      ? getPendingEvaluationsSummary(effectiveUser)
+      : Promise.resolve<PendingEvaluationsSummaryDTO | null>(null),
     prisma.member.findMany({
       where: { active: true, status: 'APPROVED' },
       select: {
@@ -375,6 +385,8 @@ export async function getManagementPendencies(
 
   const meetingMinutes =
     meetingMinutesRes.status === 'fulfilled' ? meetingMinutesRes.value : { total: 0, meetings: [] };
+  const evaluationsPending =
+    evaluationsPendingRes.status === 'fulfilled' ? evaluationsPendingRes.value : null;
 
   const assetsCount = assetsCountRes.status === 'fulfilled' ? assetsCountRes.value : 0;
   const assetsRows = assetsRowsRes.status === 'fulfilled' ? assetsRowsRes.value : [];
@@ -616,6 +628,34 @@ export async function getManagementPendencies(
         })}`,
       })),
     },
+    ...(evaluationsPending
+      ? [
+          {
+            key: 'evaluations' as const,
+            kind: 'approval' as const,
+            title: 'Avaliações mensais de membros pendentes',
+            shortLabel: 'Avaliações do mês',
+            subtitle:
+              effectiveUser.role === 'COORDINATOR'
+                ? `Membros da sua área ainda não avaliados em ${evaluationsPending.periodLabel}.`
+                : `Membros ainda não avaliados pelos coordenadores em ${evaluationsPending.periodLabel}.`,
+            count: evaluationsPending.pendingMembersCount,
+            href: '/gestao/avaliacoes',
+            ctaLabel:
+              evaluationsPending.pendingMembersCount === 1
+                ? 'Avaliar integrante'
+                : `Avaliar ${evaluationsPending.pendingMembersCount} membros`,
+            tone: 'amber' as const,
+            items: evaluationsPending.pendingMembers.slice(0, 4).map((m) => ({
+              id: m.id,
+              primary: m.name,
+              secondary: m.areaLabel,
+              badge: evaluationsPending.periodLabel,
+              href: '/gestao/avaliacoes',
+            })),
+          },
+        ]
+      : []),
     {
       key: 'incompleteProfiles',
       kind: 'attention',
@@ -686,6 +726,9 @@ export async function getManagementPendencies(
   setBadge('/gestao/integrantes', emailChangesCount + incompleteProfilesCount);
   setBadge('/gestao/presenca', attendanceTotal);
   setBadge('/gestao/advertencias', disciplinaryRiskList.length);
+  if (evaluationsPending) {
+    setBadge('/gestao/avaliacoes', evaluationsPending.pendingMembersCount);
+  }
   setBadge('/gestao/financeiro/reembolsos', reimbursementsCount);
   setBadge('/gestao/financeiro/caixa', cashEntriesCount);
   setBadge('/gestao/financeiro/patrimonio', assetsCount);

@@ -34,7 +34,7 @@ import {
   AreaScoresComparisonChart,
   CargoAverageChart,
   ScoreDistributionChart,
-  SemesterEvolutionChart,
+  MonthlyEvolutionChart,
 } from './evaluations-charts';
 
 type ActiveTab = 'dashboard' | 'members' | 'areas' | 'coordinators';
@@ -139,7 +139,7 @@ export function EvaluationsClient({
   const [areaFilter, setAreaFilter] = useState<string>('all');
   const [statusFilter, setStatusFilter] = useState<'all' | 'pending' | 'evaluated'>('all');
 
-  // New semester inline input (ADMIN only)
+  // New month inline input (ADMIN only)
   const [addingPeriod, setAddingPeriod] = useState(false);
   const [newPeriodCode, setNewPeriodCode] = useState('');
 
@@ -149,6 +149,9 @@ export function EvaluationsClient({
   const [notesInput, setNotesInput] = useState<string>('');
   const [saving, setSaving] = useState(false);
 
+  const selectedPeriodLabel =
+    data.periods.find((p) => p.code === data.selectedPeriod)?.name || data.selectedPeriod;
+
   async function reloadPeriod(periodCode: string) {
     setLoadingPeriod(true);
     try {
@@ -156,10 +159,10 @@ export function EvaluationsClient({
         cache: 'no-store',
       });
       const json = await res.json();
-      if (!res.ok) throw new Error(json?.error || 'Erro ao carregar semestre.');
+      if (!res.ok) throw new Error(json?.error || 'Erro ao carregar mês.');
       setData(json as EvaluationsWorkspaceDTO);
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : 'Erro ao trocar de semestre.');
+      toast.error(err instanceof Error ? err.message : 'Erro ao trocar de mês.');
     } finally {
       setLoadingPeriod(false);
     }
@@ -167,8 +170,8 @@ export function EvaluationsClient({
 
   function handleAddCustomPeriod() {
     const clean = newPeriodCode.trim();
-    if (!/^[a-zA-Z0-9._-]{2,20}$/.test(clean)) {
-      toast.error('Informe um código válido (ex: 27.1 ou 26.1).');
+    if (!/^\d{4}-(0[1-9]|1[0-2])$/.test(clean)) {
+      toast.error('Informe um mês válido no formato AAAA-MM (ex: 2026-11).');
       return;
     }
     setAddingPeriod(false);
@@ -189,14 +192,14 @@ export function EvaluationsClient({
       notes: row.evaluation?.notes ?? '',
       metricsSummary: [
         {
-          label: 'Adesão no Lab (4 sem)',
+          label: 'Adesão no Lab (mês)',
           value:
             row.metrics.labAdherencePct !== null
-              ? `${row.metrics.labAdherencePct}% (${row.metrics.labHours4Weeks}h)`
-              : `${row.metrics.labHours4Weeks}h (sem meta)`,
+              ? `${row.metrics.labAdherencePct}% (${row.metrics.labHoursMonth}h)`
+              : `${row.metrics.labHoursMonth}h (sem meta)`,
         },
         {
-          label: `Reuniões (${data.selectedPeriod})`,
+          label: `Reuniões (${selectedPeriodLabel})`,
           value:
             row.metrics.meetingsPct !== null
               ? `${row.metrics.meetingsPct}% (${row.metrics.meetingsCount} reuniões)`
@@ -216,11 +219,11 @@ export function EvaluationsClient({
     const metricsSummary = [
       { label: 'Integrantes ativos', value: String(row.metrics.activeMembersCount) },
       {
-        label: 'Adesão Lab (4 sem)',
+        label: 'Adesão Lab (mês)',
         value: row.metrics.labAdherencePct !== null ? `${row.metrics.labAdherencePct}%` : 'Sem meta',
       },
       {
-        label: `Reuniões (${data.selectedPeriod})`,
+        label: `Reuniões (${selectedPeriodLabel})`,
         value: row.metrics.meetingsPct !== null ? `${row.metrics.meetingsPct}%` : 'Sem reuniões',
       },
       { label: 'Advertências na área', value: String(row.metrics.warningsCount) },
@@ -235,7 +238,7 @@ export function EvaluationsClient({
       kind: 'area',
       scopeKey: row.scopeKey,
       title: row.label,
-      subtitle: `Nota oficial da área · Semestre ${data.selectedPeriod}`,
+      subtitle: `Nota oficial da área · ${selectedPeriodLabel}`,
       score: row.evaluation?.score ?? null,
       notes: row.evaluation?.notes ?? '',
       metricsSummary,
@@ -310,6 +313,7 @@ export function EvaluationsClient({
 
       toast.success('Avaliação salva com sucesso!');
       setEditor(null);
+      window.dispatchEvent(new Event('gestao-pendencies-refresh'));
       await reloadPeriod(data.selectedPeriod);
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Erro ao salvar avaliação.');
@@ -328,6 +332,7 @@ export function EvaluationsClient({
       if (!res.ok) throw new Error(json?.error || 'Não foi possível remover a avaliação.');
       toast.success('Avaliação removida.');
       setEditor(null);
+      window.dispatchEvent(new Event('gestao-pendencies-refresh'));
       await reloadPeriod(data.selectedPeriod);
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Erro ao remover avaliação.');
@@ -431,21 +436,21 @@ export function EvaluationsClient({
           </div>
 
           <h1 className="font-display text-2xl sm:text-3xl font-semibold text-foreground">
-            Avaliações Semestrais
+            Avaliações Mensais
           </h1>
           <p className="max-w-3xl text-sm text-muted-foreground">
             {data.isAdmin
-              ? 'Gerencie avaliações semestrais de integrantes, notas oficiais das áreas (exibidas na Home), avaliação da coordenação e dashboard analítico.'
-              : 'Avalie semestralmente os integrantes da sua área (0 a 10 + observação escrita) e consulte as notas oficiais das áreas.'}
+              ? 'Gerencie avaliações mensais de integrantes, notas oficiais das áreas (exibidas na Home), avaliação da coordenação e dashboard analítico.'
+              : 'Avalie mensalmente os integrantes da sua área (0 a 10 + observação escrita) e consulte as notas oficiais das áreas.'}
           </p>
         </div>
 
-        {/* SELETOR DE SEMESTRE */}
+        {/* SELETOR DE MÊS */}
         <div className="flex flex-wrap items-center gap-2">
           <div className="flex items-center gap-2 rounded-lg border border-border bg-card px-3 py-2">
             <Calendar className="h-4 w-4 text-muted-foreground" />
             <label htmlFor="evaluation-period-select" className="text-xs font-medium text-muted-foreground">
-              Semestre:
+              Mês:
             </label>
             <select
               id="evaluation-period-select"
@@ -456,7 +461,7 @@ export function EvaluationsClient({
             >
               {data.periods.map((p) => (
                 <option key={p.code} value={p.code} className="bg-card text-foreground">
-                  {p.code} {p.isCurrent ? '(Atual)' : ''}
+                  {p.name} {p.isCurrent ? '(Atual)' : ''}
                 </option>
               ))}
             </select>
@@ -469,22 +474,21 @@ export function EvaluationsClient({
               className="inline-flex min-h-10 items-center gap-1.5 rounded-lg border border-border bg-card px-3 py-2 text-xs font-medium text-foreground hover:bg-accent transition cursor-pointer"
             >
               <Plus className="h-3.5 w-3.5" />
-              Outro semestre
+              Outro mês
             </button>
           )}
 
           {data.isAdmin && addingPeriod && (
             <div className="flex items-center gap-1.5 rounded-lg border border-border bg-card p-1">
               <input
-                type="text"
-                placeholder="ex: 27.1"
+                type="month"
                 value={newPeriodCode}
                 onChange={(e) => setNewPeriodCode(e.target.value)}
                 onKeyDown={(e) => {
                   if (e.key === 'Enter') handleAddCustomPeriod();
                   if (e.key === 'Escape') setAddingPeriod(false);
                 }}
-                className="w-24 rounded-md border border-border bg-background px-2 py-1 text-xs text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+                className="rounded-md border border-border bg-background px-2 py-1 text-xs text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
               />
               <button
                 type="button"
@@ -496,7 +500,7 @@ export function EvaluationsClient({
               <button
                 type="button"
                 onClick={() => setAddingPeriod(false)}
-                aria-label="Cancelar novo semestre"
+                aria-label="Cancelar outro mês"
                 className="rounded-md p-1 text-muted-foreground hover:bg-accent cursor-pointer"
               >
                 <X className="h-3.5 w-3.5" />
@@ -681,13 +685,13 @@ export function EvaluationsClient({
             <div className="lg:col-span-7 min-w-0 rounded-xl border border-border bg-card p-5 shadow-xs">
               <div className="border-b border-border/70 pb-3">
                 <h2 className="text-base font-semibold text-foreground">
-                  Evolução Entre Semestres
+                  Evolução Mensal das Médias
                 </h2>
                 <p className="text-xs text-muted-foreground">
-                  Histórico comparativo das médias de membros, áreas e coordenação ao longo dos ciclos.
+                  Histórico comparativo das médias de membros, áreas e coordenação ao longo dos meses.
                 </p>
               </div>
-              <SemesterEvolutionChart data={data.dashboard.semesterTrend} />
+              <MonthlyEvolutionChart data={data.dashboard.monthlyTrend} />
             </div>
           </div>
 
@@ -696,10 +700,10 @@ export function EvaluationsClient({
             <div className="flex flex-wrap items-center justify-between gap-2">
               <div>
                 <h2 className="text-base font-semibold text-foreground">
-                  Preenchimento e Médias por Área ({data.selectedPeriod})
+                  Preenchimento e Médias por Área ({selectedPeriodLabel})
                 </h2>
                 <p className="text-xs text-muted-foreground">
-                  Acompanhe quantos membros cada coordenação já avaliou neste semestre.
+                  Acompanhe quantos membros cada coordenação já avaliou neste mês.
                 </p>
               </div>
             </div>
@@ -755,7 +759,7 @@ export function EvaluationsClient({
 
       {/* ABA 2: AVALIAÇÃO DE MEMBROS */}
       {activeTab === 'members' && (
-        <section aria-label="Avaliação semestral dos membros" className="space-y-5">
+        <section aria-label="Avaliação mensal dos membros" className="space-y-5">
           {/* Resumo + barra de progresso */}
           <div className="rounded-xl border border-border bg-card p-4 sm:p-5 shadow-xs space-y-3">
             <div className="flex flex-wrap items-center justify-between gap-3">
@@ -916,7 +920,7 @@ export function EvaluationsClient({
                       {/* Métricas objetivas de apoio */}
                       <div className="grid grid-cols-3 gap-2 rounded-lg border border-border/70 bg-muted/30 p-2.5 text-center">
                         <div>
-                          <p className="text-[10px] uppercase text-muted-foreground">Lab (4 sem)</p>
+                          <p className="text-[10px] uppercase text-muted-foreground">Lab (mês)</p>
                           <p className="font-mono text-xs font-semibold text-foreground">
                             {row.metrics.labAdherencePct !== null
                               ? `${row.metrics.labAdherencePct}%`
@@ -965,7 +969,7 @@ export function EvaluationsClient({
                         </div>
                       ) : (
                         <p className="text-xs italic text-muted-foreground">
-                          Ainda não avaliado neste semestre ({data.selectedPeriod}).
+                          Ainda não avaliado neste mês ({selectedPeriodLabel}).
                         </p>
                       )}
                     </div>
@@ -1006,11 +1010,11 @@ export function EvaluationsClient({
           <div className="rounded-xl border border-border bg-card p-4 sm:p-5 shadow-xs flex flex-wrap items-center justify-between gap-3">
             <div>
               <h2 className="text-base font-semibold text-foreground">
-                Nota das Áreas · Semestre {data.selectedPeriod}
+                Nota das Áreas · {selectedPeriodLabel}
               </h2>
               <p className="text-xs sm:text-sm text-muted-foreground">
                 {data.isAdmin
-                  ? 'Lance ou ajuste a nota oficial de cada área com apoio das métricas reais do semestre. Todas as notas lançadas aparecem automaticamente na Home.'
+                  ? 'Lance ou ajuste a nota oficial de cada área com apoio das métricas reais do mês. Todas as notas lançadas aparecem automaticamente na Home.'
                   : 'Modo somente leitura: apenas administradores podem lançar ou editar notas das áreas. As notas oficiais ficam disponíveis para toda a equipe na Home.'}
               </p>
             </div>
@@ -1089,7 +1093,7 @@ export function EvaluationsClient({
                             </div>
                           </div>
 
-                          {/* Métricas de referência do semestre */}
+                          {/* Métricas de referência do mês */}
                           <div className="grid grid-cols-2 gap-2 rounded-lg border border-border/70 bg-muted/30 p-3 text-xs">
                             <div>
                               <span className="text-muted-foreground">Ativos:</span>{' '}
@@ -1098,7 +1102,7 @@ export function EvaluationsClient({
                               </strong>
                             </div>
                             <div>
-                              <span className="text-muted-foreground">Lab (4 sem):</span>{' '}
+                              <span className="text-muted-foreground">Lab (mês):</span>{' '}
                               <strong className="font-mono text-foreground">
                                 {row.metrics.labAdherencePct !== null
                                   ? `${row.metrics.labAdherencePct}%`
@@ -1152,7 +1156,7 @@ export function EvaluationsClient({
                             </div>
                           ) : (
                             <p className="text-xs italic text-muted-foreground">
-                              Nota da área ainda não lançada neste semestre.
+                              Nota da área ainda não lançada neste mês.
                             </p>
                           )}
                         </div>
@@ -1187,10 +1191,10 @@ export function EvaluationsClient({
         <section aria-label="Avaliação dos coordenadores" className="space-y-5">
           <div className="rounded-xl border border-border bg-card p-4 sm:p-5 shadow-xs">
             <h2 className="text-base font-semibold text-foreground">
-              Avaliação dos Coordenadores · Semestre {data.selectedPeriod}
+              Avaliação dos Coordenadores · {selectedPeriodLabel}
             </h2>
             <p className="mt-1 text-xs sm:text-sm text-muted-foreground">
-              Seção exclusiva da administração para avaliar o desempenho semestral de cada coordenador. Coordenadores não visualizam avaliações individuais da coordenação.
+              Seção exclusiva da administração para avaliar o desempenho mensal de cada coordenador. Coordenadores não visualizam avaliações individuais da coordenação.
             </p>
           </div>
 
@@ -1365,11 +1369,11 @@ export function EvaluationsClient({
               </button>
             </div>
 
-            {/* Indicadores do semestre */}
+            {/* Indicadores do mês */}
             <div className="rounded-xl border border-border/80 bg-muted/30 p-3.5 space-y-2">
               <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
                 <Clock3 className="h-3.5 w-3.5" />
-                Indicadores de referência ({data.selectedPeriod})
+                Indicadores de referência ({selectedPeriodLabel})
               </p>
               <div className="space-y-1.5">
                 {editor.metricsSummary.map((item) => (
@@ -1394,7 +1398,7 @@ export function EvaluationsClient({
                     Nota geral (0 a 10)
                   </label>
                   <span className="font-mono text-xs text-muted-foreground">
-                    Semestre {data.selectedPeriod}
+                    {selectedPeriodLabel}
                   </span>
                 </div>
 
@@ -1437,14 +1441,14 @@ export function EvaluationsClient({
                   htmlFor="evaluation-notes-input"
                   className="text-sm font-medium text-foreground"
                 >
-                  Observação escrita / Feedback do semestre
+                  Observação escrita / Feedback do mês
                 </label>
                 <textarea
                   id="evaluation-notes-input"
                   rows={4}
                   value={notesInput}
                   onChange={(e) => setNotesInput(e.target.value)}
-                  placeholder="Descreva pontos fortes, entregas, comprometimento e pontos de melhoria neste semestre..."
+                  placeholder="Descreva pontos fortes, entregas, comprometimento e pontos de melhoria neste mês..."
                   className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
                 />
               </div>

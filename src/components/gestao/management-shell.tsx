@@ -73,6 +73,7 @@ export function ManagementShell({
   useEffect(() => {
     const onFocus = () => void refreshBadges();
     window.addEventListener('focus', onFocus);
+    window.addEventListener('gestao-pendencies-refresh', onFocus);
     const interval = window.setInterval(() => {
       if (document.visibilityState === 'visible') {
         void refreshBadges();
@@ -80,6 +81,7 @@ export function ManagementShell({
     }, 60_000);
     return () => {
       window.removeEventListener('focus', onFocus);
+      window.removeEventListener('gestao-pendencies-refresh', onFocus);
       window.clearInterval(interval);
     };
   }, [refreshBadges]);

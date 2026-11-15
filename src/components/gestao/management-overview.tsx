@@ -20,6 +20,7 @@ import {
   UserCog,
   Globe,
   Wrench,
+  ClipboardCheck,
 } from 'lucide-react';
 import { getManagementOverview } from '@/lib/management-overview';
 import { getExecutiveOverviewInsights } from '@/lib/platform-insights';
@@ -93,6 +94,8 @@ function QueueIcon({ queueKey }: { queueKey: ManagementPendencyQueue['key'] }) {
       return <Mail className="h-4 w-4 shrink-0" />;
     case 'meetingMinutes':
       return <FileText className="h-4 w-4 shrink-0" />;
+    case 'evaluations':
+      return <ClipboardCheck className="h-4 w-4 shrink-0" />;
     case 'incompleteProfiles':
       return <UserCog className="h-4 w-4 shrink-0" />;
     case 'disciplinaryRisk':
@@ -233,7 +236,9 @@ export async function ManagementOverview({
 
   const canHandleMinutes = !user || ['COORDINATOR', 'ADMIN'].includes(user.role);
   const visibleQueues = pendencies.queues.filter(
-    (q) => q.key !== 'meetingMinutes' || canHandleMinutes || q.count > 0
+    (q) =>
+      (q.key !== 'meetingMinutes' || canHandleMinutes || q.count > 0) &&
+      (q.key !== 'evaluations' || canHandleMinutes)
   );
   const activeQueues = visibleQueues.filter((q) => q.count > 0);
   const clearQueues = visibleQueues.filter((q) => q.count === 0);
@@ -890,7 +895,7 @@ export async function ManagementOverview({
                   {user && ['ADMIN', 'COORDINATOR'].includes(user.role) && (
                     <li>
                       <Link href="/gestao/avaliacoes" className="flex items-center justify-between rounded-lg px-2 py-1.5 hover:bg-accent text-foreground">
-                        <span>Avaliações Semestrais</span>
+                        <span>Avaliações Mensais</span>
                         <ArrowRight className="h-3.5 w-3.5 text-muted-foreground" />
                       </Link>
                     </li>

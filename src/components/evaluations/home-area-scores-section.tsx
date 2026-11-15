@@ -139,7 +139,7 @@ function AreaScoreCard({ item }: { item: HomeAreaScoreItemDTO }) {
           <p className="text-[11px] italic text-muted-foreground/75">
             {item.score !== null
               ? 'Nota lançada sem observação adicional.'
-              : 'Avaliação deste semestre ainda não lançada.'}
+              : 'Avaliação deste mês ainda não lançada.'}
           </p>
         )}
 
@@ -156,6 +156,8 @@ function AreaScoreCard({ item }: { item: HomeAreaScoreItemDTO }) {
 export function HomeAreaScoresSection({ data }: { data: HomeAreaEvaluationsDTO }) {
   const [selectedPeriod, setSelectedPeriod] = useState(data.currentPeriodCode);
   const items = data.evaluationsByPeriod[selectedPeriod] ?? [];
+  const selectedPeriodObj = data.periods.find((p) => p.code === selectedPeriod);
+  const selectedPeriodLabel = selectedPeriodObj?.name || selectedPeriod;
 
   const summary = useMemo(() => {
     const scored = items.filter((item) => typeof item.score === 'number');
@@ -178,7 +180,7 @@ export function HomeAreaScoresSection({ data }: { data: HomeAreaEvaluationsDTO }
               className="font-display text-lg font-semibold text-foreground flex items-center gap-2"
             >
               <Award className="h-5 w-5 text-amber-500" />
-              Nota das Áreas · Semestre {selectedPeriod}
+              Nota das Áreas · {selectedPeriodLabel}
             </h2>
             {summary.scoredCount > 0 && (
               <span className="rounded-full border border-border bg-muted/50 px-2.5 py-0.5 font-mono text-xs font-medium text-foreground">
@@ -187,12 +189,12 @@ export function HomeAreaScoresSection({ data }: { data: HomeAreaEvaluationsDTO }
             )}
           </div>
           <p className="mt-1 text-xs sm:text-sm text-muted-foreground">
-            Desempenho semestral oficial das áreas da equipe. Avaliações individuais permanecem restritas à coordenação e administração.
+            Desempenho mensal oficial das áreas da equipe. Avaliações individuais permanecem restritas à coordenação e administração.
           </p>
         </div>
 
         {data.periods.length > 1 && (
-          <div className="flex items-center gap-1.5 rounded-lg border border-border bg-card p-1">
+          <div className="flex flex-wrap items-center gap-1 rounded-lg border border-border bg-card p-1">
             <Calendar className="h-3.5 w-3.5 ml-1.5 text-muted-foreground" />
             {data.periods.map((p) => (
               <button
@@ -206,7 +208,7 @@ export function HomeAreaScoresSection({ data }: { data: HomeAreaEvaluationsDTO }
                     : 'text-muted-foreground hover:text-foreground hover:bg-accent'
                 )}
               >
-                {p.code}
+                {p.shortName || p.code}
               </button>
             ))}
           </div>

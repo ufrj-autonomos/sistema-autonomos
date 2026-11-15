@@ -10,6 +10,7 @@ import {
   BookOpen,
   CalendarCheck,
   CheckCircle2,
+  ClipboardCheck,
   Clock3,
   GraduationCap,
   Layers,
@@ -25,7 +26,11 @@ import { prisma } from '@/lib/prisma';
 import { getMemberDisciplinarySummary } from '@/lib/disciplinary/service';
 import { MemberWarningBanner } from '@/components/disciplinary/member-warning-banner';
 import { getMemberHomeInsights } from '@/lib/platform-insights';
-import { getHomeAreaEvaluations } from '@/lib/evaluations/service';
+import {
+  canAccessEvaluations,
+  getHomeAreaEvaluations,
+  getPendingEvaluationsSummary,
+} from '@/lib/evaluations/service';
 import { HomeAreaScoresSection } from '@/components/evaluations/home-area-scores-section';
 import {
   MemberWeeklyLabChart,
@@ -90,16 +95,27 @@ export default async function HomePage() {
   const user = await requirePageUser();
 
   if (hasManagementAccess(user.role)) {
-    const [personalAttendance, homeInsights, areaEvaluations] = await Promise.all([
-      attendanceReport(undefined, user.id).catch(() => null),
-      getMemberHomeInsights(user),
-      getHomeAreaEvaluations(user).catch(() => null),
-    ]);
+    const [personalAttendance, homeInsights, areaEvaluations, pendingEvaluations] =
+      await Promise.all([
+        attendanceReport(undefined, user.id).catch(() => null),
+        getMemberHomeInsights(user),
+        getHomeAreaEvaluations(user).catch(() => null),
+        canAccessEvaluations(user.role)
+          ? getPendingEvaluationsSummary(user).catch(() => null)
+          : Promise.resolve(null),
+      ]);
 
     const missingFields = homeInsights?.profileStatus.missingOperationalFields ?? [];
     const needsOperationalProfile = homeInsights
       ? !homeInsights.profileStatus.isOperationalComplete
       : !user.profileCompletedAt;
+
+    const showEvaluationNotice = Boolean(
+      pendingEvaluations &&
+        (pendingEvaluations.pendingMembersCount > 0 ||
+          pendingEvaluations.pendingAreasCount > 0 ||
+          pendingEvaluations.pendingCoordinatorsCount > 0)
+    );
 
     return (
       <div className="mx-auto w-full max-w-[1680px] min-w-0 overflow-x-clip px-2.5 sm:px-4 md:px-6 py-6 sm:py-8 space-y-8">
@@ -120,6 +136,83 @@ export default async function HomePage() {
               className="inline-flex min-h-11 items-center gap-2 rounded-lg bg-amber-400 px-4 py-2 font-semibold text-zinc-950 hover:bg-amber-300"
             >
               Completar agora
+              <ArrowRight className="h-4 w-4" />
+            </Link>
+          </div>
+        )}
+
+        {showEvaluationNotice && pendingEvaluations && (
+          <div
+            role="status"
+            className="flex flex-wrap items-center justify-between gap-4 rounded-xl border border-yellow-500/40 bg-yellow-500/10 p-4 text-sm text-amber-900 dark:text-yellow-100"
+          >
+            <div className="flex min-w-0 flex-1 items-start gap-3">
+              <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-yellow-400 text-zinc-950 shadow-2xs">
+                <ClipboardCheck className="h-5 w-5" />
+              </span>
+              <div className="min-w-0 space-y-1">
+                <div className="flex flex-wrap items-center gap-2">
+                  <p className="font-semibold text-amber-950 dark:text-yellow-100">
+                    {user.role === 'COORDINATOR'
+                      ? `Avaliação mensal pendente · ${pendingEvaluations.periodLabel}`
+                      : `Avaliações mensais pendentes · ${pendingEvaluations.periodLabel}`}
+                  </p>
+                  {pendingEvaluations.pendingMembersCount > 0 && (
+                    <span className="inline-flex items-center rounded-full bg-yellow-400 px-2 py-0.5 font-mono text-xs font-bold text-zinc-950 tabular-nums">
+                      {pendingEvaluations.pendingMembersCount} membro(s)
+                    </span>
+                  )}
+                </div>
+                <p className="text-xs sm:text-sm text-amber-900/90 dark:text-yellow-200/90">
+                  {pendingEvaluations.pendingMembersCount > 0 ? (
+                    user.role === 'COORDINATOR' ? (
+                      <>
+                        Faltam{' '}
+                        <strong>{pendingEvaluations.pendingMembersCount}</strong>{' '}
+                        integrante(s) da sua área (
+                        {pendingEvaluations.scopeLabel ?? user.area ?? 'área atual'})
+                        sem avaliação lançada neste mês.
+                      </>
+                    ) : (
+                      <>
+                        <strong>{pendingEvaluations.pendingMembersCount}</strong>{' '}
+                        integrante(s) ainda não foram avaliados pelos coordenadores
+                        neste mês
+                        {(pendingEvaluations.pendingAreasCount > 0 ||
+                          pendingEvaluations.pendingCoordinatorsCount > 0) &&
+                          ` (além de ${pendingEvaluations.pendingAreasCount} área(s) e ${pendingEvaluations.pendingCoordinatorsCount} coordenador(es))`}
+                        .
+                      </>
+                    )
+                  ) : (
+                    <>
+                      Todos os membros já foram avaliados, mas ainda há{' '}
+                      {pendingEvaluations.pendingAreasCount} área(s) e{' '}
+                      {pendingEvaluations.pendingCoordinatorsCount} coordenador(es)
+                      sem nota neste mês.
+                    </>
+                  )}
+                </p>
+                {pendingEvaluations.pendingMembers.length > 0 && (
+                  <p className="text-xs text-amber-900/80 dark:text-yellow-200/80 truncate">
+                    Pendentes:{' '}
+                    {pendingEvaluations.pendingMembers
+                      .slice(0, 4)
+                      .map((m) =>
+                        user.role === 'ADMIN' ? `${m.name} (${m.areaLabel})` : m.name
+                      )
+                      .join(', ')}
+                    {pendingEvaluations.pendingMembers.length > 4 &&
+                      ` e mais ${pendingEvaluations.pendingMembers.length - 4}`}
+                  </p>
+                )}
+              </div>
+            </div>
+            <Link
+              href="/gestao/avaliacoes"
+              className="inline-flex min-h-11 shrink-0 items-center gap-2 rounded-lg bg-yellow-400 px-4 py-2 text-sm font-semibold text-zinc-950 hover:bg-yellow-300 transition-colors"
+            >
+              Avaliar agora
               <ArrowRight className="h-4 w-4" />
             </Link>
           </div>

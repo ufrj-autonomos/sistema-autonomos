@@ -5,8 +5,8 @@ import { EvaluationsClient } from '@/components/gestao/evaluations-client';
 
 export const dynamic = 'force-dynamic';
 export const metadata = {
-  title: 'Avaliações Semestrais — Gestão',
-  description: 'Avaliação semestral de membros, notas das áreas e coordenação.',
+  title: 'Avaliações Mensais — Gestão',
+  description: 'Avaliação mensal de membros, notas das áreas e coordenação.',
 };
 
 export default async function EvaluationsPage({

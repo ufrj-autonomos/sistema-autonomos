@@ -2,16 +2,21 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { prisma } from '../src/lib/prisma';
 import { managementSectionsForRole } from '../src/lib/management-navigation';
+import { getManagementPendencies } from '../src/lib/management-pendencies';
 import {
   EvaluationError,
+  currentMonthCode,
   getEvaluationsWorkspace,
   getHomeAreaEvaluations,
+  getPendingEvaluationsSummary,
   upsertMemberEvaluation,
   deleteMemberEvaluation,
   upsertAreaEvaluation,
   upsertCoordinatorEvaluation,
 } from '../src/lib/evaluations/service';
 import type { SafeUser } from '../src/lib/session';
+
+const CURRENT_MONTH = currentMonthCode();
 
 delete process.env.INSTITUTIONAL_DATABASE_URL;
 
@@ -116,20 +121,42 @@ function withPrismaStubs<T>(initial: StubStores, fn: (stores: StubStores) => Pro
     { id: 'mp-0', code: '26.1', name: '2026.1', isCurrent: false, createdAt: new Date('2026-03-01T00:00:00Z') },
   ]);
 
-  patch('member', 'findMany', async () => stores.members);
+  const pickSelect = <T extends Record<string, unknown>>(row: T, select?: Record<string, boolean>) => {
+    if (!select) return row;
+    const out: Record<string, unknown> = {};
+    for (const [k, v] of Object.entries(select)) {
+      if (v) out[k] = row[k];
+    }
+    return out;
+  };
+
+  patch('member', 'findMany', async (args?: { where?: { status?: string; active?: boolean } }) =>
+    stores.members.filter((m) => {
+      if (args?.where?.status && m.status !== args.where.status) return false;
+      if (typeof args?.where?.active === 'boolean' && m.active !== args.where.active) return false;
+      return true;
+    })
+  );
   patch('attendanceSettings', 'findUnique', async () => ({ maxSessionSeconds: 43200 }));
   patch('attendanceVacationWeek', 'findMany', async () => []);
   patch('meeting', 'findMany', async () => []);
   patch('disciplinaryWarning', 'findMany', async () => []);
+  patch('financialEntry', 'count', async () => 0);
+  patch('financialEntry', 'findMany', async () => []);
+  patch('feedbackItem', 'count', async () => 0);
+  patch('feedbackItem', 'findMany', async () => []);
+  patch('attendanceJustification', 'findMany', async () => []);
+  patch('attendanceVisit', 'findMany', async () => []);
+  patch('memberProfileChange', 'findMany', async () => []);
+  patch('emailChangeRequest', 'findMany', async () => []);
+  patch('inventoryAsset', 'count', async () => 0);
+  patch('inventoryAsset', 'findMany', async () => []);
 
   patch('memberEvaluation', 'findMany', async (args?: { where?: { periodCode?: string }; select?: Record<string, boolean> }) => {
     const rows = args?.where?.periodCode
       ? stores.memberEvaluations.filter((r) => r.periodCode === args.where?.periodCode)
       : stores.memberEvaluations;
-    if (args?.select) {
-      return rows.map((r) => ({ periodCode: r.periodCode, score: r.score }));
-    }
-    return rows;
+    return args?.select ? rows.map((r) => pickSelect(r, args.select)) : rows;
   });
   patch('memberEvaluation', 'findUnique', async (args: { where: { id: string } }) =>
     stores.memberEvaluations.find((r) => r.id === args.where.id) ?? null
@@ -168,10 +195,7 @@ function withPrismaStubs<T>(initial: StubStores, fn: (stores: StubStores) => Pro
     const rows = args?.where?.periodCode
       ? stores.areaEvaluations.filter((r) => r.periodCode === args.where?.periodCode)
       : stores.areaEvaluations;
-    if (args?.select) {
-      return rows.map((r) => ({ periodCode: r.periodCode, score: r.score }));
-    }
-    return rows;
+    return args?.select ? rows.map((r) => pickSelect(r, args.select)) : rows;
   });
   patch('areaEvaluation', 'upsert', async (args: {
     where: { periodCode_scopeKey: { periodCode: string; scopeKey: string } };
@@ -201,10 +225,7 @@ function withPrismaStubs<T>(initial: StubStores, fn: (stores: StubStores) => Pro
     const rows = args?.where?.periodCode
       ? stores.coordinatorEvaluations.filter((r) => r.periodCode === args.where?.periodCode)
       : stores.coordinatorEvaluations;
-    if (args?.select) {
-      return rows.map((r) => ({ periodCode: r.periodCode, score: r.score }));
-    }
-    return rows;
+    return args?.select ? rows.map((r) => pickSelect(r, args.select)) : rows;
   });
   patch('coordinatorEvaluation', 'upsert', async (args: {
     where: { periodCode_coordinatorId: { periodCode: string; coordinatorId: string } };
@@ -345,22 +366,46 @@ test('MANAGEMENT, MEMBER e TRAINEE recebem 403 no workspace e endpoints de avali
       for (const role of ['MANAGEMENT', 'MEMBER', 'TRAINEE'] as const) {
         const user = makeUser({ id: 'u-denied', role });
         await assert.rejects(
-          () => getEvaluationsWorkspace(user, '26.2'),
+          () => getEvaluationsWorkspace(user, CURRENT_MONTH),
           (err: unknown) => err instanceof EvaluationError && err.status === 403
         );
         await assert.rejects(
-          () => upsertMemberEvaluation(user, { periodCode: '26.2', memberId: 'm-hs-1', score: 8, notes: 'ok' }),
+          () => upsertMemberEvaluation(user, { periodCode: CURRENT_MONTH, memberId: 'm-hs-1', score: 8, notes: 'ok' }),
           (err: unknown) => err instanceof EvaluationError && err.status === 403
         );
         await assert.rejects(
-          () => upsertAreaEvaluation(user, { periodCode: '26.2', scopeKey: 'harpia:Software', score: 8, notes: 'ok' }),
+          () => upsertAreaEvaluation(user, { periodCode: CURRENT_MONTH, scopeKey: 'harpia:Software', score: 8, notes: 'ok' }),
           (err: unknown) => err instanceof EvaluationError && err.status === 403
         );
         await assert.rejects(
-          () => upsertCoordinatorEvaluation(user, { periodCode: '26.2', coordinatorId: 'coord-harpia-soft', score: 8, notes: 'ok' }),
+          () => upsertCoordinatorEvaluation(user, { periodCode: CURRENT_MONTH, coordinatorId: 'coord-harpia-soft', score: 8, notes: 'ok' }),
           (err: unknown) => err instanceof EvaluationError && err.status === 403
         );
       }
+    }
+  );
+});
+
+test('avaliações aceitam apenas formato mensal AAAA-MM (rejeitando formato semestral)', async () => {
+  const admin = makeUser({
+    id: 'admin-cap',
+    name: 'Capitão Admin',
+    role: 'ADMIN',
+    area: 'Gestão',
+    teamId: null,
+  });
+
+  await withPrismaStubs(
+    { members: baseRoster(), memberEvaluations: [], areaEvaluations: [], coordinatorEvaluations: [] },
+    async () => {
+      await assert.rejects(
+        () => getEvaluationsWorkspace(admin, '26.2'),
+        (err: unknown) => err instanceof EvaluationError && err.status === 400
+      );
+      await assert.rejects(
+        () => upsertMemberEvaluation(admin, { periodCode: '26.2', memberId: 'm-hs-1', score: 8, notes: 'ok' }),
+        (err: unknown) => err instanceof EvaluationError && err.status === 400
+      );
     }
   );
 });
@@ -380,7 +425,7 @@ test('COORDINATOR vê e avalia apenas sua área+equipe e tem áreas em modo some
       memberEvaluations: [
         {
           id: 'me-other',
-          periodCode: '26.2',
+          periodCode: CURRENT_MONTH,
           memberId: 'm-ns-1',
           evaluatorId: 'coord-naut-soft',
           evaluatorName: 'Coord Nautilus Soft',
@@ -395,7 +440,7 @@ test('COORDINATOR vê e avalia apenas sua área+equipe e tem áreas em modo some
       areaEvaluations: [
         {
           id: 'ae-1',
-          periodCode: '26.2',
+          periodCode: CURRENT_MONTH,
           scopeKey: 'harpia:Software',
           teamId: 2,
           area: 'Software',
@@ -410,7 +455,7 @@ test('COORDINATOR vê e avalia apenas sua área+equipe e tem áreas em modo some
       coordinatorEvaluations: [
         {
           id: 'ce-secret',
-          periodCode: '26.2',
+          periodCode: CURRENT_MONTH,
           coordinatorId: 'coord-harpia-soft',
           evaluatorId: 'admin-cap',
           evaluatorName: 'Capitão Admin',
@@ -424,7 +469,7 @@ test('COORDINATOR vê e avalia apenas sua área+equipe e tem áreas em modo some
       ],
     },
     async () => {
-      const ws = await getEvaluationsWorkspace(coord, '26.2');
+      const ws = await getEvaluationsWorkspace(coord, CURRENT_MONTH);
       assert.equal(ws.isAdmin, false);
       assert.equal(ws.viewerRole, 'COORDINATOR');
       assert.equal(ws.dashboard, null);
@@ -451,20 +496,20 @@ test('COORDINATOR vê e avalia apenas sua área+equipe e tem áreas em modo some
 
       // Bloqueia avaliação em outra equipe ou outra área
       await assert.rejects(
-        () => upsertMemberEvaluation(coord, { periodCode: '26.2', memberId: 'm-ns-1', score: 8, notes: 'Tentativa' }),
+        () => upsertMemberEvaluation(coord, { periodCode: CURRENT_MONTH, memberId: 'm-ns-1', score: 8, notes: 'Tentativa' }),
         (err: unknown) => err instanceof EvaluationError && err.status === 403
       );
       await assert.rejects(
-        () => upsertMemberEvaluation(coord, { periodCode: '26.2', memberId: 'm-hm-1', score: 8, notes: 'Tentativa' }),
+        () => upsertMemberEvaluation(coord, { periodCode: CURRENT_MONTH, memberId: 'm-hm-1', score: 8, notes: 'Tentativa' }),
         (err: unknown) => err instanceof EvaluationError && err.status === 403
       );
       // Bloqueia editar área ou avaliar coordenador
       await assert.rejects(
-        () => upsertAreaEvaluation(coord, { periodCode: '26.2', scopeKey: 'harpia:Software', score: 9.5, notes: 'Tentativa' }),
+        () => upsertAreaEvaluation(coord, { periodCode: CURRENT_MONTH, scopeKey: 'harpia:Software', score: 9.5, notes: 'Tentativa' }),
         (err: unknown) => err instanceof EvaluationError && err.status === 403
       );
       await assert.rejects(
-        () => upsertCoordinatorEvaluation(coord, { periodCode: '26.2', coordinatorId: 'coord-naut-soft', score: 9, notes: 'Tentativa' }),
+        () => upsertCoordinatorEvaluation(coord, { periodCode: CURRENT_MONTH, coordinatorId: 'coord-naut-soft', score: 9, notes: 'Tentativa' }),
         (err: unknown) => err instanceof EvaluationError && err.status === 403
       );
       // Bloqueia apagar avaliação de outra equipe
@@ -475,7 +520,7 @@ test('COORDINATOR vê e avalia apenas sua área+equipe e tem áreas em modo some
 
       // Permite avaliar membro da própria área e atualizar/excluir
       const saved = await upsertMemberEvaluation(coord, {
-        periodCode: '26.2',
+        periodCode: CURRENT_MONTH,
         memberId: 'm-hs-1',
         score: 8.5,
         notes: 'Ótima evolução técnica.',
@@ -501,7 +546,7 @@ test('ADMIN avalia membros de qualquer área, áreas, coordenadores, acessa dash
     { members: baseRoster(), memberEvaluations: [], areaEvaluations: [], coordinatorEvaluations: [] },
     async () => {
       const mSaved = await upsertMemberEvaluation(admin, {
-        periodCode: '26.2',
+        periodCode: CURRENT_MONTH,
         memberId: 'm-ns-1',
         score: 9.2,
         notes: 'Destaque em Software Nautilus.',
@@ -509,7 +554,7 @@ test('ADMIN avalia membros de qualquer área, áreas, coordenadores, acessa dash
       assert.equal(mSaved.score, 9.2);
 
       const aSaved = await upsertAreaEvaluation(admin, {
-        periodCode: '26.2',
+        periodCode: CURRENT_MONTH,
         scopeKey: 'nautilus:Software',
         score: 8.8,
         notes: 'Área muito bem organizada.',
@@ -518,7 +563,7 @@ test('ADMIN avalia membros de qualquer área, áreas, coordenadores, acessa dash
       assert.equal(aSaved.score, 8.8);
 
       const cSaved = await upsertCoordinatorEvaluation(admin, {
-        periodCode: '26.2',
+        periodCode: CURRENT_MONTH,
         coordinatorId: 'coord-harpia-soft',
         score: 9.4,
         notes: 'Liderança consistente.',
@@ -527,15 +572,15 @@ test('ADMIN avalia membros de qualquer área, áreas, coordenadores, acessa dash
 
       // Bloqueia autoavaliação
       await assert.rejects(
-        () => upsertMemberEvaluation(admin, { periodCode: '26.2', memberId: 'admin-cap', score: 10, notes: 'Self' }),
+        () => upsertMemberEvaluation(admin, { periodCode: CURRENT_MONTH, memberId: 'admin-cap', score: 10, notes: 'Self' }),
         (err: unknown) => err instanceof EvaluationError && err.status === 400
       );
       await assert.rejects(
-        () => upsertCoordinatorEvaluation(admin, { periodCode: '26.2', coordinatorId: 'admin-cap', score: 10, notes: 'Self' }),
+        () => upsertCoordinatorEvaluation(admin, { periodCode: CURRENT_MONTH, coordinatorId: 'admin-cap', score: 10, notes: 'Self' }),
         (err: unknown) => err instanceof EvaluationError && err.status === 400
       );
 
-      const ws = await getEvaluationsWorkspace(admin, '26.2');
+      const ws = await getEvaluationsWorkspace(admin, CURRENT_MONTH);
       assert.equal(ws.isAdmin, true);
       assert.equal(ws.viewerRole, 'ADMIN');
       assert.ok(ws.members.length >= 4);
@@ -561,7 +606,7 @@ test('getHomeAreaEvaluations expõe apenas nota das áreas na Home sem vazar ava
       memberEvaluations: [
         {
           id: 'me-secret',
-          periodCode: '26.2',
+          periodCode: CURRENT_MONTH,
           memberId: 'm-hs-1',
           evaluatorId: 'coord-harpia-soft',
           evaluatorName: 'Coord Harpia Soft',
@@ -576,12 +621,12 @@ test('getHomeAreaEvaluations expõe apenas nota das áreas na Home sem vazar ava
       areaEvaluations: [
         {
           id: 'ae-home',
-          periodCode: '26.2',
+          periodCode: CURRENT_MONTH,
           scopeKey: 'harpia:Software',
           teamId: 2,
           area: 'Software',
           score: 8.6,
-          notes: 'Ótimo semestre coletivo da área.',
+          notes: 'Ótimo mês coletivo da área.',
           evaluatorId: 'admin-cap',
           evaluatorName: 'Capitão Admin',
           createdAt: new Date(),
@@ -591,7 +636,7 @@ test('getHomeAreaEvaluations expõe apenas nota das áreas na Home sem vazar ava
       coordinatorEvaluations: [
         {
           id: 'ce-secret',
-          periodCode: '26.2',
+          periodCode: CURRENT_MONTH,
           coordinatorId: 'coord-harpia-soft',
           evaluatorId: 'admin-cap',
           evaluatorName: 'Capitão Admin',
@@ -606,19 +651,83 @@ test('getHomeAreaEvaluations expõe apenas nota das áreas na Home sem vazar ava
     },
     async () => {
       const home = await getHomeAreaEvaluations({ area: 'Software', teamId: 2 });
-      assert.equal(home.currentPeriodCode, '26.2');
+      assert.equal(home.currentPeriodCode, CURRENT_MONTH);
       assert.equal(home.userScopeKey, 'harpia:Software');
 
-      const areas = home.evaluationsByPeriod['26.2'] ?? [];
+      const areas = home.evaluationsByPeriod[CURRENT_MONTH] ?? [];
       const own = areas.find((a) => a.scopeKey === 'harpia:Software');
       assert.ok(own);
       assert.equal(own.isUserArea, true);
       assert.equal(own.score, 8.6);
-      assert.equal(own.notes, 'Ótimo semestre coletivo da área.');
+      assert.equal(own.notes, 'Ótimo mês coletivo da área.');
 
       const serialized = JSON.stringify(home);
       assert.ok(!serialized.includes('SEGREDO_INDIVIDUAL_MEMBRO'));
       assert.ok(!serialized.includes('SEGREDO_INDIVIDUAL_COORD'));
+    }
+  );
+});
+
+test('pendências e bola de notificação (/gestao/avaliacoes) contabilizam membros não avaliados no mês por perfil', async () => {
+  const coord = makeUser({
+    id: 'coord-harpia-soft',
+    name: 'Coord Harpia Soft',
+    role: 'COORDINATOR',
+    area: 'Software',
+    teamId: 2,
+  });
+  const admin = makeUser({
+    id: 'admin-cap',
+    name: 'Capitão Admin',
+    role: 'ADMIN',
+    area: 'Gestão',
+    teamId: null,
+  });
+  const mgmt = makeUser({
+    id: 'm-gestao-1',
+    name: 'Membro Gestão',
+    role: 'MANAGEMENT',
+    area: 'Gestão',
+    teamId: null,
+  });
+
+  await withPrismaStubs(
+    { members: baseRoster(), memberEvaluations: [], areaEvaluations: [], coordinatorEvaluations: [] },
+    async () => {
+      // Coordenador Harpia Software tem 1 membro pendente na área
+      const coordPending = await getPendingEvaluationsSummary(coord);
+      assert.equal(coordPending.periodCode, CURRENT_MONTH);
+      assert.equal(coordPending.pendingMembersCount, 1);
+      assert.deepEqual(coordPending.pendingMembers.map((m) => m.id), ['m-hs-1']);
+
+      const coordNav = await getManagementPendencies(coord);
+      assert.equal(coordNav.navBadges['/gestao/avaliacoes'], 1);
+
+      // ADMIN vê todos os 4 membros elegíveis não avaliados pelos coordenadores
+      const adminPending = await getPendingEvaluationsSummary(admin);
+      assert.equal(adminPending.pendingMembersCount, 4);
+      const adminNav = await getManagementPendencies(admin);
+      assert.equal(adminNav.navBadges['/gestao/avaliacoes'], 4);
+
+      // MANAGEMENT não recebe pendência nem bola de avaliação
+      const mgmtPending = await getPendingEvaluationsSummary(mgmt);
+      assert.equal(mgmtPending.pendingMembersCount, 0);
+      const mgmtNav = await getManagementPendencies(mgmt);
+      assert.equal(mgmtNav.navBadges['/gestao/avaliacoes'], undefined);
+      assert.ok(!mgmtNav.queues.some((q) => q.key === 'evaluations'));
+
+      // Após coordenador avaliar seu membro, a pendência e a bolinha da área zeram
+      await upsertMemberEvaluation(coord, {
+        periodCode: CURRENT_MONTH,
+        memberId: 'm-hs-1',
+        score: 9.0,
+        notes: 'Avaliado no mês.',
+      });
+
+      const coordAfter = await getPendingEvaluationsSummary(coord);
+      assert.equal(coordAfter.pendingMembersCount, 0);
+      const coordNavAfter = await getManagementPendencies(coord);
+      assert.equal(coordNavAfter.navBadges['/gestao/avaliacoes'], undefined);
     }
   );
 });

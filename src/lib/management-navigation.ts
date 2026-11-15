@@ -9,7 +9,7 @@ export const MANAGEMENT_SECTIONS = [
   { href: '/gestao/ex-membros', label: 'Ex-membros', group: 'Pessoas', icon: 'alumni', description: 'Diretório exclusivo de ex-integrantes (alumni) e período na equipe.' },
   { href: '/gestao/presenca', label: 'Presença no laboratório', group: 'Pessoas', icon: 'attendance', description: 'Acompanhar horas semanais, pendências e registros.' },
   { href: '/gestao/advertencias', label: 'Gestão disciplinar', group: 'Pessoas', icon: 'disciplinary', description: 'Registro de avisos e advertências dos integrantes.' },
-  { href: '/gestao/avaliacoes', label: 'Avaliações', group: 'Pessoas', icon: 'evaluations', roles: ['ADMIN', 'COORDINATOR'], description: 'Avaliação semestral de membros, notas das áreas e coordenação.' },
+  { href: '/gestao/avaliacoes', label: 'Avaliações', group: 'Pessoas', icon: 'evaluations', roles: ['ADMIN', 'COORDINATOR'], description: 'Avaliação mensal de membros, notas das áreas e coordenação.' },
   { href: '/gestao/contas', label: 'Contas e permissões', group: 'Pessoas', icon: 'accounts', description: 'Aprovar cadastros e administrar o acesso à plataforma.' },
   { href: '/gestao/financeiro/caixa', label: 'Livro Caixa', group: 'Financeiro', icon: 'finance', description: 'Saldo Dinheiro Livre e Coppetec, entradas, saídas, gráficos e comprovantes.' },
   { href: '/gestao/financeiro/reembolsos', label: 'Reembolsos', group: 'Financeiro', icon: 'finance', description: 'Solicitações de reembolso, chaves PIX, notas fiscais e fluxo de aprovação.' },

@@ -12,7 +12,26 @@ export interface EvaluationScopeArea {
 export interface EvaluationPeriodOption {
   code: string;
   name: string;
+  shortName?: string;
   isCurrent: boolean;
+}
+
+export interface PendingEvaluationMemberItem {
+  id: string;
+  name: string;
+  areaLabel: string;
+}
+
+export interface PendingEvaluationsSummaryDTO {
+  periodCode: string;
+  periodLabel: string;
+  pendingMembersCount: number;
+  totalMembersCount: number;
+  evaluatedMembersCount: number;
+  pendingMembers: PendingEvaluationMemberItem[];
+  pendingAreasCount: number;
+  pendingCoordinatorsCount: number;
+  scopeLabel: string | null;
 }
 
 export interface EvaluatedMemberRowDTO {
@@ -29,7 +48,7 @@ export interface EvaluatedMemberRowDTO {
   systemRole: string;
   metrics: {
     labAdherencePct: number | null;
-    labHours4Weeks: number;
+    labHoursMonth: number;
     meetingsPct: number | null;
     meetingsCount: number;
     warningsCount: number;
@@ -147,8 +166,9 @@ export interface AdminEvaluationDashboardDTO {
     avgScore: number;
     count: number;
   }[];
-  semesterTrend: {
+  monthlyTrend: {
     periodCode: string;
+    periodLabel: string;
     memberAvg: number | null;
     areaAvg: number | null;
     coordinatorAvg: number | null;

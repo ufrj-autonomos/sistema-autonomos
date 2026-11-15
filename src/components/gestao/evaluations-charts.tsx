@@ -161,14 +161,14 @@ export function CargoAverageChart({
   );
 }
 
-export function SemesterEvolutionChart({
+export function MonthlyEvolutionChart({
   data,
 }: {
-  data: AdminEvaluationDashboardDTO['semesterTrend'];
+  data: AdminEvaluationDashboardDTO['monthlyTrend'];
 }) {
   const hasAny = data.some((d) => d.totalEvaluations > 0);
   if (!hasAny) {
-    return <EmptyChart message="Sem histórico de avaliações entre semestres para traçar evolução." />;
+    return <EmptyChart message="Sem histórico de avaliações entre meses para traçar evolução." />;
   }
 
   return (
@@ -176,7 +176,7 @@ export function SemesterEvolutionChart({
       <ResponsiveContainer width="100%" height="100%" minWidth={0}>
         <LineChart data={data} margin={{ top: 10, right: 12, left: -18, bottom: 8 }}>
           <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" opacity={0.6} vertical={false} />
-          <XAxis dataKey="periodCode" stroke="#888888" fontSize={11} tickLine={false} axisLine={false} />
+          <XAxis dataKey="periodLabel" stroke="#888888" fontSize={11} tickLine={false} axisLine={false} />
           <YAxis domain={[0, 10]} stroke="#888888" fontSize={11} tickLine={false} axisLine={false} />
           <Tooltip
             contentStyle={{

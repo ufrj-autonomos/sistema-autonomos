@@ -1,3 +1,4 @@
+import { Temporal } from '@js-temporal/polyfill';
 import { prisma } from '@/lib/prisma';
 import { db as institutionalDb } from '@/lib/institutional/db';
 import type { SafeUser } from '@/lib/session';
@@ -10,7 +11,13 @@ import {
 import { calculateAttendanceScore } from '@/lib/meetings/service';
 import { calculateDisciplinaryStatus } from '@/lib/disciplinary/service';
 import { memberSummary } from '@/lib/attendance/summary';
-import { nextWeek, weekKey } from '@/lib/attendance/time';
+import {
+  ATTENDANCE_TIME_ZONE,
+  monthRange,
+  nextWeek,
+  weekKey,
+  weekRange,
+} from '@/lib/attendance/time';
 import { getVacationWeekKeys } from '@/lib/attendance/vacations';
 import type {
   AdminEvaluationDashboardDTO,
@@ -23,6 +30,7 @@ import type {
   EvaluationTeamSlug,
   HomeAreaEvaluationsDTO,
   HomeAreaScoreItemDTO,
+  PendingEvaluationsSummaryDTO,
 } from './types';
 
 export class EvaluationError extends Error {
@@ -110,13 +118,69 @@ export function validateEvaluationScore(rawScore: unknown): number {
   return Math.round(num * 10) / 10;
 }
 
+const MONTH_CODE_RE = /^\d{4}-(0[1-9]|1[0-2])$/;
+
+export function currentMonthCode(now: Date = new Date()): string {
+  return Temporal.Instant.from(now.toISOString())
+    .toZonedDateTimeISO(ATTENDANCE_TIME_ZONE)
+    .toPlainDate()
+    .toString()
+    .slice(0, 7);
+}
+
+export function formatMonthPeriodLabel(code: string): string {
+  if (!MONTH_CODE_RE.test(code)) return `Mês ${code}`;
+  const [y, m] = code.split('-').map(Number);
+  const dt = new Date(Date.UTC(y, m - 1, 15, 12, 0, 0));
+  const raw = new Intl.DateTimeFormat('pt-BR', {
+    month: 'long',
+    year: 'numeric',
+    timeZone: 'UTC',
+  }).format(dt);
+  return raw.charAt(0).toUpperCase() + raw.slice(1);
+}
+
+export function formatMonthShortLabel(code: string): string {
+  if (!MONTH_CODE_RE.test(code)) return code;
+  const [y, m] = code.split('-').map(Number);
+  const dt = new Date(Date.UTC(y, m - 1, 15, 12, 0, 0));
+  const monthPart = new Intl.DateTimeFormat('pt-BR', {
+    month: 'short',
+    timeZone: 'UTC',
+  })
+    .format(dt)
+    .replace('.', '');
+  const cleanMonth = monthPart.charAt(0).toUpperCase() + monthPart.slice(1);
+  return `${cleanMonth}/${String(y).slice(-2)}`;
+}
+
+function recentMonthCodes(baseCode: string, count = 6): string[] {
+  const start = Temporal.PlainDate.from(`${baseCode}-01`);
+  return Array.from({ length: count }, (_, idx) => start.subtract({ months: idx }).toString().slice(0, 7));
+}
+
+function monthWeekKeys(periodCode: string, now: Date): string[] {
+  const { start, end } = monthRange(`${periodCode}-01`);
+  if (start > now) return [];
+  const cap = end.getTime() < now.getTime() ? end : now;
+  const keys: string[] = [];
+  let wk = weekKey(start);
+  for (let i = 0; i < 6; i += 1) {
+    const r = weekRange(wk);
+    if (r.start.getTime() > cap.getTime()) break;
+    keys.push(wk);
+    wk = nextWeek(wk, 1);
+  }
+  return keys;
+}
+
 export function sanitizePeriodCode(rawPeriod: unknown): string {
   if (typeof rawPeriod !== 'string') {
-    throw new EvaluationError('Informe o semestre/período da avaliação (ex: 26.2).');
+    throw new EvaluationError('Informe o mês da avaliação no formato AAAA-MM (ex: 2026-11).');
   }
   const clean = rawPeriod.trim();
-  if (!/^[a-zA-Z0-9._-]{2,20}$/.test(clean)) {
-    throw new EvaluationError('Código do semestre inválido (ex: 26.2 ou 27.1).');
+  if (!MONTH_CODE_RE.test(clean)) {
+    throw new EvaluationError('Código do mês inválido. Use o formato AAAA-MM (ex: 2026-11).');
   }
   return clean;
 }
@@ -150,39 +214,43 @@ async function loadInstitutionalSnapshot(): Promise<{
   }
 }
 
-async function resolveEvaluationPeriods(): Promise<{
+async function resolveEvaluationPeriods(now: Date = new Date()): Promise<{
   periods: EvaluationPeriodOption[];
   currentCode: string;
 }> {
-  const [meetingPeriods, memberPeriods, areaPeriods, coordPeriods] = await Promise.all([
-    prisma.meetingPeriod.findMany({ orderBy: [{ isCurrent: 'desc' }, { createdAt: 'desc' }] }),
+  const [memberPeriods, areaPeriods, coordPeriods] = await Promise.all([
     prisma.memberEvaluation.findMany({ distinct: ['periodCode'], select: { periodCode: true } }),
     prisma.areaEvaluation.findMany({ distinct: ['periodCode'], select: { periodCode: true } }),
     prisma.coordinatorEvaluation.findMany({ distinct: ['periodCode'], select: { periodCode: true } }),
   ]);
 
-  const currentCode = meetingPeriods.find((p) => p.isCurrent)?.code || meetingPeriods[0]?.code || '26.2';
+  const currentCode = currentMonthCode(now);
   const map = new Map<string, EvaluationPeriodOption>();
 
-  for (const p of meetingPeriods) {
-    map.set(p.code, { code: p.code, name: p.name || `Semestre ${p.code}`, isCurrent: p.isCurrent });
+  for (const code of recentMonthCodes(currentCode, 6)) {
+    map.set(code, {
+      code,
+      name: formatMonthPeriodLabel(code),
+      shortName: formatMonthShortLabel(code),
+      isCurrent: code === currentCode,
+    });
   }
+
   for (const row of [...memberPeriods, ...areaPeriods, ...coordPeriods]) {
+    if (!MONTH_CODE_RE.test(row.periodCode)) continue;
     if (!map.has(row.periodCode)) {
       map.set(row.periodCode, {
         code: row.periodCode,
-        name: `Semestre ${row.periodCode}`,
+        name: formatMonthPeriodLabel(row.periodCode),
+        shortName: formatMonthShortLabel(row.periodCode),
         isCurrent: row.periodCode === currentCode,
       });
     }
   }
-  if (!map.has(currentCode)) {
-    map.set(currentCode, { code: currentCode, name: `Semestre ${currentCode}`, isCurrent: true });
-  }
 
   const periods = [...map.values()].sort((a, b) => {
     if (a.isCurrent !== b.isCurrent) return a.isCurrent ? -1 : 1;
-    return b.code.localeCompare(a.code, 'pt-BR', { numeric: true });
+    return b.code.localeCompare(a.code, 'pt-BR');
   });
 
   return { periods, currentCode };
@@ -333,12 +401,20 @@ export async function getEvaluationsWorkspace(
   // Ensure selectedPeriod shows up in options if passed directly
   const periodOptions = periods.some((p) => p.code === selectedPeriod)
     ? periods
-    : [{ code: selectedPeriod, name: `Semestre ${selectedPeriod}`, isCurrent: false }, ...periods];
+    : [
+        {
+          code: selectedPeriod,
+          name: formatMonthPeriodLabel(selectedPeriod),
+          shortName: formatMonthShortLabel(selectedPeriod),
+          isCurrent: selectedPeriod === currentCode,
+        },
+        ...periods,
+      ];
 
-  // Fetch attendance + meetings + disciplinary data for live semester reference metrics
+  // Fetch attendance + meetings + disciplinary data for monthly reference metrics
   const now = new Date();
-  const currentWk = weekKey(now);
-  const recentWeeks = [-3, -2, -1, 0].map((offset) => nextWeek(currentWk, offset));
+  const { start: monthStart, end: monthEnd } = monthRange(`${selectedPeriod}-01`);
+  const monthWeeks = monthWeekKeys(selectedPeriod, now);
 
   const [
     attendanceMembers,
@@ -362,7 +438,12 @@ export async function getEvaluationsWorkspace(
     }),
     prisma.attendanceSettings.findUnique({ where: { id: 'lab' }, select: { maxSessionSeconds: true } }),
     prisma.meeting.findMany({
-      where: { period: selectedPeriod },
+      where: {
+        date: {
+          gte: monthStart,
+          lt: monthEnd,
+        },
+      },
       include: { attendances: true },
     }),
     prisma.disciplinaryWarning.findMany({
@@ -391,21 +472,21 @@ export async function getEvaluationsWorkspace(
   const maxSessionSeconds = attendanceSettings?.maxSessionSeconds ?? 43200;
   const attByMemberId = new Map(attendanceMembers.map((a) => [a.id, a]));
 
-  // Compute lab metrics per member across recent 4 weeks
+  // Compute lab metrics per member across weeks in selected month
   const memberLabStats = new Map<
     string,
-    { metWeeks: number; requiredWeeks: number; adherencePct: number | null; hours4Weeks: number }
+    { metWeeks: number; requiredWeeks: number; adherencePct: number | null; hoursMonth: number }
   >();
   for (const r of roster) {
     const att = attByMemberId.get(r.id);
     if (!att || att.attendancePeriods.length === 0) {
-      memberLabStats.set(r.id, { metWeeks: 0, requiredWeeks: 0, adherencePct: null, hours4Weeks: 0 });
+      memberLabStats.set(r.id, { metWeeks: 0, requiredWeeks: 0, adherencePct: null, hoursMonth: 0 });
       continue;
     }
     let metWeeks = 0;
     let requiredWeeks = 0;
     let totalSeconds = 0;
-    for (const wk of recentWeeks) {
+    for (const wk of monthWeeks) {
       const dto = memberSummary(
         { id: r.id, name: r.name, area: r.area, email: r.email },
         att.attendancePeriods,
@@ -426,7 +507,7 @@ export async function getEvaluationsWorkspace(
       metWeeks,
       requiredWeeks,
       adherencePct: requiredWeeks > 0 ? Math.round((metWeeks / requiredWeeks) * 100) : null,
-      hours4Weeks: roundOneDecimal(totalSeconds / 3600),
+      hoursMonth: roundOneDecimal(totalSeconds / 3600),
     });
   }
 
@@ -517,7 +598,7 @@ export async function getEvaluationsWorkspace(
       systemRole: m.systemRole,
       metrics: {
         labAdherencePct: lab?.adherencePct ?? null,
-        labHours4Weeks: lab?.hours4Weeks ?? 0,
+        labHoursMonth: lab?.hoursMonth ?? 0,
         meetingsPct: meet?.pct ?? null,
         meetingsCount: meet?.total ?? 0,
         warningsCount: discStatus.totalWarnings,
@@ -716,19 +797,21 @@ export async function getEvaluationsWorkspace(
     const [allMemberPeriods, allAreaPeriods, allCoordPeriods] = allPeriodsEvals;
     const trendPeriodCodes = Array.from(
       new Set([
+        ...recentMonthCodes(currentCode, 6),
         selectedPeriod,
-        ...allMemberPeriods.map((x) => x.periodCode),
-        ...allAreaPeriods.map((x) => x.periodCode),
-        ...allCoordPeriods.map((x) => x.periodCode),
+        ...allMemberPeriods.map((x) => x.periodCode).filter((c) => MONTH_CODE_RE.test(c)),
+        ...allAreaPeriods.map((x) => x.periodCode).filter((c) => MONTH_CODE_RE.test(c)),
+        ...allCoordPeriods.map((x) => x.periodCode).filter((c) => MONTH_CODE_RE.test(c)),
       ])
-    ).sort((a, b) => a.localeCompare(b, 'pt-BR', { numeric: true }));
+    ).sort((a, b) => a.localeCompare(b, 'pt-BR'));
 
-    const semesterTrend = trendPeriodCodes.map((code) => {
+    const monthlyTrend = trendPeriodCodes.map((code) => {
       const ms = allMemberPeriods.filter((x) => x.periodCode === code).map((x) => x.score);
       const as = allAreaPeriods.filter((x) => x.periodCode === code).map((x) => x.score);
       const cs = allCoordPeriods.filter((x) => x.periodCode === code).map((x) => x.score);
       return {
         periodCode: code,
+        periodLabel: formatMonthShortLabel(code),
         memberAvg: ms.length ? roundOneDecimal(ms.reduce((a, b) => a + b, 0) / ms.length) : null,
         areaAvg: as.length ? roundOneDecimal(as.reduce((a, b) => a + b, 0) / as.length) : null,
         coordinatorAvg: cs.length ? roundOneDecimal(cs.reduce((a, b) => a + b, 0) / cs.length) : null,
@@ -787,7 +870,7 @@ export async function getEvaluationsWorkspace(
         avgScore: roundOneDecimal(g.sum / g.count),
         count: g.count,
       })),
-      semesterTrend,
+      monthlyTrend,
     };
   }
 
@@ -1031,40 +1114,38 @@ export async function upsertCoordinatorEvaluation(
  * Retorna EXCLUSIVAMENTE as notas das áreas (nunca consulta ou expõe notas individuais).
  */
 export async function getHomeAreaEvaluations(
-  user: Pick<SafeUser, 'area' | 'teamId'>
+  user: Pick<SafeUser, 'area' | 'teamId'>,
+  now: Date = new Date()
 ): Promise<HomeAreaEvaluationsDTO> {
-  const [meetingPeriods, allAreaEvals] = await Promise.all([
-    prisma.meetingPeriod.findMany({ orderBy: [{ isCurrent: 'desc' }, { createdAt: 'desc' }] }),
-    prisma.areaEvaluation.findMany({
-      orderBy: [{ periodCode: 'desc' }, { score: 'desc' }],
-    }),
-  ]);
+  const allAreaEvals = await prisma.areaEvaluation.findMany({
+    orderBy: [{ periodCode: 'desc' }, { score: 'desc' }],
+  });
 
-  const currentPeriodCode = meetingPeriods.find((p) => p.isCurrent)?.code || meetingPeriods[0]?.code || '26.2';
+  const currentPeriodCode = currentMonthCode(now);
   const periodMap = new Map<string, EvaluationPeriodOption>();
-  for (const p of meetingPeriods) {
-    periodMap.set(p.code, { code: p.code, name: p.name || `Semestre ${p.code}`, isCurrent: p.isCurrent });
+  for (const code of recentMonthCodes(currentPeriodCode, 6)) {
+    periodMap.set(code, {
+      code,
+      name: formatMonthPeriodLabel(code),
+      shortName: formatMonthShortLabel(code),
+      isCurrent: code === currentPeriodCode,
+    });
   }
   for (const row of allAreaEvals) {
+    if (!MONTH_CODE_RE.test(row.periodCode)) continue;
     if (!periodMap.has(row.periodCode)) {
       periodMap.set(row.periodCode, {
         code: row.periodCode,
-        name: `Semestre ${row.periodCode}`,
+        name: formatMonthPeriodLabel(row.periodCode),
+        shortName: formatMonthShortLabel(row.periodCode),
         isCurrent: row.periodCode === currentPeriodCode,
       });
     }
   }
-  if (!periodMap.has(currentPeriodCode)) {
-    periodMap.set(currentPeriodCode, {
-      code: currentPeriodCode,
-      name: `Semestre ${currentPeriodCode}`,
-      isCurrent: true,
-    });
-  }
 
   const periods = [...periodMap.values()].sort((a, b) => {
     if (a.isCurrent !== b.isCurrent) return a.isCurrent ? -1 : 1;
-    return b.code.localeCompare(a.code, 'pt-BR', { numeric: true });
+    return b.code.localeCompare(a.code, 'pt-BR');
   });
 
   const normalizedUserArea = normalizeMemberArea(user.area);
@@ -1109,5 +1190,100 @@ export async function getHomeAreaEvaluations(
     periods,
     userScopeKey,
     evaluationsByPeriod,
+  };
+}
+
+/**
+ * Resume quantos membros elegíveis (e para ADMIN também áreas/coordenadores)
+ * ainda não foram avaliados no mês corrente. Respeita o escopo de COORDINATOR vs ADMIN.
+ */
+export async function getPendingEvaluationsSummary(
+  user: SafeUser,
+  now: Date = new Date()
+): Promise<PendingEvaluationsSummaryDTO> {
+  const periodCode = currentMonthCode(now);
+  const periodLabel = formatMonthPeriodLabel(periodCode);
+
+  if (!canAccessEvaluations(user.role)) {
+    return {
+      periodCode,
+      periodLabel,
+      pendingMembersCount: 0,
+      totalMembersCount: 0,
+      evaluatedMembersCount: 0,
+      pendingMembers: [],
+      pendingAreasCount: 0,
+      pendingCoordinatorsCount: 0,
+      scopeLabel: null,
+    };
+  }
+
+  const isAdmin = user.role === 'ADMIN';
+  const coordinatorScope = isAdmin ? null : await resolveCoordinatorScope(user);
+
+  const [{ roster }, memberEvals, areaEvals, coordEvals] = await Promise.all([
+    loadOperationalRoster(),
+    prisma.memberEvaluation.findMany({
+      where: { periodCode },
+      select: { memberId: true },
+    }),
+    isAdmin
+      ? prisma.areaEvaluation.findMany({ where: { periodCode }, select: { scopeKey: true } })
+      : Promise.resolve([]),
+    isAdmin
+      ? prisma.coordinatorEvaluation.findMany({ where: { periodCode }, select: { coordinatorId: true } })
+      : Promise.resolve([]),
+  ]);
+
+  const allEvaluableMembers = roster.filter(
+    (m) => m.systemRole !== 'ADMIN' && m.systemRole !== 'COORDINATOR' && m.effectiveRole !== 'COORDINATOR'
+  );
+  const visibleMembers = isAdmin
+    ? allEvaluableMembers
+    : coordinatorScope
+      ? allEvaluableMembers.filter(
+          (m) => m.scopeKey === coordinatorScope.scopeKey && m.id !== user.id
+        )
+      : [];
+
+  const evaluatedMemberIds = new Set(memberEvals.map((e) => e.memberId));
+  const pending = visibleMembers.filter((m) => !evaluatedMemberIds.has(m.id));
+
+  let pendingAreasCount = 0;
+  let pendingCoordinatorsCount = 0;
+
+  if (isAdmin) {
+    const scopeMap = new Map<string, EvaluationScopeArea>(
+      CANONICAL_EVALUATION_SCOPES.map((s) => [s.scopeKey, s])
+    );
+    for (const m of roster) {
+      if (m.area && m.area !== 'Não informada' && !scopeMap.has(m.scopeKey)) {
+        scopeMap.set(m.scopeKey, makeScopeArea(m.teamId, m.area));
+      }
+    }
+    const evaluatedScopeKeys = new Set(areaEvals.map((a) => a.scopeKey));
+    pendingAreasCount = [...scopeMap.keys()].filter((k) => !evaluatedScopeKeys.has(k)).length;
+
+    const evaluatedCoordIds = new Set(coordEvals.map((c) => c.coordinatorId));
+    const coords = roster.filter(
+      (m) => (m.effectiveRole === 'COORDINATOR' || m.systemRole === 'COORDINATOR') && m.id !== user.id
+    );
+    pendingCoordinatorsCount = coords.filter((c) => !evaluatedCoordIds.has(c.id)).length;
+  }
+
+  return {
+    periodCode,
+    periodLabel,
+    pendingMembersCount: pending.length,
+    totalMembersCount: visibleMembers.length,
+    evaluatedMembersCount: visibleMembers.length - pending.length,
+    pendingMembers: pending.map((m) => ({
+      id: m.id,
+      name: m.name,
+      areaLabel: makeScopeArea(m.teamId, m.area).label,
+    })),
+    pendingAreasCount,
+    pendingCoordinatorsCount,
+    scopeLabel: coordinatorScope?.label ?? null,
   };
 }
