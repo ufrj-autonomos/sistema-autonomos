@@ -163,116 +163,123 @@ export function NotificationBell({ className }: { className?: string }) {
       </button>
 
       {open && (
-        <div
-          role="dialog"
-          aria-label="Central de Notificações"
-          className="absolute right-0 mt-2 w-[min(92vw,23rem)] rounded-xl border border-border bg-card text-card-foreground shadow-xl z-50 overflow-hidden"
-        >
-          <div className="flex items-center justify-between gap-2 border-b border-border bg-muted/40 px-3.5 py-2.5">
-            <div className="flex items-center gap-2">
-              <span className="text-sm font-semibold text-foreground">Notificações</span>
+        <>
+          <div
+            aria-hidden="true"
+            onClick={() => setOpen(false)}
+            className="fixed inset-0 top-14 z-40 bg-black/30 backdrop-blur-[1px] sm:hidden"
+          />
+          <div
+            role="dialog"
+            aria-label="Central de Notificações"
+            className="fixed inset-x-2.5 top-[3.75rem] z-50 flex max-h-[calc(100dvh-4.75rem)] flex-col overflow-hidden rounded-2xl border border-border bg-card text-card-foreground shadow-2xl sm:absolute sm:inset-x-auto sm:right-0 sm:top-full sm:mt-2 sm:max-h-[30rem] sm:w-96"
+          >
+            <div className="flex shrink-0 items-center justify-between gap-2 border-b border-border bg-muted/40 px-3.5 py-2.5">
+              <div className="flex min-w-0 items-center gap-2">
+                <span className="truncate text-sm font-semibold text-foreground">Notificações</span>
+                {feed.unreadCount > 0 && (
+                  <span className="shrink-0 rounded-full border border-rose-500/30 bg-rose-500/15 px-2 py-0.5 font-mono text-[11px] font-semibold text-rose-600 dark:text-rose-400">
+                    {feed.unreadCount} nova{feed.unreadCount === 1 ? '' : 's'}
+                  </span>
+                )}
+              </div>
+
               {feed.unreadCount > 0 && (
-                <span className="rounded-full bg-rose-500/15 border border-rose-500/30 px-2 py-0.5 font-mono text-[11px] font-semibold text-rose-600 dark:text-rose-400">
-                  {feed.unreadCount} nova{feed.unreadCount === 1 ? '' : 's'}
-                </span>
+                <button
+                  type="button"
+                  onClick={() => void markAllRead()}
+                  className="inline-flex shrink-0 items-center gap-1 rounded-md px-2 py-1 text-[11px] font-medium text-primary hover:bg-primary/10 cursor-pointer"
+                >
+                  <CheckCheck className="h-3.5 w-3.5" />
+                  Marcar lidas
+                </button>
               )}
             </div>
 
-            {feed.unreadCount > 0 && (
-              <button
-                type="button"
-                onClick={() => void markAllRead()}
-                className="inline-flex items-center gap-1 rounded-md px-2 py-1 text-[11px] font-medium text-primary hover:bg-primary/10 cursor-pointer"
-              >
-                <CheckCheck className="h-3.5 w-3.5" />
-                Marcar lidas
-              </button>
-            )}
-          </div>
-
-          <div className="max-h-[26rem] overflow-y-auto divide-y divide-border">
-            {loading && feed.items.length === 0 ? (
-              <div className="p-6 text-center text-xs text-muted-foreground">
-                Carregando notificações…
-              </div>
-            ) : feed.items.length === 0 ? (
-              <div className="p-8 text-center space-y-1.5">
-                <Bell className="mx-auto h-7 w-7 text-muted-foreground/60" />
-                <p className="text-xs font-medium text-foreground">Tudo em dia por aqui</p>
-                <p className="text-[11px] text-muted-foreground">
-                  Você verá avisos de ideias/bugs, horas no lab, reembolsos e gestão aqui.
-                </p>
-              </div>
-            ) : (
-              feed.items.map(item => {
-                const isUnread = !item.readAt;
-                return (
-                  <div
-                    key={item.id}
-                    onClick={() => void handleSelectItem(item)}
-                    className={cn(
-                      'group flex items-start gap-2.5 px-3.5 py-3 transition-colors',
-                      item.link ? 'cursor-pointer hover:bg-muted/40' : '',
-                      isUnread ? 'bg-primary/[0.04]' : 'bg-card'
-                    )}
-                  >
-                    <span
+            <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain divide-y divide-border">
+              {loading && feed.items.length === 0 ? (
+                <div className="p-6 text-center text-xs text-muted-foreground">
+                  Carregando notificações…
+                </div>
+              ) : feed.items.length === 0 ? (
+                <div className="p-8 text-center space-y-1.5">
+                  <Bell className="mx-auto h-7 w-7 text-muted-foreground/60" />
+                  <p className="text-xs font-medium text-foreground">Tudo em dia por aqui</p>
+                  <p className="text-[11px] text-muted-foreground">
+                    Você verá avisos de ideias/bugs, horas no lab, reembolsos e gestão aqui.
+                  </p>
+                </div>
+              ) : (
+                feed.items.map(item => {
+                  const isUnread = !item.readAt;
+                  return (
+                    <div
+                      key={item.id}
+                      onClick={() => void handleSelectItem(item)}
                       className={cn(
-                        'mt-1.5 h-2 w-2 shrink-0 rounded-full',
-                        isUnread ? TONE_DOT[item.tone] : 'bg-muted-foreground/30'
+                        'group flex min-w-0 items-start gap-2.5 px-3.5 py-3 transition-colors',
+                        item.link ? 'cursor-pointer hover:bg-muted/40' : '',
+                        isUnread ? 'bg-primary/[0.04]' : 'bg-card'
                       )}
-                    />
-                    <div className="min-w-0 flex-1 space-y-1">
-                      <div className="flex items-center justify-between gap-2 text-[10px] text-muted-foreground">
-                        <span className="font-semibold uppercase tracking-wider truncate">
-                          {item.categoryLabel}
-                        </span>
-                        <span className="shrink-0 font-mono">
-                          {formatRelativeTime(item.createdAt)}
-                        </span>
-                      </div>
-                      <p
-                        className={cn(
-                          'text-xs leading-snug',
-                          isUnread ? 'font-semibold text-foreground' : 'font-medium text-foreground/85'
-                        )}
-                      >
-                        {item.title}
-                      </p>
-                      <p className="text-[11px] text-muted-foreground line-clamp-2 whitespace-pre-line">
-                        {item.message}
-                      </p>
-                      <div className="flex items-center justify-between gap-2 pt-0.5">
-                        {item.actorName ? (
-                          <span className="text-[10px] text-muted-foreground truncate">
-                            Por {item.actorName}
-                          </span>
-                        ) : (
-                          <span />
-                        )}
-                        {item.link && (
-                          <span className="inline-flex items-center gap-0.5 text-[10px] font-medium text-primary">
-                            Abrir <ExternalLink className="h-2.5 w-2.5" />
-                          </span>
-                        )}
-                      </div>
-                    </div>
-
-                    <button
-                      type="button"
-                      onClick={e => void handleDismiss(e, item.id, isUnread)}
-                      aria-label="Remover notificação"
-                      title="Remover"
-                      className="opacity-60 sm:opacity-0 sm:group-hover:opacity-100 rounded p-1 text-muted-foreground hover:bg-accent hover:text-foreground transition-opacity cursor-pointer"
                     >
-                      <Trash2 className="h-3.5 w-3.5" />
-                    </button>
-                  </div>
-                );
-              })
-            )}
+                      <span
+                        className={cn(
+                          'mt-1.5 h-2 w-2 shrink-0 rounded-full',
+                          isUnread ? TONE_DOT[item.tone] : 'bg-muted-foreground/30'
+                        )}
+                      />
+                      <div className="min-w-0 flex-1 space-y-1">
+                        <div className="flex items-center justify-between gap-2 text-[10px] text-muted-foreground">
+                          <span className="truncate font-semibold uppercase tracking-wider">
+                            {item.categoryLabel}
+                          </span>
+                          <span className="shrink-0 font-mono">
+                            {formatRelativeTime(item.createdAt)}
+                          </span>
+                        </div>
+                        <p
+                          className={cn(
+                            'break-words text-xs leading-snug',
+                            isUnread ? 'font-semibold text-foreground' : 'font-medium text-foreground/85'
+                          )}
+                        >
+                          {item.title}
+                        </p>
+                        <p className="break-words text-[11px] text-muted-foreground line-clamp-2 whitespace-pre-line">
+                          {item.message}
+                        </p>
+                        <div className="flex items-center justify-between gap-2 pt-0.5">
+                          {item.actorName ? (
+                            <span className="min-w-0 truncate text-[10px] text-muted-foreground">
+                              Por {item.actorName}
+                            </span>
+                          ) : (
+                            <span />
+                          )}
+                          {item.link && (
+                            <span className="inline-flex shrink-0 items-center gap-0.5 text-[10px] font-medium text-primary">
+                              Abrir <ExternalLink className="h-2.5 w-2.5" />
+                            </span>
+                          )}
+                        </div>
+                      </div>
+
+                      <button
+                        type="button"
+                        onClick={e => void handleDismiss(e, item.id, isUnread)}
+                        aria-label="Remover notificação"
+                        title="Remover"
+                        className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-muted-foreground opacity-75 sm:opacity-0 sm:group-hover:opacity-100 hover:bg-accent hover:text-foreground transition-opacity cursor-pointer"
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </button>
+                    </div>
+                  );
+                })
+              )}
+            </div>
           </div>
-        </div>
+        </>
       )}
     </div>
   );

@@ -1,9 +1,10 @@
 'use client';
 
-import { useEffect, useRef, useState, type ReactNode } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { Boxes, ChartNoAxesCombined, ScrollText, ArrowLeft, ArrowUpRight, ChevronRight, ChevronDown, Clock3, LayoutDashboard, Lightbulb, Globe, LogOut, Mail, Menu, Network, Server, ShieldAlert, ShieldCheck, Users, UserMinus, Wallet, Eye, FolderKanban, X } from 'lucide-react';
+import { cn } from '@/lib/utils';
 import { ThemeToggle } from '@/components/layout/theme-toggle';
 import { NotificationBell } from '@/components/layout/notification-bell';
 import { hasManagementAccess, ROLE_LABELS } from '@/lib/access-policy';
@@ -32,7 +33,15 @@ const icons = {
 };
 const focus = 'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring';
 
-export function ManagementShell({ children, initialUser }: { children: ReactNode; initialUser: SafeUser }) {
+export function ManagementShell({
+  children,
+  initialUser,
+  initialBadges,
+}: {
+  children: ReactNode;
+  initialUser: SafeUser;
+  initialBadges?: Record<string, number>;
+}) {
   const pathname = usePathname();
   const section = getManagementSection(pathname);
   const { user, isLoading, logout } = useSession();
@@ -41,8 +50,47 @@ export function ManagementShell({ children, initialUser }: { children: ReactNode
   const menuTrigger = useRef<HTMLButtonElement>(null);
   const [leaving, setLeaving] = useState(false);
   const [collapsedGroups, setCollapsedGroups] = useState<Record<string, boolean>>({});
+  const [badges, setBadges] = useState<Record<string, number>>(initialBadges ?? {});
   const currentUser = user || initialUser;
   const isQr = pathname === '/gestao/presenca/qr';
+
+  const refreshBadges = useCallback(async () => {
+    try {
+      const res = await fetch('/api/gestao/pendencies', { cache: 'no-store' });
+      if (!res.ok) return;
+      const json = (await res.json()) as { navBadges?: Record<string, number> };
+      if (json?.navBadges) setBadges(json.navBadges);
+    } catch {
+      // ignora erro transiente em atualização silenciosa
+    }
+  }, []);
+
+  useEffect(() => {
+    void refreshBadges();
+  }, [pathname, refreshBadges]);
+
+  useEffect(() => {
+    const onFocus = () => void refreshBadges();
+    window.addEventListener('focus', onFocus);
+    const interval = window.setInterval(() => {
+      if (document.visibilityState === 'visible') {
+        void refreshBadges();
+      }
+    }, 60_000);
+    return () => {
+      window.removeEventListener('focus', onFocus);
+      window.clearInterval(interval);
+    };
+  }, [refreshBadges]);
+
+  const totalSidebarPendencies = useMemo(
+    () =>
+      Object.entries(badges).reduce(
+        (acc, [href, count]) => (href === '/gestao' ? acc : acc + (count || 0)),
+        0
+      ),
+    [badges]
+  );
 
   function toggleGroup(group: string) {
     setCollapsedGroups(prev => ({ ...prev, [group]: !prev[group] }));
@@ -72,8 +120,13 @@ export function ManagementShell({ children, initialUser }: { children: ReactNode
           if (!items.length) return null;
           const isPrincipal = group === 'Principal';
           const isGroupActive = items.some(item => section?.href === item.href);
-          // If user hasn't explicitly toggled, keep active group open; collapsed by default if not active and not Principal
-          const isCollapsed = !isPrincipal && (collapsedGroups[group] ?? !isGroupActive);
+          const groupPendingCount = items.reduce(
+            (sum, item) => (item.href === '/gestao' ? sum : sum + (badges[item.href] ?? 0)),
+            0
+          );
+          // Se o grupo tiver pendências ativas ou rota ativa, inicia expandido (salvo recolhimento manual)
+          const isCollapsed =
+            !isPrincipal && (collapsedGroups[group] ?? (!isGroupActive && groupPendingCount === 0));
 
           return (
             <div key={group} className="mb-5 last:mb-0">
@@ -84,10 +137,20 @@ export function ManagementShell({ children, initialUser }: { children: ReactNode
                   type="button"
                   onClick={() => toggleGroup(group)}
                   aria-expanded={!isCollapsed}
-                  className={`flex w-full items-center justify-between rounded-md px-3 py-1.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground hover:bg-accent/40 hover:text-foreground transition-colors cursor-pointer ${focus}`}
+                  className={`flex w-full items-center justify-between gap-2 rounded-md px-3 py-1.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground hover:bg-accent/40 hover:text-foreground transition-colors cursor-pointer ${focus}`}
                 >
                   <span>{group}</span>
-                  <ChevronDown className={`h-3.5 w-3.5 transition-transform duration-200 ${isCollapsed ? '-rotate-90 text-muted-foreground/60' : 'rotate-0 text-muted-foreground'}`} />
+                  <span className="flex items-center gap-1.5">
+                    {groupPendingCount > 0 && (
+                      <span
+                        aria-label={`${groupPendingCount} pendência(s) em ${group}`}
+                        className="inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-rose-500/15 px-1.5 font-mono text-[10px] font-bold text-rose-600 dark:text-rose-400 tabular-nums"
+                      >
+                        {groupPendingCount > 99 ? '99+' : groupPendingCount}
+                      </span>
+                    )}
+                    <ChevronDown className={`h-3.5 w-3.5 transition-transform duration-200 ${isCollapsed ? '-rotate-90 text-muted-foreground/60' : 'rotate-0 text-muted-foreground'}`} />
+                  </span>
                 </button>
               )}
               {!isCollapsed && (
@@ -95,6 +158,7 @@ export function ManagementShell({ children, initialUser }: { children: ReactNode
                   {items.map(item => {
                     const active = section?.href === item.href;
                     const Icon = icons[item.icon];
+                    const badgeCount = badges[item.href] ?? 0;
                     return (
                       <li key={item.href}>
                         <Link
@@ -108,7 +172,20 @@ export function ManagementShell({ children, initialUser }: { children: ReactNode
                           }`}
                         >
                           <Icon aria-hidden="true" className="h-[18px] w-[18px] shrink-0" />
-                          <span>{item.label}</span>
+                          <span className="min-w-0 flex-1 truncate">{item.label}</span>
+                          {badgeCount > 0 && (
+                            <span
+                              aria-label={`${badgeCount} pendência(s)`}
+                              className={cn(
+                                'ml-auto inline-flex h-5 min-w-5 shrink-0 items-center justify-center rounded-full px-1.5 font-mono text-[11px] font-bold tabular-nums',
+                                item.href === '/gestao'
+                                  ? 'border border-primary/30 bg-primary/15 text-primary'
+                                  : 'bg-rose-600 text-white shadow-2xs'
+                              )}
+                            >
+                              {badgeCount > 99 ? '99+' : badgeCount}
+                            </span>
+                          )}
                         </Link>
                         {active && item.icon === 'institutional' && (
                           <ul className="ml-8 mt-1 border-l border-border pl-2">
@@ -175,11 +252,18 @@ export function ManagementShell({ children, initialUser }: { children: ReactNode
     </dialog>
     <div className="min-w-0 lg:pl-64 print:pl-0">
       <header className="sticky top-0 z-30 flex min-h-16 items-center gap-3 border-b border-border bg-background px-3 sm:px-5 lg:px-6 print:hidden">
-        <button ref={menuTrigger} type="button" onClick={() => mobileMenu.current?.showModal()} aria-label="Abrir menu da gestão" aria-haspopup="dialog" className={`-ml-2 flex h-11 w-11 shrink-0 items-center justify-center rounded-lg text-secondary-foreground hover:bg-accent lg:hidden ${focus}`}><Menu className="h-5 w-5" /></button>
+        <button ref={menuTrigger} type="button" onClick={() => mobileMenu.current?.showModal()} aria-label={totalSidebarPendencies > 0 ? `Abrir menu da gestão (${totalSidebarPendencies} pendências)` : 'Abrir menu da gestão'} aria-haspopup="dialog" className={`relative -ml-2 flex h-11 w-11 shrink-0 items-center justify-center rounded-lg text-secondary-foreground hover:bg-accent lg:hidden ${focus}`}>
+          <Menu className="h-5 w-5" />
+          {totalSidebarPendencies > 0 && (
+            <span className="absolute right-1 top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-rose-600 px-1 font-mono text-[9px] font-bold leading-none text-white ring-2 ring-background tabular-nums">
+              {totalSidebarPendencies > 99 ? '99+' : totalSidebarPendencies}
+            </span>
+          )}
+        </button>
         <nav aria-label="Localização" className="min-w-0 flex-1"><ol className="flex items-center gap-2 text-sm"><li><Link href="/gestao" className={`rounded-sm text-muted-foreground hover:text-foreground ${focus}`}>Gestão</Link></li><li aria-hidden="true"><ChevronRight className="h-3.5 w-3.5 text-muted-foreground" /></li><li className="truncate text-foreground">{isQr ? <Link href="/gestao/presenca" className={`rounded-sm hover:text-foreground ${focus}`}>{section?.label}</Link> : <span aria-current="page">{section?.label || 'Página não encontrada'}</span>}</li>{isQr && <><li aria-hidden="true"><ChevronRight className="h-3.5 w-3.5 text-muted-foreground" /></li><li aria-current="page" className="truncate text-foreground">QR code</li></>}</ol></nav>
         <ThemeToggle /><NotificationBell /><span className="hidden items-center gap-2 text-xs text-muted-foreground sm:inline-flex"><ShieldCheck className="h-4 w-4" />Acesso à gestão</span>
       </header>
-      <main id="management-content" tabIndex={-1} className="mx-auto w-full max-w-[1720px] px-2.5 sm:px-4 lg:px-6 py-5 sm:py-7 outline-none print:p-0">{children}</main>
+      <main id="management-content" tabIndex={-1} className="mx-auto w-full max-w-[1720px] min-w-0 overflow-x-clip px-2.5 sm:px-4 lg:px-6 py-5 sm:py-7 outline-none print:p-0">{children}</main>
     </div>
   </div>;
 }

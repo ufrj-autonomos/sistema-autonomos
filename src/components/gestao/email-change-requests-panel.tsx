@@ -71,8 +71,9 @@ export function EmailChangeRequestsPanel({
 
   return (
     <section
+      id="trocas-de-email"
       aria-label="Solicitações de alteração de e-mail"
-      className="rounded-xl border border-cyan-500/35 bg-cyan-500/10 dark:bg-cyan-950/25 p-4 space-y-3"
+      className="scroll-mt-20 rounded-xl border border-cyan-500/35 bg-cyan-500/10 dark:bg-cyan-950/25 p-4 space-y-3"
     >
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div className="flex items-start gap-2.5 text-cyan-900 dark:text-cyan-100">

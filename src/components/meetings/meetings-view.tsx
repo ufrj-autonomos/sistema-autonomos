@@ -1062,30 +1062,30 @@ export function MeetingsView({
           </div>
 
           {/* Duas Colunas: Ranking Top 100% e Alertas de Frequência */}
-          <div className="grid gap-6 md:grid-cols-2">
+          <div className="grid gap-6 md:grid-cols-2 min-w-0 max-w-full">
             {/* Mural dos Mais Presentes (Top Frequência) */}
-            <div className="rounded-xl border border-border bg-card p-5 space-y-4 shadow-xs">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <div className="p-2 rounded-lg bg-amber-500/10 text-amber-500">
+            <div className="min-w-0 max-w-full overflow-hidden rounded-xl border border-border bg-card p-4 sm:p-5 space-y-4 shadow-xs">
+              <div className="flex items-center justify-between gap-2 min-w-0">
+                <div className="flex items-center gap-2 min-w-0 flex-1">
+                  <div className="p-2 rounded-lg bg-amber-500/10 text-amber-500 shrink-0">
                     <Award className="h-5 w-5" />
                   </div>
-                  <div>
-                    <h3 className="text-base font-semibold text-foreground flex items-center gap-1.5">
-                      <span>Mural dos Mais Presentes</span>
-                      <Sparkles className="h-4 w-4 text-amber-500" />
+                  <div className="min-w-0 flex-1">
+                    <h3 className="text-base font-semibold text-foreground flex items-center gap-1.5 min-w-0">
+                      <span className="truncate">Mural dos Mais Presentes</span>
+                      <Sparkles className="h-4 w-4 text-amber-500 shrink-0" />
                     </h3>
                     <p className="text-xs text-muted-foreground">
                       Os 5 integrantes com melhor assiduidade (e todos com 100% caso haja mais de 5).
                     </p>
                   </div>
                 </div>
-                <span className="text-xs font-mono font-medium px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-600 dark:text-emerald-400">
+                <span className="shrink-0 text-xs font-mono font-medium px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-600 dark:text-emerald-400">
                   {(data.overview.topPresentMembers || data.overview.perfectFrequencyMembers).length} destaques
                 </span>
               </div>
 
-              <div className="divide-y divide-border/60 max-h-96 overflow-y-auto pr-1">
+              <div className="divide-y divide-border/60 max-h-96 overflow-y-auto pr-1 min-w-0">
                 {(data.overview.topPresentMembers || data.overview.perfectFrequencyMembers).length === 0 ? (
                   <p className="text-sm text-muted-foreground py-6 text-center">
                     Aguardando reuniões contabilizadas nesta equipe para listar os destaques.
@@ -1094,9 +1094,9 @@ export function MeetingsView({
                   (data.overview.topPresentMembers || data.overview.perfectFrequencyMembers).map((member, idx) => (
                   <div
                     key={member.id}
-                    className="py-2.5 flex items-center justify-between text-sm hover:bg-muted/30 px-2 rounded-lg transition-colors"
+                    className="py-2.5 flex min-w-0 items-center justify-between gap-2.5 text-sm hover:bg-muted/30 px-2 rounded-lg transition-colors"
                   >
-                    <div className="flex items-center gap-3">
+                    <div className="flex items-center gap-2.5 min-w-0 flex-1">
                       <span
                         className={cn(
                           'w-6 h-6 rounded-full flex items-center justify-center font-mono text-xs font-bold shrink-0',
@@ -1112,24 +1112,24 @@ export function MeetingsView({
                         {idx + 1}
                       </span>
                       <MeetingMemberAvatar name={member.name} avatar={member.avatar} size="sm" />
-                      <div>
-                        <div className="flex items-center gap-1.5">
-                          <span className="font-medium text-foreground">{member.name}</span>
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center gap-1.5 min-w-0">
+                          <span className="font-medium text-foreground truncate">{member.name}</span>
                           {member.pct >= 99.9 && (
-                            <span title="Presença Perfeita (100%)" className="text-xs">
+                            <span title="Presença Perfeita (100%)" className="text-xs shrink-0">
                               ⭐
                             </span>
                           )}
                         </div>
-                        <span className="block text-xs text-muted-foreground">
+                        <span className="block text-xs text-muted-foreground truncate">
                           {member.area}
                         </span>
                       </div>
                     </div>
-                    <div className="text-right">
+                    <div className="text-right shrink-0">
                       <span
                         className={cn(
-                          'text-xs font-mono font-semibold px-2 py-0.5 rounded-md',
+                          'text-xs font-mono font-semibold px-2 py-0.5 rounded-md whitespace-nowrap',
                           member.pct >= 99.9
                             ? 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400'
                             : 'bg-blue-500/15 text-blue-600 dark:text-blue-400'
@@ -1144,11 +1144,11 @@ export function MeetingsView({
             </div>
 
             {/* Acompanhamento Prioritário (Menor Frequência) */}
-            <div className="rounded-xl border border-border bg-card p-5 space-y-4 shadow-xs">
-              <div className="flex items-center gap-2">
-                <span className="text-xl">⚠️</span>
-                <div>
-                  <h3 className="text-base font-semibold text-foreground">
+            <div className="min-w-0 max-w-full overflow-hidden rounded-xl border border-border bg-card p-4 sm:p-5 space-y-4 shadow-xs">
+              <div className="flex items-center gap-2 min-w-0">
+                <span className="text-xl shrink-0">⚠️</span>
+                <div className="min-w-0 flex-1">
+                  <h3 className="text-base font-semibold text-foreground truncate">
                     Acompanhamento Prioritário (Menor Frequência)
                   </h3>
                   <p className="text-xs text-muted-foreground">
@@ -1157,7 +1157,7 @@ export function MeetingsView({
                 </div>
               </div>
 
-              <div className="divide-y divide-border/60">
+              <div className="divide-y divide-border/60 min-w-0">
                 {data.overview.lowFrequencyMembers.length === 0 ? (
                   <p className="text-sm text-muted-foreground py-4 text-center">
                     Nenhum integrante com presença abaixo de 75%! Excelente trabalho.
@@ -1166,22 +1166,22 @@ export function MeetingsView({
                   data.overview.lowFrequencyMembers.map((member, idx) => (
                     <div
                       key={member.id}
-                      className="py-2.5 flex items-center justify-between text-sm"
+                      className="py-2.5 flex min-w-0 items-center justify-between gap-2.5 text-sm"
                     >
-                      <div className="flex items-center gap-3">
-                        <span className="w-5 text-center font-mono text-xs text-red-500 font-semibold">
+                      <div className="flex items-center gap-2.5 min-w-0 flex-1">
+                        <span className="w-5 text-center font-mono text-xs text-red-500 font-semibold shrink-0">
                           #{idx + 1}
                         </span>
                         <MeetingMemberAvatar name={member.name} avatar={member.avatar} size="sm" />
-                        <div>
-                          <span className="font-medium text-foreground">{member.name}</span>
-                          <span className="block text-xs text-muted-foreground">
+                        <div className="min-w-0 flex-1">
+                          <span className="block font-medium text-foreground truncate">{member.name}</span>
+                          <span className="block text-xs text-muted-foreground truncate">
                             {member.area}
                           </span>
                         </div>
                       </div>
-                      <div className="text-right">
-                        <span className="text-xs font-mono font-semibold text-red-600 dark:text-red-400">
+                      <div className="text-right shrink-0">
+                        <span className="text-xs font-mono font-semibold text-red-600 dark:text-red-400 whitespace-nowrap">
                           {member.pct.toFixed(1)}% ({member.absences} faltas)
                         </span>
                       </div>

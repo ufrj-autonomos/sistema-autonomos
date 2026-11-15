@@ -64,10 +64,30 @@ export default async function HomePage() {
     const personalAttendance = await attendanceReport(undefined, user.id).catch(() => null);
 
     return (
-      <div className="mx-auto w-full max-w-[1680px] px-2.5 sm:px-4 md:px-6 py-6 sm:py-8 space-y-8">
-        <ManagementOverview name={user.name} userId={user.id} user={user} />
+      <div className="mx-auto w-full max-w-[1680px] min-w-0 overflow-x-clip px-2.5 sm:px-4 md:px-6 py-6 sm:py-8 space-y-8">
+        {!user.profileCompletedAt && (
+          <div className="flex flex-wrap items-center justify-between gap-4 rounded-xl border border-amber-500/30 bg-amber-500/10 p-4 text-sm text-amber-700 dark:text-amber-200">
+            <div className="min-w-0 flex-1">
+              <p className="font-medium text-amber-700 dark:text-amber-100">
+                Complete seu cadastro operacional de integrante
+              </p>
+              <p className="mt-1 text-secondary-foreground">
+                Preencha seus dados operacionais obrigatórios em Meu Perfil para regularizar seu cadastro interno.
+              </p>
+            </div>
+            <Link
+              href="/perfil"
+              className="inline-flex min-h-11 items-center gap-2 rounded-lg bg-amber-400 px-4 py-2 font-semibold text-zinc-950 hover:bg-amber-300"
+            >
+              Completar agora
+              <ArrowRight className="h-4 w-4" />
+            </Link>
+          </div>
+        )}
 
-        <section className="pt-4 border-t border-border">
+        <ManagementOverview name={user.name} userId={user.id} user={user} variant="home" />
+
+        <section id="meu-ponto-lab" className="scroll-mt-20 pt-4 border-t border-border">
           <AttendanceCard initial={personalAttendance} />
         </section>
       </div>

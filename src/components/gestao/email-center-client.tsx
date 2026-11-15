@@ -33,6 +33,16 @@ import { EmailLogsPanel } from './email-logs-panel';
 type TabKey = 'situations' | 'ai' | 'individual' | 'logs';
 type AudienceMode = 'members' | 'situation' | 'area';
 
+const PRESET_COOLDOWN_DAYS = [1, 2, 3, 5, 6, 7, 14, 21, 30, 45, 60, 90] as const;
+
+function formatCooldownLabel(days: number): string {
+  if (days === 1) return 'A cada 1 dia (diário)';
+  if (days === 7) return 'A cada 7 dias (semanal)';
+  if (days === 14) return 'A cada 14 dias (quinzenal)';
+  if (days === 30) return 'A cada 30 dias (mensal)';
+  return `A cada ${days} dias`;
+}
+
 function formatDateBr(iso: string | null): string {
   if (!iso) return 'Nunca disparado';
   return new Date(iso).toLocaleString('pt-BR', {
@@ -61,6 +71,8 @@ export function EmailCenterClient({
   // Tab 1: Situations state
   const [expandedSituations, setExpandedSituations] = useState<Record<string, boolean>>({});
   const [busyKey, setBusyKey] = useState<string | null>(null);
+  const [customRecurrenceKey, setCustomRecurrenceKey] = useState<EmailSituationKey | null>(null);
+  const [customRecurrenceInput, setCustomRecurrenceInput] = useState<string>('7');
 
   // Tab 2: AI Studio state
   const [aiPrompt, setAiPrompt] = useState('');
@@ -124,8 +136,18 @@ export function EmailCenterClient({
   }
 
   async function handleToggleRule(sit: EmailSituationSnapshot) {
+    const nextEnabled = !sit.automation.enabled;
+    const prevSituations = center.situations;
     setBusyKey(`toggle:${sit.key}`);
     setGlobalBanner(null);
+    setCenter((prev) => ({
+      ...prev,
+      situations: prev.situations.map((s) =>
+        s.key === sit.key
+          ? { ...s, automation: { ...s.automation, enabled: nextEnabled } }
+          : s
+      ),
+    }));
     try {
       const res = await fetch('/api/gestao/emails/send', {
         method: 'POST',
@@ -133,20 +155,24 @@ export function EmailCenterClient({
         body: JSON.stringify({
           action: 'toggle_rule',
           situationKey: sit.key,
-          enabled: !sit.automation.enabled,
+          enabled: nextEnabled,
           cooldownDays: sit.automation.cooldownDays,
         }),
       });
       const payload = await res.json().catch(() => null);
       if (!res.ok) {
+        setCenter((prev) => ({ ...prev, situations: prevSituations }));
         setGlobalBanner({ kind: 'err', text: payload?.error || 'Erro ao atualizar automação.' });
         return;
       }
       setGlobalBanner({
         kind: 'ok',
-        text: `Automação "${sit.title}" ${!sit.automation.enabled ? 'ativada' : 'pausada'} com sucesso.`,
+        text: `Automação "${sit.title}" ${nextEnabled ? 'ativada' : 'pausada'} com sucesso.`,
       });
       await refreshAll(false);
+    } catch {
+      setCenter((prev) => ({ ...prev, situations: prevSituations }));
+      setGlobalBanner({ kind: 'err', text: 'Falha de conexão ao atualizar automação.' });
     } finally {
       setBusyKey(null);
     }
@@ -154,8 +180,17 @@ export function EmailCenterClient({
 
   async function handleUpdateRecurrence(sit: EmailSituationSnapshot, nextDays: number) {
     const clamped = Math.min(Math.max(Math.round(nextDays || 7), 1), 90);
+    const prevSituations = center.situations;
     setBusyKey(`recurrence:${sit.key}`);
     setGlobalBanner(null);
+    setCenter((prev) => ({
+      ...prev,
+      situations: prev.situations.map((s) =>
+        s.key === sit.key
+          ? { ...s, automation: { ...s.automation, cooldownDays: clamped } }
+          : s
+      ),
+    }));
     try {
       const res = await fetch('/api/gestao/emails/send', {
         method: 'POST',
@@ -169,17 +204,25 @@ export function EmailCenterClient({
       });
       const payload = await res.json().catch(() => null);
       if (!res.ok) {
+        setCenter((prev) => ({ ...prev, situations: prevSituations }));
         setGlobalBanner({
           kind: 'err',
           text: payload?.error || 'Erro ao alterar recorrência dos envios.',
         });
         return;
       }
+      setCustomRecurrenceKey(null);
       setGlobalBanner({
         kind: 'ok',
         text: `Recorrência de "${sit.title}" atualizada para a cada ${clamped} dia(s).`,
       });
       await refreshAll(false);
+    } catch {
+      setCenter((prev) => ({ ...prev, situations: prevSituations }));
+      setGlobalBanner({
+        kind: 'err',
+        text: 'Falha de conexão ao alterar recorrência dos envios.',
+      });
     } finally {
       setBusyKey(null);
     }
@@ -545,53 +588,89 @@ export function EmailCenterClient({
                           <Power className="h-3 w-3" />
                           {sit.automation.enabled ? 'Automático Ativo' : 'Automático Pausado'}
                         </span>
-                        <label className="inline-flex items-center gap-1.5 rounded-full border border-border bg-background px-2.5 py-0.5 text-[11px] font-medium text-foreground">
-                          <span>Recorrência:</span>
-                          <select
-                            aria-label={`Recorrência de ${sit.title}`}
-                            disabled={busyKey === `recurrence:${sit.key}`}
-                            value={
-                              [1, 2, 3, 5, 6, 7, 14, 30].includes(sit.automation.cooldownDays)
-                                ? String(sit.automation.cooldownDays)
-                                : 'CUSTOM'
-                            }
-                            onChange={(e) => {
-                              const val = e.target.value;
-                              if (val === 'CUSTOM') {
-                                const typed = window.prompt(
-                                  `Informe a recorrência em dias (1 a 90) para "${sit.title}":`,
-                                  String(sit.automation.cooldownDays)
-                                );
-                                if (!typed) return;
-                                const parsed = Number(typed);
-                                if (!Number.isFinite(parsed) || parsed < 1 || parsed > 90) {
-                                  setGlobalBanner({
-                                    kind: 'err',
-                                    text: 'Informe um número entre 1 e 90 dias.',
-                                  });
+                        <div className="inline-flex flex-wrap items-center gap-1.5 rounded-full border border-border bg-background px-2.5 py-0.5 text-[11px] font-medium text-foreground">
+                          <span id={`recurrence-label-${sit.key}`} className="text-muted-foreground">
+                            Recorrência:
+                          </span>
+                          {customRecurrenceKey === sit.key ? (
+                            <span className="inline-flex items-center gap-1">
+                              <input
+                                type="number"
+                                min={1}
+                                max={90}
+                                value={customRecurrenceInput}
+                                aria-label={`Dias de recorrência personalizada de ${sit.title}`}
+                                onChange={(e) => setCustomRecurrenceInput(e.target.value)}
+                                className="h-6 w-14 rounded border border-border bg-card px-1.5 font-mono text-[11px] text-foreground focus:outline-hidden focus:ring-1 focus:ring-ring"
+                              />
+                              <span className="text-[11px] text-muted-foreground">dias</span>
+                              <button
+                                type="button"
+                                disabled={busyKey === `recurrence:${sit.key}`}
+                                onClick={() => {
+                                  const parsed = Number(customRecurrenceInput);
+                                  if (!Number.isFinite(parsed) || parsed < 1 || parsed > 90) {
+                                    setGlobalBanner({
+                                      kind: 'err',
+                                      text: 'Informe um número entre 1 e 90 dias.',
+                                    });
+                                    return;
+                                  }
+                                  void handleUpdateRecurrence(sit, parsed);
+                                }}
+                                className="rounded bg-primary px-2 py-0.5 text-[10px] font-semibold text-primary-foreground hover:bg-primary/90 cursor-pointer disabled:opacity-50"
+                              >
+                                Salvar
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => setCustomRecurrenceKey(null)}
+                                className="rounded border border-border px-1.5 py-0.5 text-[10px] text-muted-foreground hover:text-foreground cursor-pointer"
+                              >
+                                Cancelar
+                              </button>
+                            </span>
+                          ) : (
+                            <select
+                              aria-labelledby={`recurrence-label-${sit.key}`}
+                              disabled={busyKey === `recurrence:${sit.key}`}
+                              value={String(sit.automation.cooldownDays)}
+                              onChange={(e) => {
+                                const val = e.target.value;
+                                if (val === 'EDIT_CUSTOM') {
+                                  setCustomRecurrenceKey(sit.key);
+                                  setCustomRecurrenceInput(String(sit.automation.cooldownDays));
                                   return;
                                 }
-                                void handleUpdateRecurrence(sit, parsed);
-                              } else {
                                 void handleUpdateRecurrence(sit, Number(val));
-                              }
-                            }}
-                            className="bg-transparent font-semibold text-primary focus:outline-hidden cursor-pointer"
-                          >
-                            <option value="1">A cada 1 dia (diário)</option>
-                            <option value="2">A cada 2 dias</option>
-                            <option value="3">A cada 3 dias</option>
-                            <option value="5">A cada 5 dias</option>
-                            <option value="6">A cada 6 dias</option>
-                            <option value="7">A cada 7 dias (semanal)</option>
-                            <option value="14">A cada 14 dias (quinzenal)</option>
-                            <option value="30">A cada 30 dias (mensal)</option>
-                            {![1, 2, 3, 5, 6, 7, 14, 30].includes(sit.automation.cooldownDays) && (
-                              <option value="CUSTOM">A cada {sit.automation.cooldownDays} dias (personalizado)</option>
-                            )}
-                            <option value="CUSTOM">Personalizar dias…</option>
-                          </select>
-                        </label>
+                              }}
+                              className="rounded bg-card px-1.5 py-0.5 font-semibold text-primary focus:outline-hidden focus:ring-1 focus:ring-ring cursor-pointer [&>option]:bg-card [&>option]:text-foreground"
+                            >
+                              {PRESET_COOLDOWN_DAYS.map((days) => (
+                                <option
+                                  key={days}
+                                  value={String(days)}
+                                  className="bg-card text-foreground"
+                                >
+                                  {formatCooldownLabel(days)}
+                                </option>
+                              ))}
+                              {!PRESET_COOLDOWN_DAYS.includes(
+                                sit.automation.cooldownDays as (typeof PRESET_COOLDOWN_DAYS)[number]
+                              ) && (
+                                <option
+                                  value={String(sit.automation.cooldownDays)}
+                                  className="bg-card text-foreground"
+                                >
+                                  {formatCooldownLabel(sit.automation.cooldownDays)} (personalizado)
+                                </option>
+                              )}
+                              <option value="EDIT_CUSTOM" className="bg-card text-foreground">
+                                Personalizar dias…
+                              </option>
+                            </select>
+                          )}
+                        </div>
                         <span className="rounded-full border border-border bg-background px-2.5 py-0.5 text-[11px] font-semibold text-foreground">
                           {sit.totalCount} pessoa(s) nesta situação ({sit.emailableCount} com e-mail)
                         </span>
@@ -792,7 +871,7 @@ export function EmailCenterClient({
                   <select
                     value={aiAccent}
                     onChange={(e) => setAiAccent(e.target.value as EmailAccent)}
-                    className="w-full h-9 rounded-lg border border-border bg-background px-2.5 text-xs text-foreground"
+                    className="w-full h-9 rounded-lg border border-border bg-background px-2.5 text-xs text-foreground [&>option]:bg-card [&>option]:text-foreground"
                   >
                     <option value="cyan">Informativo (Azul)</option>
                     <option value="emerald">Positivo (Verde)</option>
@@ -808,7 +887,7 @@ export function EmailCenterClient({
                   <select
                     value={aiCtaPath}
                     onChange={(e) => setAiCtaPath(e.target.value)}
-                    className="w-full h-9 rounded-lg border border-border bg-background px-2.5 text-xs text-foreground"
+                    className="w-full h-9 rounded-lg border border-border bg-background px-2.5 text-xs text-foreground [&>option]:bg-card [&>option]:text-foreground"
                   >
                     <option value="/perfil">Meu Perfil (/perfil)</option>
                     <option value="/reunioes">Reuniões (/reunioes)</option>
@@ -903,7 +982,7 @@ export function EmailCenterClient({
                     <select
                       value={aiTargetSituation}
                       onChange={(e) => setAiTargetSituation(e.target.value as EmailSituationKey)}
-                      className="w-full h-9 rounded-lg border border-border bg-background px-3 text-xs text-foreground"
+                      className="w-full h-9 rounded-lg border border-border bg-background px-3 text-xs text-foreground [&>option]:bg-card [&>option]:text-foreground"
                     >
                       {center.situations.map((s) => (
                         <option key={s.key} value={s.key}>
@@ -917,7 +996,7 @@ export function EmailCenterClient({
                     <select
                       value={aiTargetArea}
                       onChange={(e) => setAiTargetArea(e.target.value)}
-                      className="w-full h-9 rounded-lg border border-border bg-background px-3 text-xs text-foreground"
+                      className="w-full h-9 rounded-lg border border-border bg-background px-3 text-xs text-foreground [&>option]:bg-card [&>option]:text-foreground"
                     >
                       <option value="ALL_ACTIVE">
                         Toda a equipe ativa ({center.members.filter((m) => Boolean(m.email)).length} com e-mail)
@@ -1172,7 +1251,7 @@ export function EmailCenterClient({
               <select
                 value={indivKind}
                 onChange={(e) => setIndivKind(e.target.value as 'CUSTOM' | EmailSituationKey)}
-                className="w-full h-9 rounded-lg border border-border bg-background px-3 text-xs text-foreground"
+                className="w-full h-9 rounded-lg border border-border bg-background px-3 text-xs text-foreground [&>option]:bg-card [&>option]:text-foreground"
               >
                 <option value="CUSTOM">Comunicado Manual Personalizado</option>
                 {center.situations.map((s) => (
@@ -1206,7 +1285,7 @@ export function EmailCenterClient({
                       <select
                         value={indivAccent}
                         onChange={(e) => setIndivAccent(e.target.value as EmailAccent)}
-                        className="w-full h-9 rounded-lg border border-border bg-background px-2 text-xs"
+                        className="w-full h-9 rounded-lg border border-border bg-background px-2 text-xs text-foreground [&>option]:bg-card [&>option]:text-foreground"
                       >
                         <option value="cyan">Azul</option>
                         <option value="emerald">Verde</option>
@@ -1221,7 +1300,7 @@ export function EmailCenterClient({
                       <select
                         value={indivCtaPath}
                         onChange={(e) => setIndivCtaPath(e.target.value)}
-                        className="w-full h-9 rounded-lg border border-border bg-background px-2 text-xs"
+                        className="w-full h-9 rounded-lg border border-border bg-background px-2 text-xs text-foreground [&>option]:bg-card [&>option]:text-foreground"
                       >
                         <option value="/">Início (/)</option>
                         <option value="/perfil">Perfil (/perfil)</option>
