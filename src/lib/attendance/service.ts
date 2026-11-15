@@ -1,4 +1,4 @@
-import { resolveMemberAreas } from '@/lib/member-fields';
+import { isOperationalActiveMember, resolveMemberAreas } from '@/lib/member-fields';
 import { timingSafeEqual } from 'node:crypto';
 import { Prisma } from '@prisma/client';
 import { hasManagementAccess } from '@/lib/access-policy';
@@ -43,10 +43,14 @@ export async function attendanceReport(key = weekKey(), memberId?: string, now =
   const isVacationWeek = vacationKeys.includes(range.key);
   const ids = members.flatMap(member => typeof member.institutionalMemberId === 'number' ? [member.institutionalMemberId] : []);
   const identities = ids.length && process.env.INSTITUTIONAL_DATABASE_URL
-    ? await institutionalDb.institutionalMember.findMany({ where: { id: { in: ids } }, select: { id: true, name: true, area: true } })
+    ? await institutionalDb.institutionalMember.findMany({ where: { id: { in: ids } }, select: { id: true, name: true, area: true, active: true, role: true } })
     : [];
   const byId = new Map(identities.map(member => [member.id, member]));
-  const summaries = members.map(member => {
+  const eligibleMembers = members.filter(member => {
+    const identity = member.institutionalMemberId ? byId.get(member.institutionalMemberId) : undefined;
+    return isOperationalActiveMember(member, identity);
+  });
+  const summaries = eligibleMembers.map(member => {
     const identity = member.institutionalMemberId ? byId.get(member.institutionalMemberId) : undefined;
     return memberSummary(
       { id: member.id, name: identity?.name || member.name, area: resolveMemberAreas(identity?.area, member.area).internal || 'Não informada', email: member.email || null },

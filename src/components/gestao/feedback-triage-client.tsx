@@ -6,7 +6,7 @@ import {
   Archive,
   Bug,
   Check,
-  CheckCircle2,
+  ChevronDown,
   ClipboardCheck,
   ExternalLink,
   Filter,
@@ -101,6 +101,11 @@ export function FeedbackTriageClient({
   const [validityFilter, setValidityFilter] = useState<'ALL' | FeedbackValidityValue>('ALL');
   const [sortBy, setSortBy] = useState<'recent' | 'votes' | 'priority'>('recent');
   const [search, setSearch] = useState('');
+  const [expandedIds, setExpandedIds] = useState<string[]>([]);
+
+  function toggleExpand(id: string) {
+    setExpandedIds(prev => (prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]));
+  }
 
   // Dialog 1: Avaliar (Triagem técnica/gestão — sem bug de reabertura pós-triagem)
   const [reviewTarget, setReviewTarget] = useState<FeedbackItemDTO | null>(null);
@@ -277,6 +282,15 @@ export function FeedbackTriageClient({
   }, [data.items, scopeFilter, targetTeamFilter, categoryFilter, statusFilter, validityFilter, sortBy, search]);
 
   const { summary } = data;
+  const techStat = summary.byTargetTeam?.find(t => t.targetTeam === 'TECH');
+  const mgmtStat = summary.byTargetTeam?.find(t => t.targetTeam === 'MANAGEMENT');
+  const hasActiveFilters =
+    scopeFilter !== 'ALL' ||
+    targetTeamFilter !== 'ALL' ||
+    categoryFilter !== 'ALL' ||
+    validityFilter !== 'ALL' ||
+    search.trim() !== '' ||
+    statusFilter !== 'OPEN';
 
   return (
     <div className="space-y-6">
@@ -291,7 +305,7 @@ export function FeedbackTriageClient({
             Bugs, Melhorias &amp; Ideias Recebidas
           </h1>
           <p className="mt-1 text-sm text-muted-foreground">
-            Avalie se cada reporte ou ideia procede, defina prioridade e responsável, e marque quando for aplicada na equipe, no laboratório, no sistema ou no site.
+            Avalie se cada reporte ou ideia procede, defina prioridade e responsável, e responda diretamente ao integrante.
           </p>
         </div>
 
@@ -304,9 +318,21 @@ export function FeedbackTriageClient({
         </Link>
       </div>
 
-      {/* KPIs */}
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <div className="rounded-xl border border-border bg-card p-4 shadow-xs">
+      {/* KPI Unificado Clicável (4 Cards) */}
+      <div className="grid gap-3.5 sm:grid-cols-2 xl:grid-cols-4">
+        <button
+          type="button"
+          onClick={() => {
+            setValidityFilter(prev => (prev === 'PENDENTE' ? 'ALL' : 'PENDENTE'));
+            setStatusFilter('OPEN');
+          }}
+          className={cn(
+            'rounded-xl border p-4 text-left shadow-xs transition-all cursor-pointer',
+            validityFilter === 'PENDENTE'
+              ? 'border-amber-500 bg-amber-500/10 ring-1 ring-amber-500/30'
+              : 'border-border bg-card hover:bg-muted/30'
+          )}
+        >
           <div className="flex items-center justify-between text-muted-foreground">
             <span className="text-xs font-semibold uppercase tracking-wider">Aguardando Triagem</span>
             <Filter className="h-4 w-4 text-amber-500" />
@@ -315,11 +341,23 @@ export function FeedbackTriageClient({
             {summary.pendingTriageCount}
           </p>
           <p className="mt-1 text-xs text-muted-foreground">
-            Submissões ainda sem veredito de validade
+            Submissões ainda sem avaliação de validade
           </p>
-        </div>
+        </button>
 
-        <div className="rounded-xl border border-border bg-card p-4 shadow-xs">
+        <button
+          type="button"
+          onClick={() => {
+            setCategoryFilter(prev => (prev === 'BUG' ? 'ALL' : 'BUG'));
+            setStatusFilter('OPEN');
+          }}
+          className={cn(
+            'rounded-xl border p-4 text-left shadow-xs transition-all cursor-pointer',
+            categoryFilter === 'BUG'
+              ? 'border-rose-500 bg-rose-500/10 ring-1 ring-rose-500/30'
+              : 'border-border bg-card hover:bg-muted/30'
+          )}
+        >
           <div className="flex items-center justify-between text-muted-foreground">
             <span className="text-xs font-semibold uppercase tracking-wider">Bugs em Aberto</span>
             <Bug className="h-4 w-4 text-rose-500" />
@@ -328,111 +366,53 @@ export function FeedbackTriageClient({
             {summary.openBugsCount}
           </p>
           <p className="mt-1 text-xs text-muted-foreground">
-            Erros reportados no sistema, site ou lab
+            Erros reportados aguardando correção
           </p>
-        </div>
+        </button>
 
-        <div className="rounded-xl border border-border bg-card p-4 shadow-xs">
+        <button
+          type="button"
+          onClick={() => setTargetTeamFilter(prev => (prev === 'TECH' ? 'ALL' : 'TECH'))}
+          className={cn(
+            'rounded-xl border p-4 text-left shadow-xs transition-all cursor-pointer',
+            targetTeamFilter === 'TECH'
+              ? 'border-indigo-500 bg-indigo-500/10 ring-1 ring-indigo-500/30'
+              : 'border-border bg-card hover:bg-muted/30'
+          )}
+        >
           <div className="flex items-center justify-between text-muted-foreground">
-            <span className="text-xs font-semibold uppercase tracking-wider">Válidas / Em Execução</span>
-            <Rocket className="h-4 w-4 text-sky-500" />
+            <span className="text-xs font-semibold uppercase tracking-wider">Time de Tecnologia</span>
+            <Laptop className="h-4 w-4 text-indigo-500" />
+          </div>
+          <p className="mt-2 font-mono text-2xl font-bold text-indigo-600 dark:text-indigo-400 tabular-nums">
+            {techStat?.openCount ?? 0}
+          </p>
+          <p className="mt-1 text-xs text-muted-foreground">
+            em aberto · {techStat?.count ?? 0} no total
+          </p>
+        </button>
+
+        <button
+          type="button"
+          onClick={() => setTargetTeamFilter(prev => (prev === 'MANAGEMENT' ? 'ALL' : 'MANAGEMENT'))}
+          className={cn(
+            'rounded-xl border p-4 text-left shadow-xs transition-all cursor-pointer',
+            targetTeamFilter === 'MANAGEMENT'
+              ? 'border-amber-500 bg-amber-500/10 ring-1 ring-amber-500/30'
+              : 'border-border bg-card hover:bg-muted/30'
+          )}
+        >
+          <div className="flex items-center justify-between text-muted-foreground">
+            <span className="text-xs font-semibold uppercase tracking-wider">Gestão</span>
+            <Users className="h-4 w-4 text-amber-500" />
           </div>
           <p className="mt-2 font-mono text-2xl font-bold text-foreground tabular-nums">
-            {summary.validAcceptedCount}
+            {mgmtStat?.openCount ?? 0}
           </p>
           <p className="mt-1 text-xs text-muted-foreground">
-            Aceitas ou em andamento pelos responsáveis
+            em aberto · {mgmtStat?.count ?? 0} no total ({summary.appliedCount} aplicadas)
           </p>
-        </div>
-
-        <div className="rounded-xl border border-border bg-card p-4 shadow-xs">
-          <div className="flex items-center justify-between text-muted-foreground">
-            <span className="text-xs font-semibold uppercase tracking-wider">Ideias Aplicadas</span>
-            <CheckCircle2 className="h-4 w-4 text-emerald-500" />
-          </div>
-          <p className="mt-2 font-mono text-2xl font-bold text-emerald-600 dark:text-emerald-400 tabular-nums">
-            {summary.appliedCount}
-          </p>
-          <p className="mt-1 text-xs text-muted-foreground">
-            de {summary.totalCount} registros totais
-          </p>
-        </div>
-      </div>
-
-      {/* Filtro rápido por Equipe Responsável (Tecnologia vs Gestão) */}
-      {summary.byTargetTeam && (
-        <div className="grid gap-3 sm:grid-cols-2">
-          {summary.byTargetTeam.map(teamStat => {
-            const active = targetTeamFilter === teamStat.targetTeam;
-            const meta = FEEDBACK_TARGET_TEAM_META[teamStat.targetTeam];
-            return (
-              <button
-                key={teamStat.targetTeam}
-                type="button"
-                onClick={() =>
-                  setTargetTeamFilter(active ? 'ALL' : teamStat.targetTeam)
-                }
-                className={cn(
-                  'rounded-xl border p-3.5 text-left transition-all cursor-pointer flex items-center justify-between gap-3',
-                  active
-                    ? 'border-primary bg-primary/10 shadow-xs'
-                    : 'border-border bg-card hover:bg-muted/30'
-                )}
-              >
-                <div>
-                  <div className="text-xs font-semibold text-foreground">
-                    Para {meta.label}
-                  </div>
-                  <p className="mt-0.5 text-[11px] text-muted-foreground">
-                    {teamStat.openCount} em aberto de {teamStat.count} total
-                  </p>
-                </div>
-                <span
-                  className={cn(
-                    'rounded-full border px-2.5 py-0.5 font-mono text-xs font-bold tabular-nums',
-                    TONE_CLASSES[meta.tone]
-                  )}
-                >
-                  {teamStat.openCount} abertos
-                </span>
-              </button>
-            );
-          })}
-        </div>
-      )}
-
-      {/* Resumo clicável por Alvo */}
-      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-        {summary.byScope.map(s => {
-          const Icon = SCOPE_ICONS[s.scope];
-          const active = scopeFilter === s.scope;
-          return (
-            <button
-              key={s.scope}
-              type="button"
-              onClick={() => setScopeFilter(active ? 'ALL' : s.scope)}
-              className={cn(
-                'rounded-xl border p-3.5 text-left transition-all cursor-pointer',
-                active
-                  ? 'border-primary bg-primary/10 shadow-xs'
-                  : 'border-border bg-card hover:bg-muted/30'
-              )}
-            >
-              <div className="flex items-center justify-between">
-                <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-foreground">
-                  <Icon className="h-4 w-4 text-primary" />
-                  {s.label}
-                </span>
-                <span className="font-mono text-sm font-bold text-foreground tabular-nums">
-                  {s.count}
-                </span>
-              </div>
-              <p className="mt-1 text-[11px] text-muted-foreground">
-                {s.appliedCount} {s.appliedCount === 1 ? 'aplicada' : 'aplicadas'}
-              </p>
-            </button>
-          );
-        })}
+        </button>
       </div>
 
       {/* Filtros & Fila de Recepção */}
@@ -440,11 +420,11 @@ export function FeedbackTriageClient({
         <div className="border-b border-border bg-muted/35 px-4 py-3 flex flex-wrap items-center justify-between gap-3">
           <div className="flex flex-wrap items-center gap-1.5">
             {[
-              { id: 'OPEN' as const, label: 'Fila Ativa (não concluídas)' },
-              { id: 'RECEBIDA' as const, label: 'Novas / Recebidas' },
+              { id: 'OPEN' as const, label: 'Fila Ativa' },
+              { id: 'RECEBIDA' as const, label: 'Novas' },
               { id: 'APROVADA' as const, label: 'Aceitas / Válidas' },
-              { id: 'APLICADA' as const, label: 'Aplicadas' },
-              { id: 'ALL' as const, label: 'Todas' },
+              { id: 'APLICADA' as const, label: `Aplicadas (${summary.appliedCount})` },
+              { id: 'ALL' as const, label: `Todas (${summary.totalCount})` },
             ].map(tab => (
               <button
                 key={tab.id}
@@ -462,9 +442,64 @@ export function FeedbackTriageClient({
             ))}
           </div>
 
-          <span className="text-xs text-muted-foreground">
-            Exibindo <strong className="text-foreground">{filteredItems.length}</strong> itens
-          </span>
+          <div className="flex items-center gap-3 text-xs text-muted-foreground">
+            <span>
+              Exibindo <strong className="text-foreground">{filteredItems.length}</strong> itens
+            </span>
+            {hasActiveFilters && (
+              <button
+                type="button"
+                onClick={() => {
+                  setScopeFilter('ALL');
+                  setTargetTeamFilter('ALL');
+                  setCategoryFilter('ALL');
+                  setValidityFilter('ALL');
+                  setStatusFilter('OPEN');
+                  setSearch('');
+                }}
+                className="font-semibold text-primary hover:underline cursor-pointer"
+              >
+                Limpar filtros
+              </button>
+            )}
+          </div>
+        </div>
+
+        {/* Pills compactos por Alvo / Escopo */}
+        <div className="border-b border-border/80 bg-muted/15 px-4 py-2.5 flex flex-wrap items-center gap-1.5">
+          <button
+            type="button"
+            onClick={() => setScopeFilter('ALL')}
+            className={cn(
+              'min-h-7 rounded-full border px-2.5 text-[11px] font-medium transition-colors cursor-pointer',
+              scopeFilter === 'ALL'
+                ? 'border-foreground bg-foreground text-background'
+                : 'border-border bg-card text-muted-foreground hover:text-foreground'
+            )}
+          >
+            Todos os alvos
+          </button>
+          {summary.byScope.map(s => {
+            const Icon = SCOPE_ICONS[s.scope];
+            const active = scopeFilter === s.scope;
+            return (
+              <button
+                key={s.scope}
+                type="button"
+                onClick={() => setScopeFilter(active ? 'ALL' : s.scope)}
+                className={cn(
+                  'inline-flex min-h-7 items-center gap-1.5 rounded-full border px-2.5 text-[11px] font-medium transition-colors cursor-pointer',
+                  active
+                    ? 'border-primary bg-primary/15 text-primary font-semibold'
+                    : 'border-border bg-card text-muted-foreground hover:text-foreground'
+                )}
+              >
+                <Icon className="h-3 w-3" />
+                <span>{FEEDBACK_SCOPE_META[s.scope].shortLabel}</span>
+                <span className="font-mono text-[10px] opacity-80">({s.count})</span>
+              </button>
+            );
+          })}
         </div>
 
         <div className="border-b border-border px-4 py-3 flex flex-wrap items-center gap-2.5">
@@ -526,10 +561,10 @@ export function FeedbackTriageClient({
           </select>
         </div>
 
-        <div className="border-b border-border bg-muted/20 px-4 py-2 text-[11px] text-muted-foreground flex flex-wrap items-center gap-x-4 gap-y-1">
-          <span className="font-semibold text-foreground">Cards válidos têm borda combinada:</span>
-          <span>Borda externa = tipo (Bug rose · Lab âmbar · Melhoria azul · Ideia roxo · Processo verde)</span>
-          <span>Barra esquerda = prioridade (Crítica vermelha · Alta laranja · Média azul · Baixa cinza)</span>
+        <div className="border-b border-border bg-muted/20 px-4 py-2 text-[11px] text-muted-foreground flex flex-wrap items-center justify-between gap-2">
+          <span>
+            <strong className="text-foreground">Legenda visual (cards válidos):</strong> borda colorida = tipo · barra esquerda = prioridade (Crítica vermelha · Alta laranja · Média azul · Baixa cinza)
+          </span>
         </div>
 
         {filteredItems.length === 0 ? (
@@ -543,7 +578,7 @@ export function FeedbackTriageClient({
             </p>
           </div>
         ) : (
-          <div className="p-4 space-y-3">
+          <div className="p-4 space-y-3.5">
             {filteredItems.map(item => {
               const scopeMeta = FEEDBACK_SCOPE_META[item.scope];
               const catMeta = FEEDBACK_CATEGORY_META[item.category];
@@ -551,180 +586,255 @@ export function FeedbackTriageClient({
               const validityMeta = FEEDBACK_VALIDITY_META[item.validity];
               const prioMeta = FEEDBACK_PRIORITY_META[item.priority];
               const teamMeta = FEEDBACK_TARGET_TEAM_META[item.targetTeam];
+              const hasExtraDetails = Boolean(
+                item.pageOrLocation ||
+                  item.stepsToReproduce ||
+                  item.expectedOutcome ||
+                  item.attachmentUrl
+              );
+              const isExpanded = expandedIds.includes(item.id);
 
               return (
-                <div
+                <article
                   key={item.id}
                   className={cn(
-                    'rounded-xl p-4 flex flex-col lg:flex-row lg:items-center justify-between gap-4 transition-all',
+                    'rounded-xl bg-card p-4 sm:p-5 space-y-3.5 transition-all shadow-2xs',
                     getFeedbackCardBorderClasses(item)
                   )}
                 >
-                  <div className="min-w-0 flex-1 space-y-1.5">
-                    <div className="flex flex-wrap items-center gap-1.5">
-                      <span className="font-mono text-xs font-bold text-primary">
-                        {item.code}
-                      </span>
+                  {/* Header do Card */}
+                  <div className="flex flex-wrap items-center justify-between gap-2.5 border-b border-border/60 pb-2.5">
+                    <div className="flex flex-wrap items-center gap-2 min-w-0">
                       <span
                         className={cn(
-                          'rounded-full border px-2 py-0.5 text-[11px] font-semibold',
-                          TONE_CLASSES[teamMeta.tone]
-                        )}
-                      >
-                        {teamMeta.shortLabel}
-                      </span>
-                      <span
-                        className={cn(
-                          'rounded-full border px-2 py-0.5 text-[11px] font-medium',
-                          TONE_CLASSES[scopeMeta.tone]
-                        )}
-                      >
-                        {scopeMeta.shortLabel}
-                      </span>
-                      <span
-                        className={cn(
-                          'rounded-full border px-2 py-0.5 text-[11px] font-medium',
+                          'rounded-full border px-2.5 py-0.5 text-[11px] font-semibold',
                           TONE_CLASSES[catMeta.tone]
                         )}
                       >
                         {catMeta.shortLabel}
                       </span>
+                      <span className="font-mono text-xs font-bold text-primary">
+                        {item.code}
+                      </span>
+                      <span className="text-xs text-muted-foreground">
+                        Para <strong className="font-medium text-foreground">{teamMeta.shortLabel}</strong> · {scopeMeta.shortLabel}
+                      </span>
+                    </div>
+
+                    <div className="flex flex-wrap items-center gap-1.5 shrink-0">
                       <span
                         className={cn(
-                          'rounded-full border px-2 py-0.5 text-[11px] font-semibold',
+                          'rounded-full border px-2.5 py-0.5 text-[11px] font-semibold',
                           TONE_CLASSES[statusMeta.tone]
                         )}
                       >
                         {statusMeta.shortLabel}
                       </span>
+                      {item.validity === 'VALIDA' ? (
+                        <span
+                          className={cn(
+                            'rounded-full border px-2.5 py-0.5 text-[11px] font-semibold',
+                            TONE_CLASSES[prioMeta.tone]
+                          )}
+                        >
+                          Válida · {prioMeta.shortLabel}
+                        </span>
+                      ) : item.validity !== 'PENDENTE' ? (
+                        <span
+                          className={cn(
+                            'rounded-full border px-2.5 py-0.5 text-[11px] font-medium',
+                            TONE_CLASSES[validityMeta.tone]
+                          )}
+                        >
+                          {validityMeta.shortLabel}
+                        </span>
+                      ) : null}
                       <span
-                        className={cn(
-                          'rounded-full border px-2 py-0.5 text-[11px] font-medium',
-                          TONE_CLASSES[validityMeta.tone]
-                        )}
+                        title="Apoios dos integrantes"
+                        className="inline-flex items-center gap-1 rounded-full border border-border bg-muted/40 px-2 py-0.5 text-[11px] font-mono text-muted-foreground tabular-nums"
                       >
-                        Validade: {validityMeta.shortLabel}
-                      </span>
-                      <span
-                        className={cn(
-                          'rounded-full border px-2 py-0.5 text-[11px] font-medium',
-                          TONE_CLASSES[prioMeta.tone]
-                        )}
-                      >
-                        Prioridade {prioMeta.shortLabel}
-                      </span>
-                      <span className="inline-flex items-center gap-1 rounded-full border border-border bg-muted/40 px-2 py-0.5 text-[11px] font-mono text-muted-foreground">
                         <ThumbsUp className="h-3 w-3" /> {item.voteCount}
                       </span>
                     </div>
+                  </div>
 
-                    <h3 className="text-sm font-semibold text-foreground">{item.title}</h3>
-                    <p className="text-xs text-muted-foreground line-clamp-2">
+                  {/* Corpo do Card */}
+                  <div className="space-y-2.5">
+                    <h3 className="text-base font-semibold text-foreground leading-snug">
+                      {item.title}
+                    </h3>
+                    <p
+                      className={cn(
+                        'text-sm text-muted-foreground leading-relaxed whitespace-pre-line',
+                        !isExpanded && 'line-clamp-3'
+                      )}
+                    >
                       {item.description}
                     </p>
-                    {item.responseNotes && (
-                      <p className="text-xs text-primary/90 bg-primary/5 border border-primary/20 rounded-lg px-2.5 py-1.5 line-clamp-2">
-                        <strong>Resposta enviada:</strong> {item.responseNotes}
-                      </p>
+
+                    {hasExtraDetails && (
+                      <div>
+                        <button
+                          type="button"
+                          onClick={() => toggleExpand(item.id)}
+                          aria-expanded={isExpanded}
+                          className="inline-flex items-center gap-1 text-xs font-semibold text-primary hover:underline cursor-pointer"
+                        >
+                          {isExpanded ? 'Ocultar detalhes técnicos' : 'Ver detalhes técnicos'}
+                          <ChevronDown
+                            className={cn('h-3.5 w-3.5 transition-transform', isExpanded && 'rotate-180')}
+                          />
+                        </button>
+
+                        {isExpanded && (
+                          <div className="mt-2 rounded-lg border border-border bg-muted/25 p-3 text-xs space-y-1.5 text-muted-foreground">
+                            {item.pageOrLocation && (
+                              <p>
+                                <strong className="text-foreground">Local / Tela:</strong>{' '}
+                                {item.pageOrLocation}
+                              </p>
+                            )}
+                            {item.stepsToReproduce && (
+                              <div>
+                                <strong className="text-foreground">Como reproduzir:</strong>
+                                <p className="mt-0.5 whitespace-pre-line">{item.stepsToReproduce}</p>
+                              </div>
+                            )}
+                            {item.expectedOutcome && (
+                              <p>
+                                <strong className="text-foreground">Resultado esperado:</strong>{' '}
+                                {item.expectedOutcome}
+                              </p>
+                            )}
+                            {item.attachmentUrl && (
+                              <a
+                                href={item.attachmentUrl}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="inline-flex items-center gap-1 font-medium text-primary hover:underline pt-1"
+                              >
+                                <Paperclip className="h-3.5 w-3.5" />
+                                {item.attachmentName || 'Abrir print / anexo'}
+                                <ExternalLink className="h-3 w-3" />
+                              </a>
+                            )}
+                          </div>
+                        )}
+                      </div>
                     )}
-                    <div className="flex flex-wrap items-center gap-3 text-[11px] text-muted-foreground">
-                      <span>Enviado por: {item.authorDisplayName}</span>
-                      <span>Em {new Date(item.createdAt).toLocaleDateString('pt-BR')}</span>
-                      {item.pageOrLocation && <span>Local: {item.pageOrLocation}</span>}
-                      {item.assignedArea && <span>Área: {item.assignedArea}</span>}
+
+                    {item.responseNotes && (
+                      <div className="rounded-lg border border-primary/25 bg-primary/5 px-3 py-2 text-xs">
+                        <span className="font-semibold text-primary">Resposta enviada: </span>
+                        <span className="text-foreground whitespace-pre-line">{item.responseNotes}</span>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Rodapé: Metadados à esquerda + Ações organizadas à direita */}
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-t border-border/60 pt-3">
+                    <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
+                      <span>Por <strong className="font-medium text-foreground">{item.authorDisplayName}</strong></span>
+                      <span>{new Date(item.createdAt).toLocaleDateString('pt-BR')}</span>
+                      {item.assignedArea && <span>Subárea: {item.assignedArea}</span>}
                       {item.assignedToName && <span>Resp.: {item.assignedToName}</span>}
-                      {item.attachmentUrl && (
+                      {!isExpanded && item.pageOrLocation && <span>Local: {item.pageOrLocation}</span>}
+                      {!isExpanded && item.attachmentUrl && (
                         <span className="inline-flex items-center gap-1 text-primary">
                           <Paperclip className="h-3 w-3" /> Anexo
                         </span>
                       )}
                     </div>
+
+                    <div className="flex flex-wrap items-center gap-2 shrink-0">
+                      {/* Ações secundárias rápidas */}
+                      <div className="flex flex-wrap items-center gap-1.5">
+                        {item.validity !== 'VALIDA' && item.status !== 'ARQUIVADA' && (
+                          <button
+                            type="button"
+                            onClick={() =>
+                              void quickAction(
+                                item,
+                                {
+                                  validity: 'VALIDA',
+                                  status: item.status === 'RECEBIDA' ? 'APROVADA' : item.status,
+                                },
+                                `${item.code} marcada como válida!`
+                              )
+                            }
+                            className="inline-flex min-h-8 items-center gap-1 rounded-lg border border-sky-500/30 bg-sky-500/10 px-2.5 text-xs font-medium text-sky-700 hover:bg-sky-500/20 dark:text-sky-300 cursor-pointer"
+                          >
+                            <Check className="h-3.5 w-3.5" />
+                            Validar
+                          </button>
+                        )}
+
+                        {item.status !== 'APLICADA' && (
+                          <button
+                            type="button"
+                            onClick={() =>
+                              void quickAction(
+                                item,
+                                { status: 'APLICADA', validity: 'VALIDA' },
+                                `${item.code} marcada como aplicada!`
+                              )
+                            }
+                            className="inline-flex min-h-8 items-center gap-1 rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-2.5 text-xs font-medium text-emerald-700 hover:bg-emerald-500/20 dark:text-emerald-300 cursor-pointer"
+                          >
+                            <Rocket className="h-3.5 w-3.5" />
+                            Aplicada
+                          </button>
+                        )}
+
+                        {item.status !== 'ARQUIVADA' && item.status !== 'APLICADA' && (
+                          <button
+                            type="button"
+                            onClick={() =>
+                              void quickAction(
+                                item,
+                                { status: 'ARQUIVADA', validity: 'INVALIDA_OU_DUPLICADA' },
+                                `${item.code} arquivada.`
+                              )
+                            }
+                            className="inline-flex min-h-8 items-center gap-1 rounded-lg border border-border px-2.5 text-xs font-medium text-muted-foreground hover:bg-accent cursor-pointer"
+                            title="Marcar como não aplicável e arquivar"
+                          >
+                            <Archive className="h-3.5 w-3.5" />
+                            Arquivar
+                          </button>
+                        )}
+                      </div>
+
+                      <span className="hidden sm:inline-block h-5 w-px bg-border" aria-hidden="true" />
+
+                      {/* Ações principais de triagem e devolutiva */}
+                      <div className="flex items-center gap-1.5">
+                        <button
+                          type="button"
+                          onClick={() => openEvaluateModal(item)}
+                          className="inline-flex min-h-9 items-center gap-1.5 rounded-lg bg-primary px-3 text-xs font-semibold text-primary-foreground hover:bg-primary/90 cursor-pointer"
+                        >
+                          <ClipboardCheck className="h-3.5 w-3.5" />
+                          Avaliar
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => openReplyModal(item)}
+                          className={cn(
+                            'inline-flex min-h-9 items-center gap-1.5 rounded-lg border px-3 text-xs font-semibold cursor-pointer',
+                            item.responseNotes
+                              ? 'border-primary/40 bg-primary/10 text-primary hover:bg-primary/15'
+                              : 'border-border bg-background text-foreground hover:bg-accent'
+                          )}
+                        >
+                          <MessageSquare className="h-3.5 w-3.5" />
+                          {item.responseNotes ? 'Editar Resposta' : 'Responder'}
+                        </button>
+                      </div>
+                    </div>
                   </div>
-
-                  {/* Ações Rápidas na Recepção */}
-                  <div
-                    className="flex flex-wrap items-center gap-1.5 shrink-0"
-                    onClick={e => e.stopPropagation()}
-                  >
-                    {item.validity !== 'VALIDA' && item.status !== 'ARQUIVADA' && (
-                      <button
-                        type="button"
-                        onClick={() =>
-                          void quickAction(
-                            item,
-                            {
-                              validity: 'VALIDA',
-                              status: item.status === 'RECEBIDA' ? 'APROVADA' : item.status,
-                            },
-                            `${item.code} marcada como válida!`
-                          )
-                        }
-                        className="inline-flex min-h-8 items-center gap-1 rounded-lg border border-sky-500/30 bg-sky-500/10 px-2.5 text-xs font-semibold text-sky-700 hover:bg-sky-500/20 dark:text-sky-300 cursor-pointer"
-                      >
-                        <Check className="h-3.5 w-3.5" />
-                        Marcar Válida
-                      </button>
-                    )}
-
-                    {item.status !== 'APLICADA' && (
-                      <button
-                        type="button"
-                        onClick={() =>
-                          void quickAction(
-                            item,
-                            { status: 'APLICADA', validity: 'VALIDA' },
-                            `${item.code} marcada como aplicada!`
-                          )
-                        }
-                        className="inline-flex min-h-8 items-center gap-1 rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-2.5 text-xs font-semibold text-emerald-700 hover:bg-emerald-500/20 dark:text-emerald-300 cursor-pointer"
-                      >
-                        <Rocket className="h-3.5 w-3.5" />
-                        Aplicou
-                      </button>
-                    )}
-
-                    {item.status !== 'ARQUIVADA' && item.status !== 'APLICADA' && (
-                      <button
-                        type="button"
-                        onClick={() =>
-                          void quickAction(
-                            item,
-                            { status: 'ARQUIVADA', validity: 'INVALIDA_OU_DUPLICADA' },
-                            `${item.code} arquivada.`
-                          )
-                        }
-                        className="inline-flex min-h-8 items-center gap-1 rounded-lg border border-border px-2.5 text-xs font-medium text-muted-foreground hover:bg-accent cursor-pointer"
-                        title="Marcar como não aplicável e arquivar"
-                      >
-                        <Archive className="h-3.5 w-3.5" />
-                        Arquivar
-                      </button>
-                    )}
-
-                    <button
-                      type="button"
-                      onClick={() => openEvaluateModal(item)}
-                      className="inline-flex min-h-8 items-center gap-1.5 rounded-lg bg-foreground px-3 text-xs font-medium text-background hover:bg-foreground/90 cursor-pointer"
-                    >
-                      <ClipboardCheck className="h-3.5 w-3.5" />
-                      Avaliar
-                    </button>
-
-                    <button
-                      type="button"
-                      onClick={() => openReplyModal(item)}
-                      className={cn(
-                        'inline-flex min-h-8 items-center gap-1.5 rounded-lg border px-3 text-xs font-medium cursor-pointer',
-                        item.responseNotes
-                          ? 'border-primary/40 bg-primary/10 text-primary hover:bg-primary/15'
-                          : 'border-border bg-background text-foreground hover:bg-accent'
-                      )}
-                    >
-                      <MessageSquare className="h-3.5 w-3.5" />
-                      {item.responseNotes ? 'Editar Resposta' : 'Responder'}
-                    </button>
-                  </div>
-                </div>
+                </article>
               );
             })}
           </div>

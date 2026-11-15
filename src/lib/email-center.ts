@@ -3,6 +3,7 @@ import { prisma } from '@/lib/prisma';
 import { db as institutionalDb } from '@/lib/institutional/db';
 import {
   computeMissingProfileFields,
+  isOperationalActiveMember,
   resolveMemberAreas,
 } from '@/lib/member-fields';
 import { memberSummary } from '@/lib/attendance/summary';
@@ -364,7 +365,7 @@ export async function getEmailCenterData(now = new Date()): Promise<EmailCenterD
 
   for (const m of members) {
     const inst = m.institutionalMemberId ? instById.get(m.institutionalMemberId) : undefined;
-    if (inst && (!inst.active || inst.role === 'Alumni')) continue;
+    if (!isOperationalActiveMember(m, inst)) continue;
 
     const displayName = inst?.name || m.name;
     const area = resolveMemberAreas(inst?.area, m.area).internal || 'Não informada';

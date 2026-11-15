@@ -40,6 +40,42 @@ export function roleFromCargo(
   return 'MEMBER';
 }
 const normalizedKey = (value: string) => value.trim().normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+
+export function isProfessorAdvisor(
+  input: { role?: string | null; area?: string | null; course?: string | null } | null | undefined
+): boolean {
+  if (!input) return false;
+  const roleKey = input.role ? normalizedKey(input.role) : '';
+  const areaKey = input.area ? normalizedKey(input.area) : '';
+  const combined = `${roleKey} ${areaKey}`.trim();
+  if (!combined) return false;
+  return ['orientador', 'orientacao', 'professor', 'docente'].some((token) =>
+    combined.includes(token)
+  );
+}
+
+export function isAlumniOrInactive(
+  input: { active?: boolean | null; role?: string | null; status?: string | null } | null | undefined
+): boolean {
+  if (!input) return false;
+  if (input.active === false) return true;
+  if (input.status === 'SUSPENDED' || input.status === 'REJECTED') return true;
+  const roleKey = input.role ? normalizedKey(input.role) : '';
+  return roleKey === 'alumni' || roleKey.includes('ex-membro') || roleKey.includes('ex membro');
+}
+
+export function isOperationalActiveMember(
+  member:
+    | { active?: boolean | null; role?: string | null; area?: string | null; status?: string | null }
+    | null
+    | undefined,
+  inst?: { active?: boolean | null; role?: string | null; area?: string | null } | null
+): boolean {
+  if (!member) return false;
+  if (isProfessorAdvisor(member) || isAlumniOrInactive(member)) return false;
+  if (inst && (isProfessorAdvisor(inst) || isAlumniOrInactive(inst))) return false;
+  return true;
+}
 export function normalizeMemberArea(value: unknown): string | null {
   if (typeof value !== 'string') return null;
   const key = normalizedKey(value);

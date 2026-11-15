@@ -9,6 +9,8 @@ import { updateRecord } from './site/actions';
 import { directoryPath } from '@/lib/institutional/routes';
 import { memberPreferences } from '@/lib/member-directory';
 import { prisma } from '@/lib/prisma';
+import { db } from '@/lib/institutional/db';
+import { isProfessorAdvisor } from '@/lib/member-fields';
 
 export async function updateMemberQuickField(id: number, field: string, value: unknown) {
   return traceServerAction("updateMemberQuickField", async () => {
@@ -22,14 +24,17 @@ export async function updateMemberQuickField(id: number, field: string, value: u
     const result = await updateRecord('member', id, { [field]: value });
     if (!result.success) throw new Error(result.error || 'Erro ao atualizar campo.');
     if (field === 'active' && value === true) {
-      await prisma.member.updateMany({
-        where: { institutionalMemberId: id },
-        data: {
-          active: true,
-          inactivatedAt: null,
-          inactivationReason: null,
-        },
-      });
+      const inst = await db.institutionalMember.findUnique({ where: { id }, select: { role: true, area: true } });
+      if (!isProfessorAdvisor(inst)) {
+        await prisma.member.updateMany({
+          where: { institutionalMemberId: id },
+          data: {
+            active: true,
+            inactivatedAt: null,
+            inactivationReason: null,
+          },
+        });
+      }
     }
     revalidatePath('/gestao/integrantes');
     revalidatePath('/gestao/ex-membros');

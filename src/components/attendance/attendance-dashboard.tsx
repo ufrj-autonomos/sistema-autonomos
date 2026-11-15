@@ -1,9 +1,9 @@
 'use client';
 import { Fragment, useEffect, useState } from 'react';
 import Link from 'next/link';
-import { ArrowLeft, ArrowRight, ChevronDown, Download, QrCode, RefreshCw } from 'lucide-react';
-import type { AttendanceMemberDto, AttendanceReport, AttendanceVisitDto } from '@/lib/attendance/types';
-import { formatDuration, formatLabDate, GOAL_LABELS, mondayForDate, shiftWeek, VISIT_LABELS } from '@/lib/attendance/format';
+import { ArrowLeft, ArrowRight, ChevronDown, Download, LayoutGrid, QrCode, RefreshCw, Table2 } from 'lucide-react';
+import type { AttendanceMemberDto, AttendanceReport } from '@/lib/attendance/types';
+import { formatDuration, formatLabDate, formatLabTime, getAttendanceCardTheme, GOAL_LABELS, mondayForDate, shiftWeek, VISIT_LABELS } from '@/lib/attendance/format';
 import { AttendanceJustifications } from './attendance-justifications';
 import { AttendanceVacationCalendar } from './attendance-vacation-calendar';
 import { VisitEditor, type VisitEdit } from './visit-editor';
@@ -40,6 +40,7 @@ export function AttendanceDashboard({ initialWeek, selectedWeek = initialWeek, a
   const [search, setSearch] = useState('');
   const [filter, setFilter] = useState('ALL');
   const [area, setArea] = useState('ALL');
+  const [viewMode, setViewMode] = useState<'CARDS' | 'TABLE'>('CARDS');
   const [expanded, setExpanded] = useState<string[]>([]);
   const [version, setVersion] = useState(0);
   const [edit, setEdit] = useState<VisitEdit | null>(null);
@@ -56,8 +57,29 @@ export function AttendanceDashboard({ initialWeek, selectedWeek = initialWeek, a
     const timer = setInterval(refresh, 60_000); window.addEventListener('focus', refresh);
     return () => { clearInterval(timer); window.removeEventListener('focus', refresh); };
   }, [edit]);
-  const visible = (report?.members || []).filter(member => `${member.name} ${member.email || ''}`.toLocaleLowerCase('pt-BR').includes(search.toLocaleLowerCase('pt-BR')) && (area === 'ALL' || member.area === area) && (filter === 'ALL' || member.status === filter || (filter === 'REVIEW' && member.pendingReviews > 0) || (filter === 'IN_LAB' && member.openVisit && !member.openVisit.needsReview)));
-  const areas = [...new Set((report?.members || []).map(member => member.area))].sort((a, b) => a.localeCompare(b, 'pt-BR'));
+  const allMembers = report?.members || [];
+  const tierCounts = allMembers.reduce(
+    (acc, member) => {
+      const { tier } = getAttendanceCardTheme(member);
+      acc[tier]++;
+      if (member.pendingReviews > 0) acc.REVIEW++;
+      return acc;
+    },
+    { IN_LAB: 0, MET: 0, PROGRESS: 0, ZERO: 0, REVIEW: 0 }
+  );
+  const visible = allMembers.filter(member => {
+    const matchesSearch = `${member.name} ${member.email || ''}`.toLocaleLowerCase('pt-BR').includes(search.toLocaleLowerCase('pt-BR'));
+    const matchesArea = area === 'ALL' || member.area === area;
+    if (!matchesSearch || !matchesArea) return false;
+    if (filter === 'ALL') return true;
+    if (filter === 'REVIEW') return member.pendingReviews > 0;
+    const { tier } = getAttendanceCardTheme(member);
+    if (filter === 'IN_LAB' || filter === 'MET' || filter === 'PROGRESS' || filter === 'ZERO') {
+      return tier === filter;
+    }
+    return member.status === filter;
+  });
+  const areas = [...new Set(allMembers.map(member => member.area))].sort((a, b) => a.localeCompare(b, 'pt-BR'));
   function toggle(id: string | number) { setExpanded(previous => previous.includes(String(id)) ? previous.filter(item => item !== String(id)) : [...previous, String(id)]); }
   function visits(member: AttendanceMemberDto) {
     return <div className="space-y-3 py-4">
@@ -102,9 +124,324 @@ export function AttendanceDashboard({ initialWeek, selectedWeek = initialWeek, a
       )}
       <p className="text-sm text-secondary-foreground">{formatLabDate(report.week.start)} a {formatLabDate(new Date(new Date(report.week.end).getTime() - 1).toISOString())} · Segunda a domingo · Horário de Brasília</p>
       <p className="mt-2 text-sm text-muted-foreground">{report.week.isClosed ? 'Semana encerrada: as metas abaixo do previsto entram no histórico de descumprimento.' : 'Semana em andamento: a meta pode ser cumprida até domingo (ou até o fim do mês para Marketing e Gestão com meta mensal de 4h).'} Registros com saída validada e justificativas aprovadas contam para a meta.</p>
-      {admin && <dl className="my-6 flex flex-wrap gap-x-8 gap-y-4 border-y border-border py-5 text-sm"><div><dt className="text-muted-foreground">Membros acompanhados</dt><dd className="mt-1 text-lg font-medium tabular-nums">{report.summary.requiredMembers}</dd></div><div><dt className="text-muted-foreground">Meta cumprida</dt><dd className="mt-1 text-lg font-medium tabular-nums text-emerald-700 dark:text-emerald-300">{report.summary.met}</dd></div><div><dt className="text-muted-foreground">{report.week.isClosed ? 'Abaixo da meta' : 'Ainda em andamento'}</dt><dd className="mt-1 text-lg font-medium tabular-nums">{report.week.isClosed ? report.summary.missed : report.summary.pending}</dd></div><div><dt className="text-muted-foreground">No laboratório</dt><dd className="mt-1 text-lg font-medium tabular-nums">{report.summary.inLab}</dd></div><div><dt className="text-muted-foreground">Registros para revisão</dt><dd className="mt-1 text-lg font-medium tabular-nums text-amber-700 dark:text-amber-300">{report.summary.review}</dd></div></dl>}
-      {admin && <div className="mb-5 flex flex-col gap-3 sm:flex-row"><label className="flex flex-1 flex-col gap-2 text-sm text-secondary-foreground">Buscar membro<input value={search} onChange={event => setSearch(event.target.value)} placeholder="Nome ou email" className={control} /></label><label className="flex flex-col gap-2 text-sm text-secondary-foreground">Situação<select value={filter} onChange={event => setFilter(event.target.value)} className={control}><option value="ALL">Todas</option><option value="MET">Meta cumprida</option><option value="PENDING">Em andamento</option><option value="MISSED">Abaixo da meta</option><option value="REVIEW">Com pendências</option><option value="IN_LAB">No laboratório</option></select></label><label className="flex flex-col gap-2 text-sm text-secondary-foreground">Área<select value={area} onChange={event => setArea(event.target.value)} className={control}><option value="ALL">Todas as áreas</option>{areas.map(item => <option key={item}>{item}</option>)}</select></label></div>}
-      {visible.length === 0 ? <p className="my-6 rounded-lg border border-dashed border-border p-6 text-sm leading-relaxed text-muted-foreground">{report.members.length ? 'Nenhum membro encontrado com esses filtros.' : `Nenhum acompanhamento nesta semana. Os registros começaram em ${formatLabDate(report.trackingStartedAt)}; não são criadas faltas para semanas anteriores.`}</p> : admin ? <div className="overflow-x-auto rounded-lg border border-border"><table className="w-full min-w-[820px] text-left text-sm"><caption className="sr-only">Presença semanal dos membros no laboratório</caption><thead className="bg-muted text-muted-foreground"><tr>{['Membro', 'Validado / meta', 'Restante', 'Situação', 'Semanas abaixo da meta', 'Registros'].map(label => <th key={label} scope="col" className="px-4 py-4 font-medium">{label}</th>)}</tr></thead><tbody className="divide-y divide-border">{visible.map(member => <Fragment key={member.id}><tr><th scope="row" className="max-w-xs px-4 py-4 font-normal"><p className="break-words font-medium text-foreground">{member.name}</p><p className="mt-1 text-xs text-muted-foreground">{member.area}</p><p className="mt-1 break-all text-xs text-muted-foreground">{member.email || 'Conta removida'}</p>{member.openVisit && <p className={`mt-2 text-xs ${member.openVisit.needsReview ? 'text-amber-700 dark:text-amber-300' : 'text-emerald-700 dark:text-emerald-300'}`}>{member.openVisit.needsReview ? 'Entrada sem saída' : 'No laboratório'}</p>}</th><td className="whitespace-nowrap px-4 py-4 tabular-nums">{formatDuration(member.completedSeconds)}<p className="mt-1 text-xs text-muted-foreground">Meta: {formatDuration(member.requiredSeconds)}{member.isMonthly ? ' (mensal)' : ' (semanal)'}</p></td><td className="whitespace-nowrap px-4 py-4 tabular-nums">{formatDuration(member.remainingSeconds)}</td><td className="px-4 py-4"><Goal member={member} />{!!member.justifiedSeconds && <p className="mt-2 text-xs text-emerald-700 dark:text-emerald-300">Inclui {formatDuration(member.justifiedSeconds)} por justificativa</p>}{member.pendingReviews > 0 && <p className="mt-2 text-xs text-amber-700 dark:text-amber-300">{member.pendingReviews} para revisão</p>}</td><td className="px-4 py-4 tabular-nums">{member.missedWeeks}</td><td className="px-4 py-4"><button type="button" aria-expanded={expanded.includes(String(member.id))} onClick={() => toggle(member.id)} className={`${control} inline-flex items-center gap-2`}>Ver<ChevronDown className={`h-4 w-4 ${expanded.includes(String(member.id)) ? 'rotate-180' : ''}`} /></button></td></tr>{expanded.includes(String(member.id)) && <tr><td colSpan={6} className="bg-muted/30 px-4">{visits(member)}</td></tr>}</Fragment>)}</tbody></table></div> : visible.map(member => <section key={member.id} className="mt-6"><div className="flex flex-wrap items-baseline gap-4 border-b border-border pb-5"><h2 className="font-display text-2xl font-semibold tabular-nums">{formatDuration(member.completedSeconds)} validados</h2><Goal member={member} /><p className="text-sm text-muted-foreground">Meta: {formatDuration(member.requiredSeconds)}{member.isMonthly ? ' (mensal)' : ' (semanal)'} · Restante: {formatDuration(member.remainingSeconds)}</p></div>{!!member.justifiedSeconds && <p className="mt-4 text-sm text-emerald-700 dark:text-emerald-300">Inclui {formatDuration(member.justifiedSeconds)} por justificativa aprovada nesta semana.</p>}{member.openVisit && <p className="mt-4 text-sm text-amber-700 dark:text-amber-300">Você tem uma entrada em aberto. Leia novamente o QR code ao sair. As horas em aberto ainda não contam para a meta.</p>}{visits(member)}</section>)}
+      {admin && (
+        <div className="my-6 space-y-4 border-y border-border py-5">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div className="flex flex-wrap items-center gap-2 text-xs font-semibold">
+              <button
+                type="button"
+                onClick={() => setFilter('ALL')}
+                className={`inline-flex min-h-9 items-center gap-1.5 rounded-full border px-3 transition-colors cursor-pointer ${
+                  filter === 'ALL' ? 'border-foreground bg-foreground text-background' : 'border-border bg-card text-foreground hover:bg-accent'
+                }`}
+              >
+                Todos ({allMembers.length})
+              </button>
+              <button
+                type="button"
+                onClick={() => setFilter(filter === 'IN_LAB' ? 'ALL' : 'IN_LAB')}
+                className={`inline-flex min-h-9 items-center gap-1.5 rounded-full border px-3 transition-colors cursor-pointer ${
+                  filter === 'IN_LAB'
+                    ? 'border-blue-600 bg-blue-600 text-white'
+                    : 'border-blue-500/40 bg-blue-500/15 text-blue-700 dark:text-blue-300 hover:bg-blue-500/25'
+                }`}
+              >
+                <span className="h-2 w-2 rounded-full bg-current" />
+                Azul · No Lab ({tierCounts.IN_LAB})
+              </button>
+              <button
+                type="button"
+                onClick={() => setFilter(filter === 'MET' ? 'ALL' : 'MET')}
+                className={`inline-flex min-h-9 items-center gap-1.5 rounded-full border px-3 transition-colors cursor-pointer ${
+                  filter === 'MET'
+                    ? 'border-emerald-600 bg-emerald-600 text-white'
+                    : 'border-emerald-500/40 bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 hover:bg-emerald-500/25'
+                }`}
+              >
+                <span className="h-2 w-2 rounded-full bg-current" />
+                Verde · Meta cumprida ({tierCounts.MET})
+              </button>
+              <button
+                type="button"
+                onClick={() => setFilter(filter === 'PROGRESS' ? 'ALL' : 'PROGRESS')}
+                className={`inline-flex min-h-9 items-center gap-1.5 rounded-full border px-3 transition-colors cursor-pointer ${
+                  filter === 'PROGRESS'
+                    ? 'border-amber-500 bg-amber-500 text-zinc-950'
+                    : 'border-amber-500/40 bg-amber-500/15 text-amber-800 dark:text-amber-300 hover:bg-amber-500/25'
+                }`}
+              >
+                <span className="h-2 w-2 rounded-full bg-current" />
+                Amarelo · &gt; 10 min ({tierCounts.PROGRESS})
+              </button>
+              <button
+                type="button"
+                onClick={() => setFilter(filter === 'ZERO' ? 'ALL' : 'ZERO')}
+                className={`inline-flex min-h-9 items-center gap-1.5 rounded-full border px-3 transition-colors cursor-pointer ${
+                  filter === 'ZERO'
+                    ? 'border-rose-600 bg-rose-600 text-white'
+                    : 'border-rose-500/40 bg-rose-500/15 text-rose-700 dark:text-rose-300 hover:bg-rose-500/25'
+                }`}
+              >
+                <span className="h-2 w-2 rounded-full bg-current" />
+                Vermelho · 0h / ≤ 10 min ({tierCounts.ZERO})
+              </button>
+              {tierCounts.REVIEW > 0 && (
+                <button
+                  type="button"
+                  onClick={() => setFilter(filter === 'REVIEW' ? 'ALL' : 'REVIEW')}
+                  className={`inline-flex min-h-9 items-center gap-1.5 rounded-full border px-3 transition-colors cursor-pointer ${
+                    filter === 'REVIEW'
+                      ? 'border-amber-600 bg-amber-600 text-white'
+                      : 'border-amber-500/40 bg-amber-500/10 text-amber-700 dark:text-amber-300 hover:bg-amber-500/20'
+                  }`}
+                >
+                  Para revisão ({tierCounts.REVIEW})
+                </button>
+              )}
+            </div>
+
+            <div className="inline-flex items-center rounded-lg border border-border bg-muted/40 p-1">
+              <button
+                type="button"
+                onClick={() => setViewMode('CARDS')}
+                aria-pressed={viewMode === 'CARDS'}
+                className={`inline-flex min-h-8 items-center gap-1.5 rounded-md px-3 text-xs font-semibold transition-colors cursor-pointer ${
+                  viewMode === 'CARDS' ? 'bg-background text-foreground shadow-xs' : 'text-muted-foreground hover:text-foreground'
+                }`}
+              >
+                <LayoutGrid className="h-3.5 w-3.5" />
+                Cards
+              </button>
+              <button
+                type="button"
+                onClick={() => setViewMode('TABLE')}
+                aria-pressed={viewMode === 'TABLE'}
+                className={`inline-flex min-h-8 items-center gap-1.5 rounded-md px-3 text-xs font-semibold transition-colors cursor-pointer ${
+                  viewMode === 'TABLE' ? 'bg-background text-foreground shadow-xs' : 'text-muted-foreground hover:text-foreground'
+                }`}
+              >
+                <Table2 className="h-3.5 w-3.5" />
+                Tabela
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+      {admin && (
+        <div className="mb-5 flex flex-col gap-3 sm:flex-row">
+          <label className="flex flex-1 flex-col gap-2 text-sm text-secondary-foreground">
+            Buscar membro
+            <input value={search} onChange={event => setSearch(event.target.value)} placeholder="Nome ou email" className={control} />
+          </label>
+          <label className="flex flex-col gap-2 text-sm text-secondary-foreground">
+            Situação
+            <select value={filter} onChange={event => setFilter(event.target.value)} className={control}>
+              <option value="ALL">Todas</option>
+              <option value="IN_LAB">Azul — No laboratório agora</option>
+              <option value="MET">Verde — Meta cumprida</option>
+              <option value="PROGRESS">Amarelo — Mais de 10 min</option>
+              <option value="ZERO">Vermelho — 0h ou ≤ 10 min</option>
+              <option value="PENDING">Em andamento (geral)</option>
+              <option value="MISSED">Abaixo da meta (encerrada)</option>
+              <option value="REVIEW">Com pendências de revisão</option>
+            </select>
+          </label>
+          <label className="flex flex-col gap-2 text-sm text-secondary-foreground">
+            Área
+            <select value={area} onChange={event => setArea(event.target.value)} className={control}>
+              <option value="ALL">Todas as áreas</option>
+              {areas.map(item => <option key={item}>{item}</option>)}
+            </select>
+          </label>
+        </div>
+      )}
+      {visible.length === 0 ? (
+        <p className="my-6 rounded-lg border border-dashed border-border p-6 text-sm leading-relaxed text-muted-foreground">
+          {report.members.length ? 'Nenhum membro encontrado com esses filtros.' : `Nenhum acompanhamento nesta semana. Os registros começaram em ${formatLabDate(report.trackingStartedAt)}; não são criadas faltas para semanas anteriores.`}
+        </p>
+      ) : admin && viewMode === 'CARDS' ? (
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
+          {visible.map(member => {
+            const theme = getAttendanceCardTheme(member);
+            const pct = member.requiredSeconds > 0
+              ? Math.min(100, Math.round((member.completedSeconds / member.requiredSeconds) * 100))
+              : 0;
+            const isOpen = expanded.includes(String(member.id));
+            return (
+              <article
+                key={member.id}
+                className={`flex flex-col justify-between gap-4 rounded-xl border p-4 sm:p-5 transition-colors ${theme.cardClass}`}
+              >
+                <div className="space-y-3 min-w-0">
+                  <div className="flex items-start justify-between gap-2.5 min-w-0">
+                    <div className="min-w-0">
+                      <h3 className="truncate text-base font-semibold text-foreground">{member.name}</h3>
+                      <p className="truncate text-xs text-muted-foreground">
+                        {member.area}
+                        {member.email ? ` · ${member.email}` : ' · Conta removida'}
+                      </p>
+                    </div>
+                    <span className={`shrink-0 rounded-full border px-2.5 py-0.5 text-[11px] font-semibold whitespace-nowrap ${theme.badgeClass}`}>
+                      {theme.tierLabel}
+                    </span>
+                  </div>
+
+                  {member.openVisit && (
+                    <p className={`text-xs font-medium ${member.openVisit.needsReview ? 'text-amber-700 dark:text-amber-300' : 'text-blue-700 dark:text-blue-300'}`}>
+                      {member.openVisit.needsReview
+                        ? `Entrada aberta desde ${formatLabTime(member.openVisit.checkedInAt)} (precisa de revisão)`
+                        : `Check-in aberto às ${formatLabTime(member.openVisit.checkedInAt)}`}
+                    </p>
+                  )}
+
+                  <div className="space-y-1.5">
+                    <div className="flex flex-wrap items-baseline justify-between gap-2">
+                      <span className="font-mono text-lg font-bold tabular-nums text-foreground">
+                        {formatDuration(member.completedSeconds)}
+                      </span>
+                      <span className="text-xs text-muted-foreground tabular-nums">
+                        Meta: {formatDuration(member.requiredSeconds)}{member.isMonthly ? ' (mensal)' : ' (semanal)'}
+                      </span>
+                    </div>
+                    {member.requiredSeconds > 0 && (
+                      <div className="h-2 w-full overflow-hidden rounded-full bg-background/70 border border-border/60">
+                        <div className={`h-full rounded-full transition-all ${theme.barClass}`} style={{ width: `${pct}%` }} />
+                      </div>
+                    )}
+                    <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-muted-foreground">
+                      <span>
+                        {member.remainingSeconds > 0
+                          ? `Faltam ${formatDuration(member.remainingSeconds)}`
+                          : 'Meta atingida'}
+                      </span>
+                      <span className="tabular-nums">
+                        {member.missedWeeks > 0 ? `${member.missedWeeks} sem. abaixo` : 'Sem pendências anteriores'}
+                      </span>
+                    </div>
+                  </div>
+
+                  {(!!member.justifiedSeconds || member.pendingReviews > 0) && (
+                    <div className="flex flex-wrap gap-2 text-xs">
+                      {!!member.justifiedSeconds && (
+                        <span className="rounded-md border border-emerald-500/30 bg-emerald-500/10 px-2 py-0.5 text-emerald-700 dark:text-emerald-300">
+                          +{formatDuration(member.justifiedSeconds)} justificado
+                        </span>
+                      )}
+                      {member.pendingReviews > 0 && (
+                        <span className="rounded-md border border-amber-500/30 bg-amber-500/10 px-2 py-0.5 text-amber-700 dark:text-amber-300 font-medium">
+                          {member.pendingReviews} registro(s) para revisar
+                        </span>
+                      )}
+                    </div>
+                  )}
+                </div>
+
+                <div className="space-y-2 border-t border-border/60 pt-3">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <button
+                      type="button"
+                      aria-expanded={isOpen}
+                      onClick={() => toggle(member.id)}
+                      className="inline-flex min-h-9 items-center gap-1.5 rounded-lg border border-border bg-background/80 px-3 text-xs font-semibold text-foreground hover:bg-accent cursor-pointer"
+                    >
+                      Registros ({member.visits.length})
+                      <ChevronDown className={`h-3.5 w-3.5 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setEdit({ member, action: 'CREATE' })}
+                      className="inline-flex min-h-9 items-center rounded-lg border border-border bg-background/80 px-3 text-xs font-medium text-foreground hover:bg-accent cursor-pointer"
+                    >
+                      + Adicionar presença
+                    </button>
+                  </div>
+                  {isOpen && <div className="rounded-lg border border-border bg-card/90 px-3">{visits(member)}</div>}
+                </div>
+              </article>
+            );
+          })}
+        </div>
+      ) : admin ? (
+        <div className="overflow-x-auto rounded-lg border border-border">
+          <table className="w-full min-w-[820px] text-left text-sm">
+            <caption className="sr-only">Presença semanal dos membros no laboratório</caption>
+            <thead className="bg-muted text-muted-foreground">
+              <tr>{['Membro', 'Validado / meta', 'Restante', 'Situação', 'Semanas abaixo da meta', 'Registros'].map(label => <th key={label} scope="col" className="px-4 py-4 font-medium">{label}</th>)}</tr>
+            </thead>
+            <tbody className="divide-y divide-border">
+              {visible.map(member => {
+                const theme = getAttendanceCardTheme(member);
+                return (
+                  <Fragment key={member.id}>
+                    <tr>
+                      <th scope="row" className="max-w-xs px-4 py-4 font-normal">
+                        <p className="break-words font-medium text-foreground">{member.name}</p>
+                        <p className="mt-1 text-xs text-muted-foreground">{member.area}</p>
+                        <p className="mt-1 break-all text-xs text-muted-foreground">{member.email || 'Conta removida'}</p>
+                      </th>
+                      <td className="whitespace-nowrap px-4 py-4 tabular-nums">
+                        {formatDuration(member.completedSeconds)}
+                        <p className="mt-1 text-xs text-muted-foreground">Meta: {formatDuration(member.requiredSeconds)}{member.isMonthly ? ' (mensal)' : ' (semanal)'}</p>
+                      </td>
+                      <td className="whitespace-nowrap px-4 py-4 tabular-nums">{formatDuration(member.remainingSeconds)}</td>
+                      <td className="px-4 py-4">
+                        <span className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold ${theme.badgeClass}`}>
+                          {theme.tierLabel}
+                        </span>
+                        <div className="mt-1"><Goal member={member} /></div>
+                        {!!member.justifiedSeconds && <p className="mt-2 text-xs text-emerald-700 dark:text-emerald-300">Inclui {formatDuration(member.justifiedSeconds)} por justificativa</p>}
+                        {member.pendingReviews > 0 && <p className="mt-2 text-xs text-amber-700 dark:text-amber-300">{member.pendingReviews} para revisão</p>}
+                      </td>
+                      <td className="px-4 py-4 tabular-nums">{member.missedWeeks}</td>
+                      <td className="px-4 py-4">
+                        <button type="button" aria-expanded={expanded.includes(String(member.id))} onClick={() => toggle(member.id)} className={`${control} inline-flex items-center gap-2`}>
+                          Ver<ChevronDown className={`h-4 w-4 ${expanded.includes(String(member.id)) ? 'rotate-180' : ''}`} />
+                        </button>
+                      </td>
+                    </tr>
+                    {expanded.includes(String(member.id)) && <tr><td colSpan={6} className="bg-muted/30 px-4">{visits(member)}</td></tr>}
+                  </Fragment>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      ) : (
+        visible.map(member => {
+          const theme = getAttendanceCardTheme(member);
+          const pct = member.requiredSeconds > 0
+            ? Math.min(100, Math.round((member.completedSeconds / member.requiredSeconds) * 100))
+            : 0;
+          return (
+            <section key={member.id} className={`mt-6 rounded-xl border p-5 sm:p-6 transition-colors ${theme.cardClass}`}>
+              <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border/60 pb-5">
+                <div className="flex flex-wrap items-baseline gap-4">
+                  <h2 className="font-display text-2xl font-semibold tabular-nums">{formatDuration(member.completedSeconds)} validados</h2>
+                  <Goal member={member} />
+                  <p className="text-sm text-muted-foreground">Meta: {formatDuration(member.requiredSeconds)}{member.isMonthly ? ' (mensal)' : ' (semanal)'} · Restante: {formatDuration(member.remainingSeconds)}</p>
+                </div>
+                <span className={`inline-flex items-center rounded-full border px-3 py-1 text-xs font-semibold ${theme.badgeClass}`}>
+                  {theme.tierLabel}
+                </span>
+              </div>
+              {member.requiredSeconds > 0 && (
+                <div className="mt-4 h-2.5 w-full overflow-hidden rounded-full bg-background/70 border border-border/60">
+                  <div className={`h-full rounded-full transition-all ${theme.barClass}`} style={{ width: `${pct}%` }} />
+                </div>
+              )}
+              {!!member.justifiedSeconds && <p className="mt-4 text-sm text-emerald-700 dark:text-emerald-300">Inclui {formatDuration(member.justifiedSeconds)} por justificativa aprovada nesta semana.</p>}
+              {member.openVisit && (
+                <p className={`mt-4 text-sm font-medium ${member.openVisit.needsReview ? 'text-amber-700 dark:text-amber-300' : 'text-blue-700 dark:text-blue-300'}`}>
+                  {member.openVisit.needsReview
+                    ? 'Você tem uma entrada sem saída há mais de 12 horas. Registre a saída e procure a gestão.'
+                    : 'Você tem uma entrada em aberto. Leia novamente o QR code ao sair. As horas em aberto ainda não contam para a meta.'}
+                </p>
+              )}
+              <div className="mt-4">{visits(member)}</div>
+            </section>
+          );
+        })
+      )}
       {admin && <p className="mt-5 text-sm leading-relaxed text-muted-foreground">“Semanas abaixo da meta” considera somente semanas já encerradas, até a semana selecionada, dentro dos períodos em que o membro estava acompanhado. Registros sem saída ou acima de 12 horas precisam de revisão.</p>}
     </>}
     {edit && <VisitEditor edit={edit} onClose={() => setEdit(null)} onSaved={() => setVersion(value => value + 1)} />}

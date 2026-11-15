@@ -1,4 +1,6 @@
 import { prisma } from '@/lib/prisma';
+import { db as institutionalDb } from '@/lib/institutional/db';
+import { isOperationalActiveMember } from '@/lib/member-fields';
 import type { SafeUser } from '@/lib/session';
 import type { DisciplinaryWarningType, AccountStatus, Prisma } from '@prisma/client';
 
@@ -174,7 +176,7 @@ export async function getDisciplinaryDashboardData(user: SafeUser): Promise<Disc
     memberWhere.teamId = user.teamId ?? null;
   }
 
-  const [members, allWarnings] = await Promise.all([
+  const [rawMembers, rawAllWarnings, instRows] = await Promise.all([
     prisma.member.findMany({
       where: memberWhere,
       include: {
@@ -188,14 +190,36 @@ export async function getDisciplinaryDashboardData(user: SafeUser): Promise<Disc
       orderBy: [{ area: 'asc' }, { name: 'asc' }],
     }),
     prisma.disciplinaryWarning.findMany({
-      where: !isGlobal ? { member: { teamId: user.teamId ?? null } } : undefined,
+      where: {
+        member: {
+          active: true,
+          status: { notIn: ['SUSPENDED', 'REJECTED'] as AccountStatus[] },
+          ...(!isGlobal ? { teamId: user.teamId ?? null } : {}),
+        },
+      },
       include: {
-        member: { select: { id: true, name: true, area: true, avatar: true, teamId: true } },
+        member: { select: { id: true, name: true, area: true, role: true, active: true, status: true, avatar: true, teamId: true, institutionalMemberId: true } },
         issuedBy: { select: { id: true, name: true } },
       },
       orderBy: { createdAt: 'desc' },
     }),
+    process.env.INSTITUTIONAL_DATABASE_URL
+      ? institutionalDb.institutionalMember.findMany({
+          select: { id: true, active: true, role: true, area: true },
+        }).catch(() => [] as Array<{ id: number; active: boolean; role: string; area: string }>)
+      : Promise.resolve([] as Array<{ id: number; active: boolean; role: string; area: string }>),
   ]);
+
+  const instMap = new Map(instRows.map((r) => [r.id, r]));
+  const members = rawMembers.filter((m) =>
+    isOperationalActiveMember(m, m.institutionalMemberId ? instMap.get(m.institutionalMemberId) : undefined)
+  );
+  const allWarnings = rawAllWarnings.filter((w) =>
+    isOperationalActiveMember(
+      w.member,
+      w.member.institutionalMemberId ? instMap.get(w.member.institutionalMemberId) : undefined
+    )
+  );
 
   let regularesCount = 0;
   let atencaoAlertaCount = 0;

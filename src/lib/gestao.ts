@@ -1,4 +1,4 @@
-import { normalizeMemberArea } from '@/lib/member-fields';
+import { isOperationalActiveMember, isProfessorAdvisor, normalizeMemberArea } from '@/lib/member-fields';
 import { prisma } from '@/lib/prisma';
 import { db } from '@/lib/institutional/db';
 import type { DivisionData, GestaoStatsResponse, MemberRecord, ProjectRecord } from '@/components/gestao/types';
@@ -11,8 +11,8 @@ export async function getGestaoStats(): Promise<GestaoStatsResponse> {
     db.team.findMany({ include: { members: true, projects: true } }),
     db.institutionalMember.findMany({ include: { team: true }, orderBy: [{ active: 'desc' }, { id: 'asc' }] }),
     db.project.findMany({ include: { team: true }, orderBy: { year: 'desc' } }),
-    prisma.member.count(),
-    prisma.member.count({ where: { status: 'APPROVED', courseProgress: { some: {} } } }),
+    prisma.member.count({ where: { active: true } }),
+    prisma.member.count({ where: { active: true, status: 'APPROVED', courseProgress: { some: {} } } }),
     prisma.course.findUnique({ where: { slug: 'ros2-jazzy' }, include: { _count: { select: { modules: true } } } }),
     prisma.lesson.count(),
     prisma.exercise.count(),
@@ -29,13 +29,14 @@ export async function getGestaoStats(): Promise<GestaoStatsResponse> {
       status: 'Telemetria não integrada', statusType: 'maintenance', statusBeaconColor: '#a1a1aa',
       summary: team.tags || 'Divisão registrada na plataforma.', competitions: [],
       specs: { frame: '', propulsion: '', sensors: [], computing: '', autopilot: '', softwareStack: [], batteryTelemetry: '' },
-      stats: { membersCount: team.members.filter(member => member.active).length, projectsCount: team.projects.length, competitionsCount: 0 },
+      stats: { membersCount: team.members.filter(member => isOperationalActiveMember(member)).length, projectsCount: team.projects.length, competitionsCount: 0 },
       accentColor: harpia
         ? { primary: '#8530B0', secondary: '#A346CC', glow: 'rgba(133, 48, 176, 0.25)', border: 'rgba(133, 48, 176, 0.35)', badgeBg: 'rgba(74, 8, 94, 0.40)' }
         : { primary: '#0154A0', secondary: '#387AEF', glow: 'rgba(56, 122, 239, 0.25)', border: 'rgba(56, 122, 239, 0.35)', badgeBg: 'rgba(2, 35, 67, 0.50)' },
     };
   });
-  const directory: MemberRecord[] = members.map(member => {
+  const operationalMembers = members.filter(member => isOperationalActiveMember(member));
+  const directory: MemberRecord[] = operationalMembers.map(member => {
     const division = member.team?.slug === 'harpia' ? 'harpia' : member.team?.slug === 'nautilus' ? 'nautilus' : 'geral';
     return {
       id: member.id, name: member.name, role: member.role,
@@ -49,10 +50,11 @@ export async function getGestaoStats(): Promise<GestaoStatsResponse> {
     year: project.year, division: project.team.slug as 'harpia' | 'nautilus', tags: project.tags.split(',').map(tag => tag.trim()).filter(Boolean),
   }));
   const databaseUrl = new URL(process.env.DATABASE_URL!);
+  const nonAdvisorCount = members.filter(member => !isProfessorAdvisor(member)).length;
   return {
     success: true, timestamp,
     kpis: {
-      totalMembers: members.filter(member => member.active).length, totalMembersLabel: `${members.length} cadastrados no diretório`,
+      totalMembers: operationalMembers.length, totalMembersLabel: `${nonAdvisorCount} cadastrados no diretório`,
       activeProjects: projects.filter(project => /^(operacao|operacional|testes?|ativo|desenvolvimento)$/i.test(project.status) && !/inativo/i.test(project.status)).length,
       activeProjectsLabel: `${projects.length} projetos cadastrados`, totalStudents, totalStudentsLabel: `${totalUsers} contas registradas no sistema`,
       platformUptime: 'Não monitorado', platformStatus: 'online', dbLatencyMs,

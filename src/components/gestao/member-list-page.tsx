@@ -2,7 +2,7 @@ import Link from 'next/link';
 import { Plus } from 'lucide-react';
 import { requirePageUser } from '@/lib/session';
 import { prisma } from '@/lib/prisma';
-import { computeMissingProfileFields, resolveMemberAreas } from '@/lib/member-fields';
+import { computeMissingProfileFields, isProfessorAdvisor, resolveMemberAreas } from '@/lib/member-fields';
 import { db } from '@/lib/institutional/db';
 import { memberSummary } from '@/lib/attendance/summary';
 import { getVacationWeekKeys } from '@/lib/attendance/vacations';
@@ -72,7 +72,12 @@ export async function MemberListPage({ mode = 'active' }: { mode?: 'active' | 'a
   );
   const projectById = new Map(projects.flatMap(project => [[String(project.id), project.name], [project.slug, project.name]] as [string, string][]));
 
-  const rows: MemberDirectoryRow[] = records.map(record => {
+  const rows: MemberDirectoryRow[] = records
+    .filter((record) => {
+      const member = byInstId.get(record.id);
+      return !isProfessorAdvisor(record) && !isProfessorAdvisor(member);
+    })
+    .map(record => {
     const member = byInstId.get(record.id);
     const pendingRaw = member?.profileChanges?.[0];
     const pendingChangesObj =
@@ -98,21 +103,22 @@ export async function MemberListPage({ mode = 'active' }: { mode?: 'active' | 'a
     } catch { /* Legacy malformed project lists do not prevent reading the roster. */ }
 
     const areas = resolveMemberAreas(record.area, member?.area);
-    const missingProfileFields: string[] = isAlumniMode
-      ? []
-      : computeMissingProfileFields({
-          hasInternalAccount: Boolean(member),
-          area: areas.internal,
-          course: member?.course,
-          academicPeriod: member?.academicPeriod,
-          phone: member?.phone,
-          cpf: member?.cpf,
-          dre: member?.dre,
-          birthDate: member?.birthDate,
-          emergencyContactName: member?.emergencyContactName,
-          emergencyContactPhone: member?.emergencyContactPhone,
-          profileCompletedAt: member?.profileCompletedAt,
-        });
+    const missingProfileFields: string[] =
+      isAlumniMode || (member && !member.active)
+        ? []
+        : computeMissingProfileFields({
+            hasInternalAccount: Boolean(member),
+            area: areas.internal,
+            course: member?.course,
+            academicPeriod: member?.academicPeriod,
+            phone: member?.phone,
+            cpf: member?.cpf,
+            dre: member?.dre,
+            birthDate: member?.birthDate,
+            emergencyContactName: member?.emergencyContactName,
+            emergencyContactPhone: member?.emergencyContactPhone,
+            profileCompletedAt: member?.profileCompletedAt,
+          });
 
     return {
       id: record.id,

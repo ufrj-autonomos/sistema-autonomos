@@ -1,7 +1,7 @@
 import { requirePageUser } from '@/lib/session';
 import { prisma } from '@/lib/prisma';
 import { db } from '@/lib/institutional/db';
-import { computeMissingProfileFields, resolveMemberAreas } from '@/lib/member-fields';
+import { computeMissingProfileFields, isProfessorAdvisor, resolveMemberAreas } from '@/lib/member-fields';
 import type { PendingProfileChangeDto } from '@/lib/member-directory';
 import { SiteMembersShowcase, type SiteMemberShowcaseRow } from '@/components/gestao/site-members-showcase';
 
@@ -78,18 +78,21 @@ export default async function SiteMembersPage({
     } catch { /* ignore malformed json */ }
 
     const areas = resolveMemberAreas(record.area, member?.area);
+    const isExemptFromAlerts = !record.active || isProfessorAdvisor(record) || isProfessorAdvisor(member);
 
     const missingSiteFields: string[] = [];
-    if (!record.photo) missingSiteFields.push('Foto');
-    if (!record.bio?.trim()) missingSiteFields.push('Biografia');
-    if (!(record.course?.trim() || member?.course?.trim())) missingSiteFields.push('Curso');
-    if (!areas.site) missingSiteFields.push('Área');
-    if (!record.joinedYear?.trim()) missingSiteFields.push('Data de entrada');
-    if (!record.linkedin?.trim() && !record.github?.trim() && !record.instagram?.trim()) {
-      missingSiteFields.push('Redes sociais');
+    if (!isExemptFromAlerts) {
+      if (!record.photo) missingSiteFields.push('Foto');
+      if (!record.bio?.trim()) missingSiteFields.push('Biografia');
+      if (!(record.course?.trim() || member?.course?.trim())) missingSiteFields.push('Curso');
+      if (!areas.site) missingSiteFields.push('Área');
+      if (!record.joinedYear?.trim()) missingSiteFields.push('Data de entrada');
+      if (!record.linkedin?.trim() && !record.github?.trim() && !record.instagram?.trim()) {
+        missingSiteFields.push('Redes sociais');
+      }
     }
 
-    const missingInternalFields: string[] = record.active
+    const missingInternalFields: string[] = !isExemptFromAlerts
       ? computeMissingProfileFields({
           hasInternalAccount: Boolean(member),
           area: areas.internal,

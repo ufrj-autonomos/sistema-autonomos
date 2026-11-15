@@ -3,6 +3,7 @@ import { db as institutionalDb } from '@/lib/institutional/db';
 import { prisma } from '@/lib/prisma';
 import type { SafeUser } from '@/lib/session';
 import { hasManagementAccess } from '@/lib/access-policy';
+import { isOperationalActiveMember } from '@/lib/member-fields';
 import type { MeetingAttendanceStatus } from '@prisma/client';
 
 export interface MeetingPeriodSummary {
@@ -282,17 +283,19 @@ export async function getMeetingsDashboardData(user: SafeUser, requestedPeriod?:
     orderBy: [{ date: 'asc' }, { createdAt: 'asc' }],
   });
 
-  // Buscar todos os membros ativos que pertencem a equipes (excluindo alumni / inativos)
+  // Buscar todos os membros ativos que pertencem a equipes (excluindo alumni / inativos / orientadores)
   // e reaproveitar a mesma consulta para resolver fotos institucionais caso Member.avatar esteja vazio
   let inactiveInstIds = new Set<number>();
   const instPhotoById = new Map<number, string>();
+  const instById = new Map<number, { id: number; active: boolean; role: string; area: string; photo: string | null }>();
   if (process.env.INSTITUTIONAL_DATABASE_URL) {
     try {
       const instRows = await institutionalDb.institutionalMember.findMany({
-        select: { id: true, active: true, role: true, photo: true },
+        select: { id: true, active: true, role: true, area: true, photo: true },
       });
       for (const row of instRows) {
-        if (!row.active || row.role === 'Alumni') {
+        instById.set(row.id, row);
+        if (!isOperationalActiveMember(row)) {
           inactiveInstIds.add(row.id);
         } else if (row.photo?.trim()) {
           instPhotoById.set(row.id, row.photo.trim());
@@ -308,11 +311,14 @@ export async function getMeetingsDashboardData(user: SafeUser, requestedPeriod?:
       active: true,
       status: { notIn: ['SUSPENDED', 'REJECTED'] },
     },
-    select: { id: true, name: true, avatar: true, area: true, teamId: true, active: true, status: true, institutionalMemberId: true },
+    select: { id: true, name: true, avatar: true, area: true, role: true, teamId: true, active: true, status: true, institutionalMemberId: true },
   });
 
   const allMembers = rawMembers
-    .filter((m) => !(m.institutionalMemberId && inactiveInstIds.has(m.institutionalMemberId)))
+    .filter((m) => {
+      const inst = m.institutionalMemberId ? instById.get(m.institutionalMemberId) : undefined;
+      return isOperationalActiveMember(m, inst) && !(m.institutionalMemberId && inactiveInstIds.has(m.institutionalMemberId));
+    })
     .map((m) => ({
       ...m,
       avatar:

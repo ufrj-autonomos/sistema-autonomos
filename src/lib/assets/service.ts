@@ -1,5 +1,6 @@
 import { prisma } from '@/lib/prisma';
 import { hasManagementAccess } from '@/lib/access-policy';
+import { isProfessorAdvisor } from '@/lib/member-fields';
 import type { SafeUser } from '@/lib/session';
 import {
   ASSET_CONDITION_META,
@@ -296,9 +297,9 @@ export async function getInventoryDashboardData(): Promise<InventoryDashboardDat
       orderBy: [{ createdAt: 'desc' }],
     }),
     prisma.member.findMany({
-      where: { status: 'APPROVED' },
+      where: { active: true, status: 'APPROVED' },
       select: { id: true, name: true, area: true, teamId: true, active: true },
-      orderBy: [{ active: 'desc' }, { name: 'asc' }],
+      orderBy: { name: 'asc' },
     }),
     prisma.financialEntry.findMany({
       where: { type: 'SAIDA' },
@@ -309,10 +310,11 @@ export async function getInventoryDashboardData(): Promise<InventoryDashboardDat
   ]);
 
   const assets = rows.map(serializeAsset);
+  const eligibleMembers = members.filter(m => m.active && !isProfessorAdvisor(m));
   return {
     assets,
     summary: computeInventorySummary(assets),
-    members,
+    members: eligibleMembers,
     financialEntries: financialEntries.map(f => ({
       id: f.id,
       code: f.code,

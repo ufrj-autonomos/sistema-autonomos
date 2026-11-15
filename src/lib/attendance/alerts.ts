@@ -1,6 +1,6 @@
 import { Temporal } from '@js-temporal/polyfill';
 import { prisma } from '@/lib/prisma';
-import { resolveMemberAreas } from '@/lib/member-fields';
+import { isOperationalActiveMember, resolveMemberAreas } from '@/lib/member-fields';
 import { db as institutionalDb } from '@/lib/institutional/db';
 import { sendLabHoursAlertEmail } from '@/lib/email';
 import { createNotification } from '@/lib/notifications';
@@ -329,7 +329,7 @@ export async function runAttendanceAlertsAndAutoPunishments(
     ids.length && process.env.INSTITUTIONAL_DATABASE_URL
       ? await institutionalDb.institutionalMember.findMany({
           where: { id: { in: ids } },
-          select: { id: true, name: true, area: true },
+          select: { id: true, name: true, area: true, active: true, role: true },
         })
       : [];
   const byId = new Map(identities.map((i) => [i.id, i]));
@@ -341,6 +341,7 @@ export async function runAttendanceAlertsAndAutoPunishments(
 
   for (const member of members) {
     const identity = member.institutionalMemberId ? byId.get(member.institutionalMemberId) : undefined;
+    if (!isOperationalActiveMember(member, identity)) continue;
     const displayName = identity?.name || member.name;
     const area = resolveMemberAreas(identity?.area, member.area).internal || 'Não informada';
     const isMonthly = isMonthlyAttendanceArea(area);

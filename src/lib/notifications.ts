@@ -1,5 +1,6 @@
 import { Prisma } from '@prisma/client';
 import { prisma } from '@/lib/prisma';
+import { isProfessorAdvisor } from '@/lib/member-fields';
 import {
   NOTIFICATION_CATEGORIES,
   type NotificationAdminLogDTO,
@@ -273,7 +274,7 @@ export async function getNotificationsAdminDashboard(): Promise<NotificationsAdm
       where: { active: true, status: 'APPROVED' },
       select: { id: true, name: true, area: true, role: true },
       orderBy: { name: 'asc' },
-    }),
+    }).then(rows => rows.filter(r => !isProfessorAdvisor(r))),
   ]);
 
   const ruleMap = new Map(dbRules.map(r => [r.category, r]));

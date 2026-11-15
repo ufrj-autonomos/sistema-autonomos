@@ -7,7 +7,7 @@ import { requirePageUser } from '@/lib/session';
 import { getInstitutionalModel, recordData, institutionalFailure, InstitutionalError } from '@/lib/institutional/records';
 import { publishInstitutionalSite } from '@/lib/institutional/publish';
 import { directoryPath } from '@/lib/institutional/routes';
-import { memberRoleTranslations, roleFromCargo } from '@/lib/member-fields';
+import { isProfessorAdvisor, memberRoleTranslations, roleFromCargo } from '@/lib/member-fields';
 import { storeInstitutionalImage } from '@/lib/institutional/image-upload';
 import { prisma } from '@/lib/prisma';
 
@@ -41,14 +41,21 @@ export async function createRecord(table: string, data: unknown): Promise<{ succ
     const created = await model.create({ data: parsed });
     activityTarget(`${directoryPath(table)}/${created.id}`);
     if (table === 'member' && created?.id) {
+      const advisor = isProfessorAdvisor(created);
       await prisma.member.upsert({
         where: { institutionalMemberId: created.id },
-        update: { name: created.name, area: created.area || null, course: created.course || null },
+        update: {
+          name: created.name,
+          area: created.area || null,
+          course: created.course || null,
+          ...(advisor ? { active: false } : {}),
+        },
         create: {
           institutionalMemberId: created.id,
           name: created.name,
           area: created.area || null,
           course: created.course || null,
+          active: Boolean(created.active) && !advisor,
           role: 'MEMBER',
           status: 'APPROVED',
         },
@@ -80,12 +87,16 @@ export async function updateRecord(table: string, id: number, data: unknown): Pr
     }
     const updated = await model.update({ where: { id }, data: parsed });
     if (table === 'member' && updated) {
+      const instUpdated = updated as { role?: string | null; area?: string | null; active?: boolean };
+      const isAdvisor = isProfessorAdvisor(instUpdated);
       const syncData: Record<string, unknown> = {};
       if ('name' in parsed && typeof parsed.name === 'string') syncData.name = parsed.name;
       if ('area' in parsed && (typeof parsed.area === 'string' || parsed.area === null)) syncData.area = parsed.area;
       if ('course' in parsed && (typeof parsed.course === 'string' || parsed.course === null)) syncData.course = parsed.course;
       if ('active' in parsed && typeof parsed.active === 'boolean') {
-        syncData.active = parsed.active;
+        syncData.active = isAdvisor ? false : parsed.active;
+      } else if (isAdvisor) {
+        syncData.active = false;
       }
       if ('teamId' in parsed) {
         syncData.teamId = parsed.teamId === '' || parsed.teamId === null ? null : Number(parsed.teamId);
@@ -96,7 +107,6 @@ export async function updateRecord(table: string, id: number, data: unknown): Pr
       ) {
         const targetMember = await prisma.member.findFirst({ where: { institutionalMemberId: id } });
         if (targetMember) {
-          const instUpdated = updated as { role?: string | null; area?: string | null };
           const effectiveCargo =
             typeof parsed.role === 'string' ? parsed.role : (instUpdated.role ?? 'Membro');
           const effectiveArea =

@@ -5,7 +5,13 @@ import { getMeetingsDashboardData, calculateAttendanceScore, getFrequencyStatus 
 import { getDisciplinaryDashboardData } from '@/lib/disciplinary/service';
 import { attendanceReport } from '@/lib/attendance/service';
 import { nextWeek, weekKey } from '@/lib/attendance/time';
-import { normalizeMemberArea, normalizeMemberRole } from '@/lib/member-fields';
+import {
+  computeMissingProfileFields,
+  isOperationalActiveMember,
+  isProfessorAdvisor,
+  normalizeMemberArea,
+  normalizeMemberRole,
+} from '@/lib/member-fields';
 
 export interface MemberPersonalMeetingRecord {
   id: string;
@@ -54,6 +60,44 @@ export interface MemberHomeInsights {
       tagline: string;
     }[];
   };
+  reimbursements: {
+    totalCount: number;
+    pendingCount: number;
+    approvedAwaitingProofCount: number;
+    paidCount: number;
+    totalPendingCents: number;
+    recent: {
+      id: string;
+      code: string;
+      title: string;
+      amountCents: number;
+      status: string;
+      createdAt: string;
+    }[];
+  };
+  feedback: {
+    submittedCount: number;
+    openCount: number;
+    appliedCount: number;
+    repliedCount: number;
+    recent: {
+      id: string;
+      code: string;
+      title: string;
+      status: string;
+      validity: string;
+      hasResponse: boolean;
+    }[];
+  };
+  profileStatus: {
+    missingOperationalFields: string[];
+    isOperationalComplete: boolean;
+    pendingChangesCount: number;
+    siteLinked: boolean;
+    hasSitePhoto: boolean;
+    hasSiteBio: boolean;
+  };
+  unreadNotificationsCount: number;
 }
 
 export async function getMemberHomeInsights(
@@ -64,35 +108,97 @@ export async function getMemberHomeInsights(
     const currentW = weekKey(now);
     const weeks = Array.from({ length: 6 }, (_, idx) => nextWeek(currentW, -(5 - idx)));
 
-    const [meetingsDataRes, memberAttendancesRes, instMembersRes, projectsRes, labReportsRes] =
-      await Promise.allSettled([
-        getMeetingsDashboardData(user, '26.2'),
-        prisma.meetingAttendance.findMany({
-          where: { memberId: user.id },
-          include: {
-            meeting: {
-              select: { id: true, title: true, date: true, area: true, teamId: true, period: true },
-            },
+    const [
+      meetingsDataRes,
+      memberAttendancesRes,
+      instMembersRes,
+      projectsRes,
+      labReportsRes,
+      reimbursementsRes,
+      feedbackRes,
+      memberRecordRes,
+      pendingChangesRes,
+      mySiteMemberRes,
+      unreadNotificationsRes,
+    ] = await Promise.allSettled([
+      getMeetingsDashboardData(user, '26.2'),
+      prisma.meetingAttendance.findMany({
+        where: { memberId: user.id },
+        include: {
+          meeting: {
+            select: { id: true, title: true, date: true, area: true, teamId: true, period: true },
           },
-          orderBy: { meeting: { date: 'desc' } },
-        }),
-        db.institutionalMember.findMany({
-          where: { active: true },
-          include: { team: true },
-        }),
-        db.project.findMany({
-          include: { team: true },
-          orderBy: { year: 'desc' },
-        }),
-        Promise.all(weeks.map((wk) => attendanceReport(wk, user.id, now).catch(() => null))),
-      ]);
+        },
+        orderBy: { meeting: { date: 'desc' } },
+      }),
+      db.institutionalMember.findMany({
+        where: { active: true },
+        include: { team: true },
+      }),
+      db.project.findMany({
+        include: { team: true },
+        orderBy: { year: 'desc' },
+      }),
+      Promise.all(weeks.map((wk) => attendanceReport(wk, user.id, now).catch(() => null))),
+      prisma.financialEntry.findMany({
+        where: { isReimbursement: true, requesterId: user.id },
+        select: { id: true, code: true, title: true, amountCents: true, status: true, createdAt: true },
+        orderBy: { createdAt: 'desc' },
+        take: 20,
+      }),
+      prisma.feedbackItem.findMany({
+        where: { authorId: user.id },
+        select: { id: true, code: true, title: true, status: true, validity: true, responseNotes: true },
+        orderBy: { createdAt: 'desc' },
+        take: 20,
+      }),
+      prisma.member.findUnique({
+        where: { id: user.id },
+        select: {
+          id: true,
+          area: true,
+          course: true,
+          academicPeriod: true,
+          phone: true,
+          cpf: true,
+          dre: true,
+          birthDate: true,
+          emergencyContactName: true,
+          emergencyContactPhone: true,
+          profileCompletedAt: true,
+          institutionalMemberId: true,
+        },
+      }),
+      prisma.memberProfileChange.count({
+        where: { memberId: user.id, status: 'PENDING' },
+      }),
+      user.institutionalMemberId
+        ? db.institutionalMember.findUnique({
+            where: { id: user.institutionalMemberId },
+            select: { id: true, photo: true, bio: true, active: true },
+          })
+        : Promise.resolve(null),
+      prisma.notification.count({
+        where: { recipientId: user.id, readAt: null },
+      }),
+    ]);
 
     const meetingsData = meetingsDataRes.status === 'fulfilled' ? meetingsDataRes.value : null;
     const myAttendances =
       memberAttendancesRes.status === 'fulfilled' ? memberAttendancesRes.value : [];
-    const instMembers = instMembersRes.status === 'fulfilled' ? instMembersRes.value : [];
+    const instMembersRaw = instMembersRes.status === 'fulfilled' ? instMembersRes.value : [];
+    const instMembers = instMembersRaw.filter((m) => isOperationalActiveMember(m));
     const allProjects = projectsRes.status === 'fulfilled' ? projectsRes.value : [];
     const labReports = labReportsRes.status === 'fulfilled' ? labReportsRes.value : [];
+    const myReimbursements =
+      reimbursementsRes.status === 'fulfilled' ? reimbursementsRes.value : [];
+    const myFeedbacks = feedbackRes.status === 'fulfilled' ? feedbackRes.value : [];
+    const memberRecord = memberRecordRes.status === 'fulfilled' ? memberRecordRes.value : null;
+    const pendingChangesCount =
+      pendingChangesRes.status === 'fulfilled' ? pendingChangesRes.value : 0;
+    const mySiteMember = mySiteMemberRes.status === 'fulfilled' ? mySiteMemberRes.value : null;
+    const unreadNotificationsCount =
+      unreadNotificationsRes.status === 'fulfilled' ? unreadNotificationsRes.value : 0;
 
     // 1. Calcular frequência pessoal do integrante nas reuniões
     let presences = 0;
@@ -185,6 +291,46 @@ export async function getMemberHomeInsights(
         tagline: p.tagline,
       }));
 
+    const pendingReimbursementStatuses = new Set([
+      'PENDENTE',
+      'APROVADO',
+      'AGUARDANDO_REEMBOLSO',
+    ]);
+    const reimbursementsPendingCount = myReimbursements.filter((r) =>
+      pendingReimbursementStatuses.has(r.status)
+    ).length;
+    const approvedAwaitingProofCount = myReimbursements.filter(
+      (r) => r.status === 'AGUARDANDO_NF'
+    ).length;
+    const paidReimbursementsCount = myReimbursements.filter((r) => r.status === 'PAGO').length;
+    const totalPendingCents = myReimbursements
+      .filter((r) => pendingReimbursementStatuses.has(r.status) || r.status === 'AGUARDANDO_NF')
+      .reduce((acc, r) => acc + (r.amountCents || 0), 0);
+
+    const openFeedbackCount = myFeedbacks.filter(
+      (f) => !['APLICADA', 'ARQUIVADA'].includes(f.status)
+    ).length;
+    const appliedFeedbackCount = myFeedbacks.filter((f) => f.status === 'APLICADA').length;
+    const repliedFeedbackCount = myFeedbacks.filter((f) =>
+      Boolean(f.responseNotes?.trim())
+    ).length;
+
+    const missingOperationalFields = memberRecord
+      ? computeMissingProfileFields({
+          hasInternalAccount: true,
+          area: memberRecord.area,
+          course: memberRecord.course,
+          academicPeriod: memberRecord.academicPeriod,
+          phone: memberRecord.phone,
+          cpf: memberRecord.cpf,
+          dre: memberRecord.dre,
+          birthDate: memberRecord.birthDate,
+          emergencyContactName: memberRecord.emergencyContactName,
+          emergencyContactPhone: memberRecord.emergencyContactPhone,
+          profileCompletedAt: memberRecord.profileCompletedAt,
+        })
+      : [];
+
     return {
       meetings: {
         totalMeetings: counted,
@@ -205,6 +351,44 @@ export async function getMemberHomeInsights(
         areaMembersCount,
         projects: divisionProjects,
       },
+      reimbursements: {
+        totalCount: myReimbursements.length,
+        pendingCount: reimbursementsPendingCount,
+        approvedAwaitingProofCount,
+        paidCount: paidReimbursementsCount,
+        totalPendingCents,
+        recent: myReimbursements.slice(0, 3).map((r) => ({
+          id: r.id,
+          code: r.code,
+          title: r.title,
+          amountCents: r.amountCents,
+          status: r.status,
+          createdAt: r.createdAt.toISOString(),
+        })),
+      },
+      feedback: {
+        submittedCount: myFeedbacks.length,
+        openCount: openFeedbackCount,
+        appliedCount: appliedFeedbackCount,
+        repliedCount: repliedFeedbackCount,
+        recent: myFeedbacks.slice(0, 3).map((f) => ({
+          id: f.id,
+          code: f.code,
+          title: f.title,
+          status: f.status,
+          validity: f.validity,
+          hasResponse: Boolean(f.responseNotes?.trim()),
+        })),
+      },
+      profileStatus: {
+        missingOperationalFields,
+        isOperationalComplete: missingOperationalFields.length === 0,
+        pendingChangesCount,
+        siteLinked: Boolean(mySiteMember && mySiteMember.active),
+        hasSitePhoto: Boolean(mySiteMember?.photo?.trim()),
+        hasSiteBio: Boolean(mySiteMember?.bio?.trim()),
+      },
+      unreadNotificationsCount,
     };
   } catch (err) {
     console.error('[insights] Falha em getMemberHomeInsights:', err);
@@ -293,7 +477,8 @@ export async function getExecutiveOverviewInsights(
       prisma.attendanceJustification.count({ where: { status: 'PENDING' } }),
     ]);
 
-    const instMembers = instMembersRes.status === 'fulfilled' ? instMembersRes.value : [];
+    const instMembersRaw = instMembersRes.status === 'fulfilled' ? instMembersRes.value : [];
+    const instMembers = instMembersRaw.filter((m) => isOperationalActiveMember(m));
     const meetings = meetingsRes.status === 'fulfilled' ? meetingsRes.value : null;
     const disciplinary = disciplinaryRes.status === 'fulfilled' ? disciplinaryRes.value : null;
     const pendingJustificationsCount =
@@ -461,7 +646,8 @@ export async function getExtendedDashboardInsights(
       getDisciplinaryDashboardData(adminContext),
     ]);
 
-    const instMembers = instMembersRes.status === 'fulfilled' ? instMembersRes.value : [];
+    const instMembersRaw = instMembersRes.status === 'fulfilled' ? instMembersRes.value : [];
+    const instMembers = instMembersRaw.filter((m) => isOperationalActiveMember(m));
     const meetings = meetingsRes.status === 'fulfilled' ? meetingsRes.value : null;
     const disciplinary = disciplinaryRes.status === 'fulfilled' ? disciplinaryRes.value : null;
 
@@ -675,12 +861,13 @@ export async function getDivisionsDeepAnalytics(): Promise<DivisionsDeepAnalytic
       getMeetingsDashboardData(adminContext, '26.2'),
     ]);
 
-    const instMembers = instMembersRes.status === 'fulfilled' ? instMembersRes.value : [];
+    const instMembersRaw = instMembersRes.status === 'fulfilled' ? instMembersRes.value : [];
+    const instMembers = instMembersRaw.filter((m) => isOperationalActiveMember(m));
     const meetings = meetingsRes.status === 'fulfilled' ? meetingsRes.value : null;
 
     const buildDivision = (slug: 'harpia' | 'nautilus', name: string): DivisionDeepMetric => {
-      const allDiv = instMembers.filter((m) => m.team?.slug === slug);
-      const active = allDiv.filter((m) => m.active);
+    const allDiv = instMembers.filter((m) => m.team?.slug === slug && !isProfessorAdvisor(m));
+      const active = allDiv.filter((m) => isOperationalActiveMember(m));
       const inactive = allDiv.length - active.length;
 
       const leadership: DivisionDeepMetric['leadership'] = [];

@@ -144,7 +144,7 @@ export function ManagementShell({
                     {groupPendingCount > 0 && (
                       <span
                         aria-label={`${groupPendingCount} pendência(s) em ${group}`}
-                        className="inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-rose-500/15 px-1.5 font-mono text-[10px] font-bold text-rose-600 dark:text-rose-400 tabular-nums"
+                        className="inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-yellow-500/20 px-1.5 font-mono text-[10px] font-bold text-yellow-700 dark:text-yellow-300 tabular-nums"
                       >
                         {groupPendingCount > 99 ? '99+' : groupPendingCount}
                       </span>
@@ -180,7 +180,7 @@ export function ManagementShell({
                                 'ml-auto inline-flex h-5 min-w-5 shrink-0 items-center justify-center rounded-full px-1.5 font-mono text-[11px] font-bold tabular-nums',
                                 item.href === '/gestao'
                                   ? 'border border-primary/30 bg-primary/15 text-primary'
-                                  : 'bg-rose-600 text-white shadow-2xs'
+                                  : 'bg-yellow-400 text-zinc-950 shadow-2xs'
                               )}
                             >
                               {badgeCount > 99 ? '99+' : badgeCount}
@@ -255,7 +255,7 @@ export function ManagementShell({
         <button ref={menuTrigger} type="button" onClick={() => mobileMenu.current?.showModal()} aria-label={totalSidebarPendencies > 0 ? `Abrir menu da gestão (${totalSidebarPendencies} pendências)` : 'Abrir menu da gestão'} aria-haspopup="dialog" className={`relative -ml-2 flex h-11 w-11 shrink-0 items-center justify-center rounded-lg text-secondary-foreground hover:bg-accent lg:hidden ${focus}`}>
           <Menu className="h-5 w-5" />
           {totalSidebarPendencies > 0 && (
-            <span className="absolute right-1 top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-rose-600 px-1 font-mono text-[9px] font-bold leading-none text-white ring-2 ring-background tabular-nums">
+            <span className="absolute right-1 top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-yellow-400 px-1 font-mono text-[9px] font-bold leading-none text-zinc-950 ring-2 ring-background tabular-nums">
               {totalSidebarPendencies > 99 ? '99+' : totalSidebarPendencies}
             </span>
           )}

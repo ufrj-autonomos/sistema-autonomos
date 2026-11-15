@@ -1,5 +1,6 @@
 import { prisma } from '@/lib/prisma';
 import { hasManagementAccess } from '@/lib/access-policy';
+import { isProfessorAdvisor } from '@/lib/member-fields';
 import { sendReimbursementStatusEmail } from '@/lib/email';
 import { createNotification } from '@/lib/notifications';
 import type { SafeUser } from '@/lib/session';
@@ -361,7 +362,7 @@ export async function getFinancialDashboardData(): Promise<FinancialDashboardDat
       orderBy: [{ referenceDate: 'desc' }, { createdAt: 'desc' }],
     }),
     prisma.member.findMany({
-      where: { status: 'APPROVED' },
+      where: { active: true, status: 'APPROVED' },
       select: {
         id: true,
         name: true,
@@ -373,15 +374,16 @@ export async function getFinancialDashboardData(): Promise<FinancialDashboardDat
         pixKeyType: true,
         active: true,
       },
-      orderBy: [{ active: 'desc' }, { name: 'asc' }],
+      orderBy: { name: 'asc' },
     }),
   ]);
 
   const entries = rawEntries.map(serializeEntry);
   const statements = rawStatements.map(serializeStatement);
   const summary = computeFinancialSummary(entries);
+  const eligibleMembers = members.filter(m => m.active && !isProfessorAdvisor(m));
 
-  return { entries, statements, summary, members };
+  return { entries, statements, summary, members: eligibleMembers };
 }
 
 export async function getMemberReimbursementsData(

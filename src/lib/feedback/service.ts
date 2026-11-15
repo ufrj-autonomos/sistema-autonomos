@@ -1,5 +1,6 @@
 import { prisma } from '@/lib/prisma';
 import { hasManagementAccess } from '@/lib/access-policy';
+import { isProfessorAdvisor } from '@/lib/member-fields';
 import type { SafeUser } from '@/lib/session';
 import { createNotification, notifyManagementMembers } from '@/lib/notifications';
 import {
@@ -226,7 +227,7 @@ export async function getFeedbackDashboardData(
           where: { active: true, status: 'APPROVED' },
           select: { id: true, name: true, area: true },
           orderBy: { name: 'asc' },
-        })
+        }).then(rows => rows.filter(r => !isProfessorAdvisor(r)))
       : Promise.resolve(undefined),
   ]);
 

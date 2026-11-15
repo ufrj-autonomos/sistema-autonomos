@@ -1,7 +1,6 @@
 import Link from 'next/link';
 import {
   ArrowRight,
-  Check,
   Clock3,
   Users,
   CalendarCheck,
@@ -19,6 +18,8 @@ import {
   FileText,
   Boxes,
   UserCog,
+  Globe,
+  Wrench,
 } from 'lucide-react';
 import { getManagementOverview } from '@/lib/management-overview';
 import { getExecutiveOverviewInsights } from '@/lib/platform-insights';
@@ -29,7 +30,6 @@ import {
 } from '@/lib/management-pendencies';
 import { formatDuration } from '@/lib/attendance/format';
 import { weekRange } from '@/lib/attendance/time';
-import { siteAssetUrl, SITE_PROFILE_FIELDS } from '@/lib/site-profile-changes';
 import { getMemberDisciplinarySummary } from '@/lib/disciplinary/service';
 import { MemberWarningBanner } from '@/components/disciplinary/member-warning-banner';
 import {
@@ -39,7 +39,7 @@ import {
 import type { SafeUser } from '@/lib/session';
 
 const action =
-  'inline-flex min-h-11 items-center justify-center gap-2 rounded-lg border border-border px-4 py-2 text-sm font-medium hover:bg-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring transition-colors';
+  'inline-flex min-h-11 items-center justify-center gap-2 rounded-lg border border-border bg-card px-4 py-2 text-sm font-medium hover:bg-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring transition-colors';
 
 const TONE_CARD_STYLES: Record<
   PendencyTone,
@@ -102,6 +102,96 @@ function QueueIcon({ queueKey }: { queueKey: ManagementPendencyQueue['key'] }) {
   }
 }
 
+function PendencyQueueCard({ queue }: { queue: ManagementPendencyQueue }) {
+  const tone = TONE_CARD_STYLES[queue.tone];
+  return (
+    <article
+      className={`flex min-w-0 max-w-full flex-col justify-between overflow-hidden rounded-xl border p-4 sm:p-5 shadow-xs ${tone.border}`}
+    >
+      <div className="space-y-3 min-w-0">
+        <div className="flex items-start justify-between gap-2 min-w-0">
+          <div className="flex min-w-0 items-center gap-2.5">
+            <span
+              className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg ${tone.iconBg}`}
+            >
+              <QueueIcon queueKey={queue.key} />
+            </span>
+            <div className="min-w-0">
+              <span className="block text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                {queue.kind === 'approval' ? 'Decisão necessária' : 'Radar operacional'}
+              </span>
+              <h3 className="text-sm font-semibold text-foreground leading-snug break-words">
+                {queue.title}
+              </h3>
+            </div>
+          </div>
+          <span
+            className={`inline-flex h-6 min-w-6 shrink-0 items-center justify-center rounded-full px-2 font-mono text-xs font-bold tabular-nums ${tone.badge}`}
+          >
+            {queue.count}
+          </span>
+        </div>
+
+        <p className="text-xs leading-relaxed text-muted-foreground">{queue.subtitle}</p>
+
+        {queue.items.length > 0 && (
+          <ul className="divide-y divide-border/70 rounded-lg border border-border/80 bg-card/90 px-3 min-w-0">
+            {queue.items.map((item) => (
+              <li key={item.id} className="flex min-w-0 items-center justify-between gap-2 py-2">
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-xs font-medium text-foreground">{item.primary}</p>
+                  {item.secondary && (
+                    <p className="truncate text-[11px] text-muted-foreground">{item.secondary}</p>
+                  )}
+                </div>
+                {item.href ? (
+                  <Link
+                    href={item.href}
+                    className="shrink-0 rounded-md border border-border bg-background px-2 py-1 text-[11px] font-semibold text-primary hover:bg-accent"
+                  >
+                    Abrir
+                  </Link>
+                ) : (
+                  item.badge && (
+                    <span className="shrink-0 rounded-md border border-border bg-muted/60 px-2 py-0.5 font-mono text-[10px] font-semibold text-foreground whitespace-nowrap">
+                      {item.badge}
+                    </span>
+                  )
+                )}
+              </li>
+            ))}
+          </ul>
+        )}
+
+        {queue.count > queue.items.length && (
+          <p className="text-[11px] font-medium text-muted-foreground">
+            + {queue.count - queue.items.length} outro(s) registro(s) nesta fila
+          </p>
+        )}
+      </div>
+
+      <div className="mt-4 flex flex-wrap items-center gap-2 pt-3 border-t border-border/60">
+        <Link
+          href={queue.href}
+          className={`inline-flex min-h-10 flex-1 items-center justify-center gap-1.5 rounded-lg px-3 py-2 text-xs font-semibold transition-colors ${tone.cta}`}
+        >
+          <span className="truncate">{queue.ctaLabel}</span>
+          <ArrowRight className="h-3.5 w-3.5 shrink-0" />
+        </Link>
+        {queue.secondaryHref && queue.secondaryLabel && (
+          <Link
+            href={queue.secondaryHref}
+            className="inline-flex min-h-10 items-center justify-center gap-1.5 rounded-lg border border-border bg-card px-3 py-2 text-xs font-medium text-foreground hover:bg-accent transition-colors"
+          >
+            <Mail className="h-3.5 w-3.5 shrink-0" />
+            <span>{queue.secondaryLabel}</span>
+          </Link>
+        )}
+      </div>
+    </article>
+  );
+}
+
 function date(value: string | Date) {
   return new Intl.DateTimeFormat('pt-BR', {
     day: '2-digit',
@@ -133,8 +223,6 @@ export async function ManagementOverview({
   ]);
 
   const current = overview.current;
-  const previous = overview.previous;
-  const siteOrigin = process.env.INSTITUTIONAL_SITE_URL || 'https://ufrjautonomos.com';
   const firstName = name.split(' ')[0];
   const isHome = variant === 'home';
 
@@ -150,9 +238,25 @@ export async function ManagementOverview({
   const activeQueues = visibleQueues.filter((q) => q.count > 0);
   const clearQueues = visibleQueues.filter((q) => q.count === 0);
 
+  const approvalQueues = activeQueues.filter((q) => q.kind === 'approval');
+  const attentionQueues = activeQueues.filter((q) => q.kind === 'attention');
+  const lowFreqMembers = insights?.meetingsOverview.lowFrequencyMembers || [];
+  const labBelowTarget = overview.belowTarget || [];
+
+  const disciplinaryAlertCount = insights
+    ? insights.disciplinaryOverview.atencaoCount +
+      insights.disciplinaryOverview.alertaCount +
+      insights.disciplinaryOverview.expulsosCount
+    : 0;
+
+  const totalRadarsCount =
+    pendencies.totalAttention +
+    (lowFreqMembers.length > 0 ? 1 : 0) +
+    (labBelowTarget.length > 0 ? 1 : 0);
+
   return (
-    <div className="space-y-7 min-w-0 max-w-full">
-      {/* Cabeçalho Principal */}
+    <div className="space-y-8 min-w-0 max-w-full">
+      {/* 1. CABEÇALHO EXECUTIVO */}
       <header className="flex flex-wrap items-start justify-between gap-4 border-b border-border pb-6 min-w-0">
         <div className="min-w-0 flex-1 basis-72">
           <div className="flex flex-wrap items-center gap-2 mb-2">
@@ -162,12 +266,21 @@ export async function ManagementOverview({
             </span>
             {user?.role === 'COORDINATOR' && user.teamSlug && (
               <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium bg-accent text-foreground border border-border">
-                Coordenação · {user.teamSlug === 'harpia' ? 'Divisão Harpia' : user.teamSlug === 'nautilus' ? 'Divisão Nautilus' : 'UFRJ Autônomos'}
+                Coordenação ·{' '}
+                {user.teamSlug === 'harpia'
+                  ? 'Divisão Harpia'
+                  : user.teamSlug === 'nautilus'
+                  ? 'Divisão Nautilus'
+                  : 'UFRJ Autônomos'}
               </span>
             )}
-            {pendencies.totalApprovals > 0 && (
+            {pendencies.totalApprovals > 0 ? (
               <span className="inline-flex items-center gap-1 rounded-full bg-rose-600 px-2.5 py-0.5 text-xs font-semibold text-white">
-                {pendencies.totalApprovals} para aprovar/avaliar
+                {pendencies.totalApprovals} decisão(ões) imediata(s)
+              </span>
+            ) : (
+              <span className="inline-flex items-center gap-1 rounded-full border border-emerald-500/30 bg-emerald-500/10 px-2.5 py-0.5 text-xs font-semibold text-emerald-700 dark:text-emerald-300">
+                Filas de decisão em dia
               </span>
             )}
           </div>
@@ -176,55 +289,178 @@ export async function ManagementOverview({
           </h1>
           <p className="mt-1.5 max-w-2xl text-sm leading-relaxed text-muted-foreground">
             {isHome
-              ? 'Aqui estão reunidas todas as aprovações, triagens, justificativas e alertas da gestão para que nenhuma pendência fique esquecida.'
-              : `Olá, ${firstName}. Acompanhe suas filas de aprovação, triagens pendentes, presença no laboratório, reuniões e quadro disciplinar.`}
+              ? 'Priorize as aprovações e triagens pendentes, acompanhe os radares da equipe e acesse seu ponto pessoal logo abaixo.'
+              : `Olá, ${firstName}. Central única de decisões, radares de frequência, presença semanal no lab, saúde disciplinar e módulos da equipe.`}
           </p>
         </div>
 
         <div className="flex flex-wrap items-center gap-2.5">
-          {isHome && (
-            <a href="#meu-ponto-lab" className={action}>
-              <Clock3 size={16} aria-hidden="true" />
-              Meu ponto no lab
-            </a>
-          )}
-          <Link href="/gestao/emails" className={action}>
-            <Mail size={16} aria-hidden="true" />
-            Central de E-mails
-          </Link>
-          <Link href="/gestao/dashboard" className={action}>
-            <BarChart3 size={16} aria-hidden="true" />
-            Dashboard analítico
-          </Link>
           {isHome ? (
-            <Link href="/gestao" className={action}>
-              Painel da gestão
-              <ArrowRight size={16} aria-hidden="true" />
-            </Link>
+            <>
+              <a href="#meu-ponto-lab" className={action}>
+                <Clock3 size={16} aria-hidden="true" />
+                Meu ponto &amp; espaço
+              </a>
+              <Link href="/gestao/emails" className={action}>
+                <Mail size={16} aria-hidden="true" />
+                E-mails
+              </Link>
+              <Link href="/gestao" className={action}>
+                Visão geral completa
+                <ArrowRight size={16} aria-hidden="true" />
+              </Link>
+            </>
           ) : (
-            <Link href="/gestao/integrantes" className={action}>
-              Integrantes
-              <ArrowRight size={16} aria-hidden="true" />
-            </Link>
+            <>
+              <Link href="/gestao/integrantes" className={action}>
+                <Users size={16} aria-hidden="true" />
+                Integrantes
+              </Link>
+              <Link href="/gestao/emails" className={action}>
+                <Mail size={16} aria-hidden="true" />
+                E-mails
+              </Link>
+              <Link href="/gestao/dashboard" className={action}>
+                <BarChart3 size={16} aria-hidden="true" />
+                Analytics
+              </Link>
+            </>
           )}
         </div>
       </header>
 
-      {/* Banner Disciplinar Pessoal (se o gestor tiver advertências) */}
+      {/* Banner Disciplinar Pessoal */}
       {disciplinary && <MemberWarningBanner summary={disciplinary} />}
 
-      {/* CENTRAL DE PENDÊNCIAS & APROVAÇÕES DA GESTÃO */}
+      {/* 2. PULSO OPERACIONAL (4 KPIs SEM DUPLICAÇÃO) */}
       <section
-        aria-labelledby="pendencies-center-heading"
-        className="min-w-0 max-w-full space-y-4"
+        aria-label="Pulso operacional da equipe"
+        className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4"
       >
+        <div className="rounded-xl border border-border bg-card p-4 sm:p-5 shadow-xs flex flex-col justify-between">
+          <div className="flex items-center justify-between text-muted-foreground">
+            <span className="text-xs font-semibold uppercase tracking-wider">Fila de Decisão</span>
+            <ListChecks
+              className={`h-4 w-4 ${pendencies.totalApprovals > 0 ? 'text-rose-500' : 'text-emerald-500'}`}
+            />
+          </div>
+          <div className="mt-3">
+            <div className="flex items-baseline gap-2">
+              <p className="font-display text-3xl font-bold tabular-nums text-foreground">
+                {pendencies.totalApprovals}
+              </p>
+              <span className="text-xs text-muted-foreground">para aprovar/triar</span>
+            </div>
+            <p className="mt-1 text-xs text-muted-foreground">
+              {pendencies.totalAttention} em atenção · {pendencies.totalAll} pendentes totais
+            </p>
+          </div>
+          <a
+            href="#secao-aprovacoes"
+            className="mt-3 pt-2.5 border-t border-border/60 text-xs font-medium text-primary hover:underline inline-flex items-center justify-between"
+          >
+            <span>Ir para fila prioritária</span>
+            <ArrowRight className="h-3.5 w-3.5" />
+          </a>
+        </div>
+
+        <div className="rounded-xl border border-border bg-card p-4 sm:p-5 shadow-xs flex flex-col justify-between">
+          <div className="flex items-center justify-between text-muted-foreground">
+            <span className="text-xs font-semibold uppercase tracking-wider">Lab · Esta Semana</span>
+            <Clock3 className="h-4 w-4 text-blue-500" />
+          </div>
+          <div className="mt-3">
+            <div className="flex items-baseline gap-2">
+              <p className="font-display text-3xl font-bold tabular-nums text-foreground">
+                {current ? `${current.summary.met}/${current.summary.requiredMembers}` : '—'}
+              </p>
+              {current && current.summary.requiredMembers > 0 && (
+                <span className="text-xs font-mono font-semibold text-blue-600 dark:text-blue-400">
+                  ({currentLabPct}%)
+                </span>
+              )}
+            </div>
+            <p className="mt-1 text-xs text-muted-foreground">
+              {current
+                ? `${current.summary.inLab} no lab agora · ${current.summary.pending} em andamento`
+                : 'Consulta indisponível'}
+            </p>
+          </div>
+          <Link
+            href="/gestao/presenca"
+            className="mt-3 pt-2.5 border-t border-border/60 text-xs font-medium text-blue-600 dark:text-blue-400 hover:underline inline-flex items-center justify-between"
+          >
+            <span>Gerenciar presença</span>
+            <ArrowRight className="h-3.5 w-3.5" />
+          </Link>
+        </div>
+
+        <div className="rounded-xl border border-border bg-card p-4 sm:p-5 shadow-xs flex flex-col justify-between">
+          <div className="flex items-center justify-between text-muted-foreground">
+            <span className="text-xs font-semibold uppercase tracking-wider">Reuniões (26.2)</span>
+            <CalendarCheck className="h-4 w-4 text-emerald-500" />
+          </div>
+          <div className="mt-3">
+            <div className="flex items-baseline gap-2">
+              <p className="font-display text-3xl font-bold tabular-nums text-foreground">
+                {insights ? `${insights.meetingsOverview.overallRate}%` : '—'}
+              </p>
+              <span className="text-xs text-emerald-600 dark:text-emerald-400 font-medium">
+                frequência
+              </span>
+            </div>
+            <p className="mt-1 text-xs text-muted-foreground">
+              {insights
+                ? `${insights.meetingsOverview.totalMeetings} reuniões · ${lowFreqMembers.length} abaixo de 75%`
+                : 'Sem dados no período'}
+            </p>
+          </div>
+          <Link
+            href="/reunioes"
+            className="mt-3 pt-2.5 border-t border-border/60 text-xs font-medium text-emerald-600 dark:text-emerald-400 hover:underline inline-flex items-center justify-between"
+          >
+            <span>Abrir reuniões</span>
+            <ArrowRight className="h-3.5 w-3.5" />
+          </Link>
+        </div>
+
+        <div className="rounded-xl border border-border bg-card p-4 sm:p-5 shadow-xs flex flex-col justify-between">
+          <div className="flex items-center justify-between text-muted-foreground">
+            <span className="text-xs font-semibold uppercase tracking-wider">Efetivo &amp; Disciplinar</span>
+            <Users className="h-4 w-4 text-purple-500" />
+          </div>
+          <div className="mt-3">
+            <div className="flex items-baseline gap-2">
+              <p className="font-display text-3xl font-bold tabular-nums text-foreground">
+                {insights ? insights.rosterSummary.totalActive : '—'}
+              </p>
+              <span className="text-xs text-muted-foreground">ativos</span>
+            </div>
+            <p className="mt-1 text-xs text-muted-foreground">
+              {insights
+                ? `${insights.rosterSummary.harpiaCount} Harpia · ${insights.rosterSummary.nautilusCount} Nautilus · ${disciplinaryAlertCount} ocorrência(s)`
+                : 'Quadro operacional'}
+            </p>
+          </div>
+          <Link
+            href="/gestao/advertencias"
+            className="mt-3 pt-2.5 border-t border-border/60 text-xs font-medium text-purple-600 dark:text-purple-400 hover:underline inline-flex items-center justify-between"
+          >
+            <span>Quadro disciplinar</span>
+            <ArrowRight className="h-3.5 w-3.5" />
+          </Link>
+        </div>
+      </section>
+
+      {/* 3. CENTRAL DE AÇÃO DA GESTÃO */}
+      <section aria-labelledby="pendencies-center-heading" className="min-w-0 max-w-full space-y-6">
         <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-border bg-card p-4 sm:px-5 shadow-xs">
           <div className="flex min-w-0 items-center gap-3">
             <span
               className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${
                 pendencies.totalApprovals > 0
                   ? 'bg-rose-500/15 text-rose-600 dark:text-rose-400'
-                  : pendencies.totalAttention > 0
+                  : totalRadarsCount > 0
                   ? 'bg-amber-500/15 text-amber-600 dark:text-amber-400'
                   : 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400'
               }`}
@@ -232,16 +468,11 @@ export async function ManagementOverview({
               <ListChecks className="h-5 w-5" />
             </span>
             <div className="min-w-0">
-              <h2
-                id="pendencies-center-heading"
-                className="text-base sm:text-lg font-semibold text-foreground"
-              >
-                Central de Pendências &amp; Aprovações
+              <h2 id="pendencies-center-heading" className="text-base sm:text-lg font-semibold text-foreground">
+                Central de Decisões &amp; Radares
               </h2>
               <p className="text-xs text-muted-foreground">
-                {pendencies.totalAll === 0
-                  ? 'Todas as filas de aprovação e acompanhamento estão zeradas neste momento.'
-                  : `${pendencies.totalApprovals} item(ns) aguardando decisão ou análise direta · ${pendencies.totalAttention} item(ns) em acompanhamento operacional.`}
+                Organizado por prioridade: primeiro o que exige sua aprovação/triagem, depois os radares de cobrança e acompanhamento.
               </p>
             </div>
           </div>
@@ -254,128 +485,219 @@ export async function ManagementOverview({
                   : 'border border-emerald-500/30 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300'
               }`}
             >
-              {pendencies.totalApprovals} para aprovar/triar
+              {pendencies.totalApprovals} decisões imediatas
             </span>
             <span className="inline-flex items-center gap-1.5 rounded-full border border-border bg-muted/60 px-3 py-1 text-foreground tabular-nums">
-              {pendencies.totalAttention} em atenção
+              {totalRadarsCount} itens em radar
             </span>
           </div>
         </div>
 
-        {activeQueues.length > 0 ? (
-          <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3 min-w-0 max-w-full">
-            {activeQueues.map((queue) => {
-              const tone = TONE_CARD_STYLES[queue.tone];
-              return (
-                <article
-                  key={queue.key}
-                  className={`flex min-w-0 max-w-full flex-col justify-between overflow-hidden rounded-xl border p-4 sm:p-5 shadow-xs ${tone.border}`}
-                >
+        {/* SEÇÃO A: DECISÕES & TRIAGENS IMEDIATAS */}
+        <div id="secao-aprovacoes" className="scroll-mt-20 space-y-3 min-w-0 max-w-full">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <div>
+              <h3 className="text-sm font-semibold uppercase tracking-wider text-foreground">
+                Seção A · Decisões &amp; Triagens Imediatas
+              </h3>
+              <p className="text-xs text-muted-foreground">
+                Aprovações, pedidos do site, justificativas, contas e ideias/bugs esperando uma resposta da gestão.
+              </p>
+            </div>
+          </div>
+
+          {approvalQueues.length > 0 ? (
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3 min-w-0 max-w-full">
+              {approvalQueues.map((queue) => (
+                <PendencyQueueCard key={queue.key} queue={queue} />
+              ))}
+            </div>
+          ) : (
+            <div className="flex items-center gap-3 rounded-xl border border-emerald-500/30 bg-emerald-500/10 p-4 text-sm text-emerald-800 dark:text-emerald-200">
+              <CheckCircle2 className="h-5 w-5 shrink-0 text-emerald-600 dark:text-emerald-400" />
+              <div>
+                <p className="font-semibold">Nenhuma decisão imediata pendente</p>
+                <p className="text-xs opacity-90">
+                  Reembolsos, triagens de ideias/bugs, contas, alterações do site, e-mails e justificativas estão em dia.
+                </p>
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* SEÇÃO B: RADARES DE ATENÇÃO & COBRANÇA */}
+        <div id="secao-atencao" className="scroll-mt-20 space-y-3 min-w-0 max-w-full">
+          <div>
+            <h3 className="text-sm font-semibold uppercase tracking-wider text-foreground">
+              Seção B · Radares de Atenção &amp; Cobrança
+            </h3>
+            <p className="text-xs text-muted-foreground">
+              Acompanhamento contínuo de cadastros incompletos, disciplina, baixa frequência em reuniões e meta semanal no lab.
+            </p>
+          </div>
+
+          {attentionQueues.length > 0 || lowFreqMembers.length > 0 || labBelowTarget.length > 0 ? (
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3 min-w-0 max-w-full">
+              {attentionQueues.map((queue) => (
+                <PendencyQueueCard key={queue.key} queue={queue} />
+              ))}
+
+              {/* Radar Compacto: Baixa Frequência em Reuniões (< 75%) */}
+              {lowFreqMembers.length > 0 && (
+                <article className="flex min-w-0 max-w-full flex-col justify-between overflow-hidden rounded-xl border border-amber-500/35 bg-amber-500/[0.04] p-4 sm:p-5 shadow-xs">
                   <div className="space-y-3 min-w-0">
                     <div className="flex items-start justify-between gap-2 min-w-0">
                       <div className="flex min-w-0 items-center gap-2.5">
-                        <span
-                          className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg ${tone.iconBg}`}
-                        >
-                          <QueueIcon queueKey={queue.key} />
+                        <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-amber-500/15 text-amber-600 dark:text-amber-400">
+                          <AlertTriangle className="h-4 w-4" />
                         </span>
                         <div className="min-w-0">
                           <span className="block text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
-                            {queue.kind === 'approval' ? 'Ação necessária' : 'Acompanhamento'}
+                            Radar operacional
                           </span>
-                          <h3 className="text-sm font-semibold text-foreground leading-snug break-words">
-                            {queue.title}
-                          </h3>
+                          <h4 className="text-sm font-semibold text-foreground leading-snug break-words">
+                            Baixa frequência em reuniões (&lt; 75%)
+                          </h4>
                         </div>
                       </div>
-                      <span
-                        className={`inline-flex h-6 min-w-6 shrink-0 items-center justify-center rounded-full px-2 font-mono text-xs font-bold tabular-nums ${tone.badge}`}
-                      >
-                        {queue.count}
+                      <span className="inline-flex h-6 min-w-6 shrink-0 items-center justify-center rounded-full bg-amber-500 px-2 font-mono text-xs font-bold text-zinc-950 tabular-nums">
+                        {lowFreqMembers.length}
                       </span>
                     </div>
 
                     <p className="text-xs leading-relaxed text-muted-foreground">
-                      {queue.subtitle}
+                      Integrantes com maior acúmulo de faltas nas reuniões de área (período 26.2).
                     </p>
 
-                    {queue.items.length > 0 && (
-                      <ul className="divide-y divide-border/70 rounded-lg border border-border/80 bg-card/90 px-3 min-w-0">
-                        {queue.items.map((item) => (
-                          <li
-                            key={item.id}
-                            className="flex min-w-0 items-center justify-between gap-2 py-2"
-                          >
-                            <div className="min-w-0 flex-1">
-                              <p className="truncate text-xs font-medium text-foreground">
-                                {item.primary}
-                              </p>
-                              {item.secondary && (
-                                <p className="truncate text-[11px] text-muted-foreground">
-                                  {item.secondary}
-                                </p>
-                              )}
-                            </div>
-                            {item.href ? (
-                              <Link
-                                href={item.href}
-                                className="shrink-0 rounded-md border border-border bg-background px-2 py-1 text-[11px] font-semibold text-primary hover:bg-accent"
-                              >
-                                Abrir
-                              </Link>
-                            ) : (
-                              item.badge && (
-                                <span className="shrink-0 rounded-md border border-border bg-muted/60 px-2 py-0.5 font-mono text-[10px] font-semibold text-foreground whitespace-nowrap">
-                                  {item.badge}
-                                </span>
-                              )
-                            )}
-                          </li>
-                        ))}
-                      </ul>
-                    )}
+                    <ul className="divide-y divide-border/70 rounded-lg border border-border/80 bg-card/90 px-3 min-w-0">
+                      {lowFreqMembers.slice(0, 5).map((m) => (
+                        <li key={m.id} className="flex min-w-0 items-center justify-between gap-2 py-2">
+                          <div className="min-w-0 flex-1">
+                            <p className="truncate text-xs font-medium text-foreground">{m.name}</p>
+                            <p className="truncate text-[11px] text-muted-foreground">{m.area}</p>
+                          </div>
+                          <div className="shrink-0 text-right">
+                            <span className="font-mono text-xs font-bold text-red-600 dark:text-red-400 tabular-nums">
+                              {m.pct.toFixed(0)}%
+                            </span>
+                            <span className="block whitespace-nowrap text-[10px] text-muted-foreground">
+                              {m.absences} falta(s) em {m.meetings}
+                            </span>
+                          </div>
+                        </li>
+                      ))}
+                    </ul>
 
-                    {queue.count > queue.items.length && (
+                    {lowFreqMembers.length > 5 && (
                       <p className="text-[11px] font-medium text-muted-foreground">
-                        + {queue.count - queue.items.length} outro(s) registro(s) nesta fila
+                        + {lowFreqMembers.length - 5} outro(s) integrante(s) neste radar
                       </p>
                     )}
                   </div>
 
                   <div className="mt-4 flex flex-wrap items-center gap-2 pt-3 border-t border-border/60">
                     <Link
-                      href={queue.href}
-                      className={`inline-flex min-h-10 flex-1 items-center justify-center gap-1.5 rounded-lg px-3 py-2 text-xs font-semibold transition-colors ${tone.cta}`}
+                      href="/reunioes"
+                      className="inline-flex min-h-10 flex-1 items-center justify-center gap-1.5 rounded-lg bg-amber-500 px-3 py-2 text-xs font-semibold text-zinc-950 hover:bg-amber-400 transition-colors"
                     >
-                      <span className="truncate">{queue.ctaLabel}</span>
+                      <span className="truncate">Abrir reuniões</span>
                       <ArrowRight className="h-3.5 w-3.5 shrink-0" />
                     </Link>
-                    {queue.secondaryHref && queue.secondaryLabel && (
-                      <Link
-                        href={queue.secondaryHref}
-                        className="inline-flex min-h-10 items-center justify-center gap-1.5 rounded-lg border border-border bg-card px-3 py-2 text-xs font-medium text-foreground hover:bg-accent transition-colors"
-                      >
-                        <Mail className="h-3.5 w-3.5 shrink-0" />
-                        <span>{queue.secondaryLabel}</span>
-                      </Link>
-                    )}
+                    <Link
+                      href="/gestao/emails?situation=MEETING_LOW_ATTENDANCE"
+                      className="inline-flex min-h-10 items-center justify-center gap-1.5 rounded-lg border border-border bg-card px-3 py-2 text-xs font-medium text-foreground hover:bg-accent transition-colors"
+                    >
+                      <Mail className="h-3.5 w-3.5 shrink-0" />
+                      <span>Notificar</span>
+                    </Link>
                   </div>
                 </article>
-              );
-            })}
-          </div>
-        ) : (
-          <div className="flex items-center gap-3 rounded-xl border border-emerald-500/30 bg-emerald-500/10 p-5 text-sm text-emerald-800 dark:text-emerald-200">
-            <CheckCircle2 className="h-5 w-5 shrink-0 text-emerald-600 dark:text-emerald-400" />
-            <div>
-              <p className="font-semibold">Nenhuma pendência em aberto</p>
-              <p className="text-xs opacity-90">
-                Reembolsos, ideias &amp; bugs, contas, alterações do site, troca de e-mails e justificativas estão todos em dia.
-              </p>
-            </div>
-          </div>
-        )}
+              )}
 
+              {/* Radar Compacto: Abaixo da Meta do Lab na Semana Passada */}
+              {labBelowTarget.length > 0 && (
+                <article className="flex min-w-0 max-w-full flex-col justify-between overflow-hidden rounded-xl border border-rose-500/35 bg-rose-500/[0.04] p-4 sm:p-5 shadow-xs">
+                  <div className="space-y-3 min-w-0">
+                    <div className="flex items-start justify-between gap-2 min-w-0">
+                      <div className="flex min-w-0 items-center gap-2.5">
+                        <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-rose-500/15 text-rose-600 dark:text-rose-400">
+                          <Clock3 className="h-4 w-4" />
+                        </span>
+                        <div className="min-w-0">
+                          <span className="block text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                            Radar operacional
+                          </span>
+                          <h4 className="text-sm font-semibold text-foreground leading-snug break-words">
+                            Abaixo da meta do lab (semana passada)
+                          </h4>
+                        </div>
+                      </div>
+                      <span className="inline-flex h-6 min-w-6 shrink-0 items-center justify-center rounded-full bg-rose-600 px-2 font-mono text-xs font-bold text-white tabular-nums">
+                        {labBelowTarget.length}
+                      </span>
+                    </div>
+
+                    <p className="text-xs leading-relaxed text-muted-foreground">
+                      Semana {period(overview.previousWeek)} · apenas integrantes com meta semanal ativa.
+                    </p>
+
+                    <ul className="divide-y divide-border/70 rounded-lg border border-border/80 bg-card/90 px-3 min-w-0">
+                      {labBelowTarget.slice(0, 5).map((m) => (
+                        <li key={m.id} className="flex min-w-0 items-center justify-between gap-2 py-2">
+                          <div className="min-w-0 flex-1">
+                            <p className="truncate text-xs font-medium text-foreground">{m.name}</p>
+                            <p className="truncate text-[11px] text-muted-foreground">
+                              {m.area}
+                              {m.pendingReviews > 0 ? ` · ${m.pendingReviews} rev.` : ''}
+                            </p>
+                          </div>
+                          <div className="shrink-0 text-right">
+                            <span className="font-mono text-xs font-bold text-rose-600 dark:text-rose-400 tabular-nums whitespace-nowrap">
+                              {formatDuration(m.completedSeconds)}
+                            </span>
+                            <span className="block whitespace-nowrap text-[10px] text-muted-foreground tabular-nums">
+                              faltam {formatDuration(m.remainingSeconds)}
+                            </span>
+                          </div>
+                        </li>
+                      ))}
+                    </ul>
+
+                    {labBelowTarget.length > 5 && (
+                      <p className="text-[11px] font-medium text-muted-foreground">
+                        + {labBelowTarget.length - 5} outro(s) integrante(s) abaixo da meta
+                      </p>
+                    )}
+                  </div>
+
+                  <div className="mt-4 flex flex-wrap items-center gap-2 pt-3 border-t border-border/60">
+                    <Link
+                      href={`/gestao/presenca?week=${overview.previousWeek}`}
+                      className="inline-flex min-h-10 flex-1 items-center justify-center gap-1.5 rounded-lg bg-rose-600 px-3 py-2 text-xs font-semibold text-white hover:bg-rose-500 transition-colors"
+                    >
+                      <span className="truncate">Ver semana passada</span>
+                      <ArrowRight className="h-3.5 w-3.5 shrink-0" />
+                    </Link>
+                    <Link
+                      href="/gestao/emails?situation=LAB_BELOW_GOAL"
+                      className="inline-flex min-h-10 items-center justify-center gap-1.5 rounded-lg border border-border bg-card px-3 py-2 text-xs font-medium text-foreground hover:bg-accent transition-colors"
+                    >
+                      <Mail className="h-3.5 w-3.5 shrink-0" />
+                      <span>Cobrar</span>
+                    </Link>
+                  </div>
+                </article>
+              )}
+            </div>
+          ) : (
+            <div className="flex items-center gap-3 rounded-xl border border-emerald-500/30 bg-emerald-500/10 p-4 text-sm text-emerald-800 dark:text-emerald-200">
+              <CheckCircle2 className="h-5 w-5 shrink-0 text-emerald-600 dark:text-emerald-400" />
+              <p className="font-medium">Nenhum radar operacional com alerta no momento.</p>
+            </div>
+          )}
+        </div>
+
+        {/* BARRA DE FILAS EM DIA */}
         {clearQueues.length > 0 && (
           <div className="rounded-xl border border-border bg-muted/25 px-4 py-3 min-w-0">
             <div className="flex flex-wrap items-center gap-2 text-xs">
@@ -400,667 +722,249 @@ export async function ManagementOverview({
         )}
       </section>
 
-      {/* KPIs EXECUTIVOS EM TEMPO REAL (6 INDICADORES ESTRATÉGICOS) */}
-      {insights && (
-        <section
-          aria-label="Indicadores executivos da equipe"
-          className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6"
-        >
-          {/* KPI 1: Integrantes Ativos */}
-          <div className="rounded-xl border border-border bg-card p-4 shadow-xs flex flex-col justify-between">
-            <div className="flex items-center justify-between text-muted-foreground">
-              <span className="text-xs font-semibold uppercase tracking-wider">Equipe Ativa</span>
-              <Users className="h-4 w-4 text-primary" />
-            </div>
-            <div className="mt-3">
-              <p className="font-display text-2xl font-bold tabular-nums text-foreground">
-                {insights.rosterSummary.totalActive}
-              </p>
-              <p className="mt-1 text-[11px] text-muted-foreground">
-                ☁️ {insights.rosterSummary.harpiaCount} Harpia · 🌊{' '}
-                {insights.rosterSummary.nautilusCount} Nautilus
-              </p>
-            </div>
-            <Link
-              href="/gestao/integrantes"
-              className="mt-3 pt-2 border-t border-border/60 text-xs font-medium text-primary hover:underline inline-flex items-center justify-between"
-            >
-              <span>{insights.rosterSummary.traineesCount} trainees ativos</span>
-              <ArrowRight className="h-3 w-3" />
-            </Link>
-          </div>
-
-          {/* KPI 2: Frequência em Reuniões 26.2 */}
-          <div className="rounded-xl border border-border bg-card p-4 shadow-xs flex flex-col justify-between">
-            <div className="flex items-center justify-between text-muted-foreground">
-              <span className="text-xs font-semibold uppercase tracking-wider">Reuniões 26.2</span>
-              <CalendarCheck className="h-4 w-4 text-emerald-500" />
-            </div>
-            <div className="mt-3">
-              <div className="flex items-baseline gap-2">
-                <p className="font-display text-2xl font-bold tabular-nums text-foreground">
-                  {insights.meetingsOverview.overallRate}%
-                </p>
-                <span className="text-xs text-emerald-600 dark:text-emerald-400 font-medium">
-                  presença
-                </span>
-              </div>
-              <p className="mt-1 text-[11px] text-muted-foreground">
-                {insights.meetingsOverview.totalMeetings} reuniões ·{' '}
-                {insights.meetingsOverview.perfectCount} com 100%
-              </p>
-            </div>
-            <Link
-              href="/reunioes"
-              className="mt-3 pt-2 border-t border-border/60 text-xs font-medium text-emerald-600 dark:text-emerald-400 hover:underline inline-flex items-center justify-between"
-            >
-              <span>Abrir controle de reuniões</span>
-              <ArrowRight className="h-3 w-3" />
-            </Link>
-          </div>
-
-          {/* KPI 3: Meta Semanal do Laboratório */}
-          <div className="rounded-xl border border-border bg-card p-4 shadow-xs flex flex-col justify-between">
-            <div className="flex items-center justify-between text-muted-foreground">
-              <span className="text-xs font-semibold uppercase tracking-wider">Lab · Semana</span>
-              <Clock3 className="h-4 w-4 text-blue-500" />
-            </div>
-            <div className="mt-3">
-              <div className="flex items-baseline gap-2">
-                <p className="font-display text-2xl font-bold tabular-nums text-foreground">
-                  {current ? `${current.summary.met}/${current.summary.requiredMembers}` : '—'}
-                </p>
-                {current && current.summary.requiredMembers > 0 && (
-                  <span className="text-xs font-mono text-blue-600 dark:text-blue-400">
-                    ({currentLabPct}%)
-                  </span>
+      {/* 4. ANÁLISE & MAPA DE MÓDULOS DA GESTÃO (EXCLUSIVO DE /gestao) */}
+      {!isHome && (
+        <div className="space-y-8 pt-2 border-t border-border">
+          {insights && (
+            <div className="grid items-start gap-6 lg:grid-cols-2 min-w-0 max-w-full overflow-hidden">
+              <section className="rounded-xl border border-border bg-card p-4 sm:p-6 shadow-xs min-w-0 max-w-full overflow-hidden">
+                <div className="flex items-center justify-between gap-3 border-b border-border/70 pb-3">
+                  <div className="min-w-0">
+                    <h2 className="text-sm sm:text-base font-semibold text-foreground truncate">
+                      Frequência em Reuniões por Área (Período 26.2)
+                    </h2>
+                    <p className="mt-0.5 text-xs text-muted-foreground truncate">
+                      Taxa de presença acumulada nas reuniões de área registradas na plataforma.
+                    </p>
+                  </div>
+                  <Link
+                    href="/reunioes"
+                    className="text-xs font-medium text-primary hover:underline shrink-0"
+                  >
+                    Ver matriz →
+                  </Link>
+                </div>
+                {insights.meetingsOverview.areaPerformance.length > 0 ? (
+                  <MeetingsPerformanceByAreaChart data={insights.meetingsOverview.areaPerformance} />
+                ) : (
+                  <p className="py-10 text-center text-sm text-muted-foreground">
+                    Nenhuma reunião registrada no período atual.
+                  </p>
                 )}
-              </div>
-              <p className="mt-1 text-[11px] text-muted-foreground">
-                {current
-                  ? `${current.summary.pending} em andamento · Meta 2h`
-                  : 'Consulta indisponível'}
-              </p>
-            </div>
-            <Link
-              href="/gestao/presenca"
-              className="mt-3 pt-2 border-t border-border/60 text-xs font-medium text-blue-600 dark:text-blue-400 hover:underline inline-flex items-center justify-between"
-            >
-              <span>Acompanhar laboratório</span>
-              <ArrowRight className="h-3 w-3" />
-            </Link>
-          </div>
+              </section>
 
-          {/* KPI 4: Quadro Disciplinar */}
-          <div className="rounded-xl border border-border bg-card p-4 shadow-xs flex flex-col justify-between">
-            <div className="flex items-center justify-between text-muted-foreground">
-              <span className="text-xs font-semibold uppercase tracking-wider">Disciplinar</span>
-              <ShieldAlert className="h-4 w-4 text-red-500" />
-            </div>
-            <div className="mt-3">
-              <div className="flex items-baseline gap-2">
-                <p className="font-display text-2xl font-bold tabular-nums text-foreground">
-                  {insights.disciplinaryOverview.atencaoCount +
-                    insights.disciplinaryOverview.alertaCount +
-                    insights.disciplinaryOverview.expulsosCount}
-                </p>
-                <span className="text-xs text-muted-foreground">com ocorrências</span>
-              </div>
-              <p className="mt-1 text-[11px] text-muted-foreground">
-                🟢 {insights.disciplinaryOverview.regularesCount} regulares · 🔴{' '}
-                {insights.disciplinaryOverview.expulsosCount} risco
-              </p>
-            </div>
-            <Link
-              href="/gestao/advertencias"
-              className="mt-3 pt-2 border-t border-border/60 text-xs font-medium text-red-600 dark:text-red-400 hover:underline inline-flex items-center justify-between"
-            >
-              <span>Gerenciar advertências</span>
-              <ArrowRight className="h-3 w-3" />
-            </Link>
-          </div>
+              <section className="rounded-xl border border-border bg-card p-4 sm:p-6 shadow-xs space-y-4 min-w-0 max-w-full overflow-hidden">
+                <div className="flex items-center justify-between gap-3 border-b border-border/70 pb-3">
+                  <div className="min-w-0">
+                    <h2 className="text-sm sm:text-base font-semibold text-foreground truncate">
+                      Saúde Disciplinar &amp; Ocorrências Recentes
+                    </h2>
+                    <p className="mt-0.5 text-xs text-muted-foreground truncate">
+                      Proporção de integrantes regulares vs advertidos (2 avisos = 1 advertência).
+                    </p>
+                  </div>
+                  <Link
+                    href="/gestao/advertencias"
+                    className="text-xs font-medium text-red-600 dark:text-red-400 hover:underline shrink-0"
+                  >
+                    Abrir gestão →
+                  </Link>
+                </div>
 
-          {/* KPI 5: Contas e Justificativas */}
-          <div className="rounded-xl border border-border bg-card p-4 shadow-xs flex flex-col justify-between">
-            <div className="flex items-center justify-between text-muted-foreground">
-              <span className="text-xs font-semibold uppercase tracking-wider">Acessos</span>
-              <UserCheck className="h-4 w-4 text-amber-500" />
-            </div>
-            <div className="mt-3">
-              <p className="font-display text-2xl font-bold tabular-nums text-foreground">
-                {overview.pendingAccounts ?? 0}
-              </p>
-              <p className="mt-1 text-[11px] text-muted-foreground">
-                contas pendentes · {insights.pendingJustificationsCount} justificativa(s)
-              </p>
-            </div>
-            <Link
-              href="/gestao/contas"
-              className="mt-3 pt-2 border-t border-border/60 text-xs font-medium text-amber-600 dark:text-amber-400 hover:underline inline-flex items-center justify-between"
-            >
-              <span>Revisar contas</span>
-              <ArrowRight className="h-3 w-3" />
-            </Link>
-          </div>
+                <DisciplinaryHealthChart
+                  regulares={insights.disciplinaryOverview.regularesCount}
+                  atencao={insights.disciplinaryOverview.atencaoCount}
+                  alerta={insights.disciplinaryOverview.alertaCount}
+                  expulsao={insights.disciplinaryOverview.expulsosCount}
+                />
 
-          {/* KPI 6: Solicitações para o Site */}
-          <div className="rounded-xl border border-border bg-card p-4 shadow-xs flex flex-col justify-between">
-            <div className="flex items-center justify-between text-muted-foreground">
-              <span className="text-xs font-semibold uppercase tracking-wider">Site Público</span>
-              <Award className="h-4 w-4 text-purple-500" />
+                {insights.disciplinaryOverview.recentOccurrences.length > 0 && (
+                  <div className="pt-2 border-t border-border/60">
+                    <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">
+                      Últimas ocorrências aplicadas
+                    </p>
+                    <ul className="divide-y divide-border/60 text-xs">
+                      {insights.disciplinaryOverview.recentOccurrences.slice(0, 3).map((occ) => (
+                        <li key={occ.id} className="py-2 flex items-center justify-between gap-3">
+                          <div className="min-w-0">
+                            <span className="font-semibold text-foreground">{occ.memberName}</span>
+                            <span className="text-muted-foreground"> ({occ.memberArea})</span>
+                            <p className="text-muted-foreground truncate mt-0.5">{occ.reason}</p>
+                          </div>
+                          <span
+                            className={`shrink-0 px-2 py-0.5 rounded-full font-medium ${
+                              occ.type === 'AVISO'
+                                ? 'bg-amber-500/15 text-amber-700 dark:text-amber-300'
+                                : 'bg-red-500/15 text-red-700 dark:text-red-300'
+                            }`}
+                          >
+                            {occ.type === 'AVISO' ? 'Aviso' : 'Advertência'}
+                          </span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+              </section>
             </div>
-            <div className="mt-3">
-              <p className="font-display text-2xl font-bold tabular-nums text-foreground">
-                {overview.siteRequests?.total ?? 0}
-              </p>
-              <p className="mt-1 text-[11px] text-muted-foreground">
-                perfis/fotos aguardando revisão
-              </p>
-            </div>
-            <Link
-              href="/gestao/site/membros#alteracoes-do-site"
-              className="mt-3 pt-2 border-t border-border/60 text-xs font-medium text-purple-600 dark:text-purple-400 hover:underline inline-flex items-center justify-between"
-            >
-              <span>Aprovar alterações</span>
-              <ArrowRight className="h-3 w-3" />
-            </Link>
-          </div>
-        </section>
-      )}
+          )}
 
-      {/* GRÁFICOS DE INSIGHTS NA VISÃO GERAL (REUNIÕES POR ÁREA & SAÚDE DISCIPLINAR) */}
-      {insights && (
-        <div className="grid items-start gap-6 lg:grid-cols-2 min-w-0 max-w-full overflow-hidden">
-          {/* Gráfico 1: Frequência em Reuniões por Área */}
-          <section className="rounded-xl border border-border bg-card p-4 sm:p-6 shadow-xs min-w-0 max-w-full overflow-hidden">
-            <div className="flex items-center justify-between gap-3 border-b border-border/70 pb-3">
-              <div className="min-w-0">
-                <h2 className="text-sm sm:text-base font-semibold text-foreground truncate">
-                  Frequência em Reuniões por Área (Período 26.2)
-                </h2>
-                <p className="mt-0.5 text-xs text-muted-foreground truncate">
-                  Taxa de presença acumulada nas reuniões de área registradas na plataforma.
-                </p>
-              </div>
-              <Link
-                href="/reunioes"
-                className="text-xs font-medium text-primary hover:underline shrink-0"
+          {/* Mapa de Módulos da Gestão (4 Grupos) */}
+          <section aria-labelledby="management-modules-heading" className="space-y-4">
+            <div>
+              <h2
+                id="management-modules-heading"
+                className="text-base sm:text-lg font-semibold text-foreground"
               >
-                Ver matriz →
-              </Link>
-            </div>
-            {insights.meetingsOverview.areaPerformance.length > 0 ? (
-              <MeetingsPerformanceByAreaChart data={insights.meetingsOverview.areaPerformance} />
-            ) : (
-              <p className="py-10 text-center text-sm text-muted-foreground">
-                Nenhuma reunião registrada no período atual.
+                Mapa de Módulos da Gestão
+              </h2>
+              <p className="text-xs text-muted-foreground">
+                Acesso direto às principais frentes administrativas da UFRJ Autônomos.
               </p>
-            )}
-          </section>
-
-          {/* Gráfico 2: Panorama Disciplinar e Últimas Ocorrências */}
-          <section className="rounded-xl border border-border bg-card p-4 sm:p-6 shadow-xs space-y-4 min-w-0 max-w-full overflow-hidden">
-            <div className="flex items-center justify-between gap-3 border-b border-border/70 pb-3">
-              <div className="min-w-0">
-                <h2 className="text-sm sm:text-base font-semibold text-foreground truncate">
-                  Saúde Disciplinar & Ocorrências Recentes
-                </h2>
-                <p className="mt-0.5 text-xs text-muted-foreground truncate">
-                  Proporção de integrantes regulares vs advertidos (2 avisos = 1 advertência).
-                </p>
-              </div>
-              <Link
-                href="/gestao/advertencias"
-                className="text-xs font-medium text-red-600 dark:text-red-400 hover:underline shrink-0"
-              >
-                Abrir gestão →
-              </Link>
             </div>
 
-            <DisciplinaryHealthChart
-              regulares={insights.disciplinaryOverview.regularesCount}
-              atencao={insights.disciplinaryOverview.atencaoCount}
-              alerta={insights.disciplinaryOverview.alertaCount}
-              expulsao={insights.disciplinaryOverview.expulsosCount}
-            />
-
-            {insights.disciplinaryOverview.recentOccurrences.length > 0 && (
-              <div className="pt-2 border-t border-border/60">
-                <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">
-                  Últimas ocorrências aplicadas
-                </p>
-                <ul className="divide-y divide-border/60 text-xs">
-                  {insights.disciplinaryOverview.recentOccurrences.slice(0, 3).map((occ) => (
-                    <li key={occ.id} className="py-2 flex items-center justify-between gap-3">
-                      <div className="min-w-0">
-                        <span className="font-semibold text-foreground">{occ.memberName}</span>
-                        <span className="text-muted-foreground"> ({occ.memberArea})</span>
-                        <p className="text-muted-foreground truncate mt-0.5">{occ.reason}</p>
-                      </div>
-                      <span
-                        className={`shrink-0 px-2 py-0.5 rounded-full font-medium ${
-                          occ.type === 'AVISO'
-                            ? 'bg-amber-500/15 text-amber-700 dark:text-amber-300'
-                            : 'bg-red-500/15 text-red-700 dark:text-red-300'
-                        }`}
-                      >
-                        {occ.type === 'AVISO' ? 'Aviso' : 'Advertência'}
-                      </span>
-                    </li>
-                  ))}
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+              <div className="rounded-xl border border-border bg-card p-4 shadow-xs space-y-3">
+                <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-foreground">
+                  <Users className="h-4 w-4 text-primary" />
+                  <span>Pessoas &amp; Acesso</span>
+                </div>
+                <ul className="space-y-1.5 text-sm">
+                  <li>
+                    <Link href="/gestao/integrantes" className="flex items-center justify-between rounded-lg px-2 py-1.5 hover:bg-accent text-foreground">
+                      <span>Integrantes Ativos</span>
+                      <ArrowRight className="h-3.5 w-3.5 text-muted-foreground" />
+                    </Link>
+                  </li>
+                  <li>
+                    <Link href="/gestao/contas" className="flex items-center justify-between rounded-lg px-2 py-1.5 hover:bg-accent text-foreground">
+                      <span>Contas &amp; Permissões</span>
+                      <ArrowRight className="h-3.5 w-3.5 text-muted-foreground" />
+                    </Link>
+                  </li>
+                  <li>
+                    <Link href="/gestao/ex-membros" className="flex items-center justify-between rounded-lg px-2 py-1.5 hover:bg-accent text-foreground">
+                      <span>Ex-membros (Alumni)</span>
+                      <ArrowRight className="h-3.5 w-3.5 text-muted-foreground" />
+                    </Link>
+                  </li>
+                  <li>
+                    <Link href="/gestao/divisoes" className="flex items-center justify-between rounded-lg px-2 py-1.5 hover:bg-accent text-foreground">
+                      <span>Divisões (Harpia &amp; Nautilus)</span>
+                      <ArrowRight className="h-3.5 w-3.5 text-muted-foreground" />
+                    </Link>
+                  </li>
                 </ul>
               </div>
-            )}
+
+              <div className="rounded-xl border border-border bg-card p-4 shadow-xs space-y-3">
+                <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-foreground">
+                  <Wrench className="h-4 w-4 text-blue-500" />
+                  <span>Operação &amp; Rituais</span>
+                </div>
+                <ul className="space-y-1.5 text-sm">
+                  <li>
+                    <Link href="/gestao/presenca" className="flex items-center justify-between rounded-lg px-2 py-1.5 hover:bg-accent text-foreground">
+                      <span>Presença no Laboratório</span>
+                      <ArrowRight className="h-3.5 w-3.5 text-muted-foreground" />
+                    </Link>
+                  </li>
+                  <li>
+                    <Link href="/gestao/presenca/qr" className="flex items-center justify-between rounded-lg px-2 py-1.5 hover:bg-accent text-foreground">
+                      <span>QR Code do Lab</span>
+                      <ArrowRight className="h-3.5 w-3.5 text-muted-foreground" />
+                    </Link>
+                  </li>
+                  <li>
+                    <Link href="/reunioes" className="flex items-center justify-between rounded-lg px-2 py-1.5 hover:bg-accent text-foreground">
+                      <span>Reuniões &amp; Atas</span>
+                      <ArrowRight className="h-3.5 w-3.5 text-muted-foreground" />
+                    </Link>
+                  </li>
+                  <li>
+                    <Link href="/gestao/advertencias" className="flex items-center justify-between rounded-lg px-2 py-1.5 hover:bg-accent text-foreground">
+                      <span>Gestão Disciplinar</span>
+                      <ArrowRight className="h-3.5 w-3.5 text-muted-foreground" />
+                    </Link>
+                  </li>
+                </ul>
+              </div>
+
+              <div className="rounded-xl border border-border bg-card p-4 shadow-xs space-y-3">
+                <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-foreground">
+                  <Wallet className="h-4 w-4 text-emerald-500" />
+                  <span>Financeiro, Patrimônio &amp; Melhorias</span>
+                </div>
+                <ul className="space-y-1.5 text-sm">
+                  <li>
+                    <Link href="/gestao/financeiro/reembolsos" className="flex items-center justify-between rounded-lg px-2 py-1.5 hover:bg-accent text-foreground">
+                      <span>Reembolsos</span>
+                      <ArrowRight className="h-3.5 w-3.5 text-muted-foreground" />
+                    </Link>
+                  </li>
+                  <li>
+                    <Link href="/gestao/financeiro/caixa" className="flex items-center justify-between rounded-lg px-2 py-1.5 hover:bg-accent text-foreground">
+                      <span>Livro Caixa</span>
+                      <ArrowRight className="h-3.5 w-3.5 text-muted-foreground" />
+                    </Link>
+                  </li>
+                  <li>
+                    <Link href="/gestao/financeiro/patrimonio" className="flex items-center justify-between rounded-lg px-2 py-1.5 hover:bg-accent text-foreground">
+                      <span>Patrimônio &amp; Compras</span>
+                      <ArrowRight className="h-3.5 w-3.5 text-muted-foreground" />
+                    </Link>
+                  </li>
+                  <li>
+                    <Link href="/gestao/melhorias" className="flex items-center justify-between rounded-lg px-2 py-1.5 hover:bg-accent text-foreground">
+                      <span>Ideias &amp; Bugs</span>
+                      <ArrowRight className="h-3.5 w-3.5 text-muted-foreground" />
+                    </Link>
+                  </li>
+                </ul>
+              </div>
+
+              <div className="rounded-xl border border-border bg-card p-4 shadow-xs space-y-3">
+                <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-foreground">
+                  <Globe className="h-4 w-4 text-amber-500" />
+                  <span>Comunicação, Site &amp; Ensino</span>
+                </div>
+                <ul className="space-y-1.5 text-sm">
+                  <li>
+                    <Link href="/gestao/emails" className="flex items-center justify-between rounded-lg px-2 py-1.5 hover:bg-accent text-foreground">
+                      <span>Central de E-mails</span>
+                      <ArrowRight className="h-3.5 w-3.5 text-muted-foreground" />
+                    </Link>
+                  </li>
+                  <li>
+                    <Link href="/gestao/site" className="flex items-center justify-between rounded-lg px-2 py-1.5 hover:bg-accent text-foreground">
+                      <span>Conteúdo do Site</span>
+                      <ArrowRight className="h-3.5 w-3.5 text-muted-foreground" />
+                    </Link>
+                  </li>
+                  <li>
+                    <Link href="/gestao/site/membros" className="flex items-center justify-between rounded-lg px-2 py-1.5 hover:bg-accent text-foreground">
+                      <span>Exibição de Membros</span>
+                      <ArrowRight className="h-3.5 w-3.5 text-muted-foreground" />
+                    </Link>
+                  </li>
+                  <li>
+                    <Link href="/gestao/projetos" className="flex items-center justify-between rounded-lg px-2 py-1.5 hover:bg-accent text-foreground">
+                      <span>Projetos</span>
+                      <ArrowRight className="h-3.5 w-3.5 text-muted-foreground" />
+                    </Link>
+                  </li>
+                  <li>
+                    <Link href="/gestao/sistema" className="flex items-center justify-between rounded-lg px-2 py-1.5 hover:bg-accent text-foreground">
+                      <span>Sistema &amp; Ensino</span>
+                      <ArrowRight className="h-3.5 w-3.5 text-muted-foreground" />
+                    </Link>
+                  </li>
+                </ul>
+              </div>
+            </div>
           </section>
         </div>
       )}
-
-      {/* PAINÉIS OPERACIONAIS: SOLICITAÇÕES DO SITE + PRESENÇA NESTA SEMANA */}
-      <div className="grid min-w-0 items-start gap-6 xl:grid-cols-[minmax(0,1.6fr)_minmax(280px,1fr)]">
-        <section
-          aria-labelledby="site-requests-heading"
-          className="min-w-0 overflow-hidden rounded-xl border border-border bg-card shadow-xs"
-        >
-          <div className="flex flex-wrap items-start justify-between gap-3 border-b border-border p-5 sm:px-6">
-            <div>
-              <h2 id="site-requests-heading" className="text-base font-semibold">
-                Solicitações para o site
-              </h2>
-              <p className="mt-1 text-sm text-muted-foreground">
-                Alterações e fotos dos integrantes aguardando aprovação.
-              </p>
-            </div>
-            {overview.siteRequests && (
-              <span
-                className={`rounded-md px-2.5 py-1 text-sm font-semibold tabular-nums ${
-                  overview.siteRequests.total
-                    ? 'bg-amber-500/10 text-amber-700 dark:text-amber-300'
-                    : 'bg-muted text-muted-foreground'
-                }`}
-                aria-label={`${overview.siteRequests.total} solicitações pendentes`}
-              >
-                {overview.siteRequests.total}
-              </span>
-            )}
-          </div>
-          {overview.siteRequests ? (
-            overview.siteRequests.rows.length ? (
-              <ul className="divide-y divide-border px-5 sm:px-6">
-                {overview.siteRequests.rows.map((request) => {
-                  const changes =
-                    request.changes &&
-                    typeof request.changes === 'object' &&
-                    !Array.isArray(request.changes)
-                      ? (request.changes as Record<string, unknown>)
-                      : {};
-                  const fields = SITE_PROFILE_FIELDS.filter((field) => field.key in changes).map(
-                    (field) => field.label
-                  );
-                  const photo = siteAssetUrl(changes.photo, siteOrigin);
-                  return (
-                    <li key={request.id} className="flex flex-wrap items-center gap-3 py-4">
-                      {photo ? (
-                        <img
-                          src={photo}
-                          alt={`Foto proposta por ${request.member.name}`}
-                          width={40}
-                          height={40}
-                          className="h-10 w-10 shrink-0 rounded-lg border border-border object-cover"
-                          loading="lazy"
-                        />
-                      ) : (
-                        <span
-                          aria-hidden="true"
-                          className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-muted text-sm font-semibold"
-                        >
-                          {request.member.name.slice(0, 1)}
-                        </span>
-                      )}
-                      <div className="min-w-0 flex-1 basis-32">
-                        <p className="break-words text-sm font-medium">{request.member.name}</p>
-                        <p className="mt-1 break-words text-xs leading-relaxed text-muted-foreground">
-                          {fields.length ? fields.join(' · ') : 'Alteração de perfil'}
-                        </p>
-                        <time
-                          dateTime={request.createdAt.toISOString()}
-                          className="mt-1 block text-xs text-muted-foreground"
-                        >
-                          Enviado em {date(request.createdAt)}
-                        </time>
-                      </div>
-                      <Link
-                        href="/gestao/site/membros#alteracoes-do-site"
-                        className="inline-flex min-h-11 items-center gap-2 rounded-md px-2 text-sm font-medium hover:bg-accent"
-                      >
-                        Revisar
-                        <ArrowRight size={14} aria-hidden="true" />
-                      </Link>
-                    </li>
-                  );
-                })}
-              </ul>
-            ) : (
-              <p className="flex items-center gap-3 px-5 py-10 text-sm text-muted-foreground sm:px-6">
-                <Check size={20} className="shrink-0" aria-hidden="true" />
-                Nenhuma alteração ou foto aguardando aprovação.
-              </p>
-            )
-          ) : (
-            <p role="status" className="px-5 py-8 text-sm text-muted-foreground sm:px-6">
-              Não foi possível consultar as solicitações agora. Abra a lista de integrantes para
-              tentar novamente.
-            </p>
-          )}
-          <div className="border-t border-border px-5 py-3 sm:px-6">
-            <Link
-              href="/gestao/site/membros#alteracoes-do-site"
-              className="inline-flex min-h-11 items-center gap-2 text-sm font-medium hover:underline underline-offset-4"
-            >
-              {overview.siteRequests &&
-              overview.siteRequests.total > overview.siteRequests.rows.length
-                ? `Ver todas as ${overview.siteRequests.total} solicitações`
-                : 'Abrir vitrine e aprovações do site'}
-              <ArrowRight size={15} aria-hidden="true" />
-            </Link>
-          </div>
-        </section>
-
-        <div className="min-w-0 space-y-5">
-          <section
-            aria-labelledby="current-presence-heading"
-            className="min-w-0 max-w-full overflow-hidden rounded-xl border border-border bg-card p-5 sm:p-6 shadow-xs"
-          >
-            <div className="flex items-center justify-between gap-3">
-              <h2 id="current-presence-heading" className="text-base font-semibold">
-                Presença nesta semana
-              </h2>
-              <Clock3 size={18} className="shrink-0 text-muted-foreground" aria-hidden="true" />
-            </div>
-            <p className="mt-1 text-xs text-muted-foreground">
-              {period(overview.currentWeek)} · horário de Brasília
-            </p>
-            {current ? (
-              <>
-                <p className="mt-6 text-base leading-relaxed">
-                  <strong className="font-display text-3xl font-semibold tabular-nums">
-                    {current.summary.met}
-                  </strong>
-                  <span className="text-muted-foreground">
-                    {' '}
-                    de {current.summary.requiredMembers} integrantes
-                  </span>
-                  <span className="mt-1 block text-sm">cumpriram a meta semanal.</span>
-                </p>
-                {current.summary.requiredMembers > 0 ? (
-                  <>
-                    <progress
-                      value={current.summary.met}
-                      max={current.summary.requiredMembers}
-                      aria-label="Integrantes com meta semanal cumprida"
-                      className="overview-progress mt-4 h-2 w-full"
-                    />
-                    <p className="mt-3 text-sm text-muted-foreground">
-                      {current.summary.pending} ainda em andamento. Meta padrão: 2 horas.
-                    </p>
-                    <details className="mt-3 text-sm">
-                      <summary className="min-h-11 cursor-pointer py-3 font-medium">
-                        Ver quem cumpriu a meta
-                      </summary>
-                      {current.summary.met ? (
-                        <ul className="max-h-52 space-y-2 overflow-y-auto pb-3 text-muted-foreground">
-                          {current.members
-                            .filter((member) => member.status === 'MET')
-                            .map((member) => (
-                              <li key={member.id}>{member.name}</li>
-                            ))}
-                        </ul>
-                      ) : (
-                        <p className="pb-3 text-muted-foreground">
-                          Ninguém cumpriu a meta até o momento.
-                        </p>
-                      )}
-                    </details>
-                  </>
-                ) : (
-                  <p className="mt-3 text-sm text-muted-foreground">
-                    Nenhum integrante com meta nesta semana.
-                  </p>
-                )}
-                {current.summary.review > 0 && (
-                  <p className="mt-3 text-sm text-amber-700 dark:text-amber-300">
-                    {current.summary.review} registros aguardam revisão.
-                  </p>
-                )}
-              </>
-            ) : (
-              <p role="status" className="my-6 text-sm text-muted-foreground">
-                Não foi possível consultar as horas desta semana.
-              </p>
-            )}
-            <Link
-              href="/gestao/presenca"
-              className={`${action} mt-5 w-full justify-between`}
-            >
-              Acompanhar presença
-              <ArrowRight size={16} aria-hidden="true" />
-            </Link>
-          </section>
-
-          <div
-            className={`flex min-w-0 max-w-full flex-wrap items-center justify-between gap-3 overflow-hidden rounded-xl border px-5 py-4 transition-colors ${
-              overview.pendingAccounts
-                ? 'border-amber-500/40 bg-amber-500/10 dark:bg-amber-950/20 text-amber-900 dark:text-amber-200'
-                : 'border-border bg-card'
-            }`}
-          >
-            <div className="min-w-0 flex-1">
-              <div className="flex items-center gap-2">
-                <p className="text-sm font-medium">Cadastros para aprovar</p>
-                {Boolean(overview.pendingAccounts) && (
-                  <span className="inline-flex shrink-0 items-center rounded-full bg-amber-500/20 px-2 py-0.5 text-xs font-semibold text-amber-700 dark:text-amber-300">
-                    {overview.pendingAccounts}
-                  </span>
-                )}
-              </div>
-              <p
-                className={`mt-1 text-sm ${
-                  overview.pendingAccounts
-                    ? 'text-amber-800/80 dark:text-amber-300/80'
-                    : 'text-muted-foreground'
-                }`}
-              >
-                {overview.pendingAccounts === null
-                  ? 'Consulta indisponível'
-                  : overview.pendingAccounts
-                  ? `${overview.pendingAccounts} ${
-                      overview.pendingAccounts === 1
-                        ? 'cadastro aguardando liberação'
-                        : 'cadastros aguardando liberação'
-                    }`
-                  : 'Nenhum cadastro pendente'}
-              </p>
-            </div>
-            <Link
-              href="/gestao/contas"
-              className={`inline-flex min-h-11 shrink-0 items-center gap-2 text-sm font-medium hover:underline ${
-                overview.pendingAccounts
-                  ? 'text-amber-950 dark:text-amber-100 font-semibold'
-                  : ''
-              }`}
-            >
-              Ver contas
-              <ArrowRight size={14} aria-hidden="true" />
-            </Link>
-          </div>
-        </div>
-      </div>
-
-      {/* RADAR DE ATENÇÃO EM REUNIÕES (< 75% DE PRESENÇA) */}
-      {insights && insights.meetingsOverview.lowFrequencyMembers.length > 0 && (
-        <section className="min-w-0 max-w-full overflow-hidden rounded-xl border border-amber-500/30 bg-amber-500/5 p-4 sm:p-6 space-y-4">
-          <div className="flex flex-wrap items-center justify-between gap-3 min-w-0">
-            <div className="flex min-w-0 flex-1 items-start sm:items-center gap-2.5">
-              <span className="shrink-0 rounded-lg bg-amber-500/15 p-2 text-amber-600 dark:text-amber-400">
-                <AlertTriangle className="h-4 w-4" />
-              </span>
-              <div className="min-w-0 flex-1">
-                <h2 className="text-sm sm:text-base font-semibold text-foreground break-words">
-                  Radar de Atenção: Baixa Frequência em Reuniões (&lt; 75%)
-                </h2>
-                <p className="text-xs text-muted-foreground break-words">
-                  Integrantes que acumularam mais faltas nas reuniões de área no período 26.2.
-                </p>
-              </div>
-            </div>
-            <Link href="/reunioes" className={`${action} shrink-0`}>
-              Ver todas as áreas
-              <ArrowRight size={15} />
-            </Link>
-          </div>
-
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 min-w-0 max-w-full">
-            {insights.meetingsOverview.lowFrequencyMembers.map((m) => (
-              <div
-                key={m.id}
-                className="flex min-w-0 max-w-full items-center justify-between gap-2.5 overflow-hidden rounded-lg border border-border bg-card p-3 shadow-2xs"
-              >
-                <div className="min-w-0 flex-1">
-                  <p className="truncate text-sm font-semibold text-foreground">{m.name}</p>
-                  <p className="truncate text-xs text-muted-foreground">{m.area}</p>
-                </div>
-                <div className="shrink-0 text-right">
-                  <span className="font-mono text-sm font-bold text-red-600 dark:text-red-400">
-                    {m.pct.toFixed(0)}%
-                  </span>
-                  <span className="block whitespace-nowrap text-[11px] text-muted-foreground">
-                    {m.absences} falta(s) em {m.meetings}
-                  </span>
-                </div>
-              </div>
-            ))}
-          </div>
-        </section>
-      )}
-
-      {/* ABAIXO DA META NA SEMANA PASSADA */}
-      <section
-        aria-labelledby="previous-presence-heading"
-        className="min-w-0 overflow-hidden rounded-xl border border-border bg-card shadow-xs"
-      >
-        <div className="flex flex-wrap items-start justify-between gap-4 border-b border-border p-5 sm:px-6">
-          <div>
-            <h2 id="previous-presence-heading" className="text-base font-semibold">
-              Abaixo da meta na semana passada
-              {overview.belowTarget && (
-                <span className="ml-2 text-sm font-normal tabular-nums text-muted-foreground">
-                  ({overview.belowTarget.length})
-                </span>
-              )}
-            </h2>
-            <p className="mt-1 text-sm text-muted-foreground">
-              {period(overview.previousWeek)} · apenas horas validadas. Pessoas sem meta no período
-              não entram nesta lista.
-            </p>
-          </div>
-          <Link href={`/gestao/presenca?week=${overview.previousWeek}`} className={action}>
-            Ver semana passada
-            <ArrowRight size={16} aria-hidden="true" />
-          </Link>
-        </div>
-        {overview.belowTarget ? (
-          overview.belowTarget.length ? (
-            <div
-              className="max-h-[28rem] overflow-auto"
-              tabIndex={0}
-              role="region"
-              aria-label="Integrantes abaixo da meta na semana passada"
-            >
-              <table className="w-full min-w-[580px] text-sm">
-                <thead className="sticky top-0 bg-muted text-muted-foreground">
-                  <tr>
-                    <th scope="col" className="px-5 py-3 text-left font-medium sm:px-6">
-                      Integrante
-                    </th>
-                    <th scope="col" className="px-5 py-3 text-left font-medium">
-                      Área
-                    </th>
-                    <th scope="col" className="px-5 py-3 text-right font-medium">
-                      Validadas
-                    </th>
-                    <th scope="col" className="px-5 py-3 text-right font-medium sm:px-6">
-                      Faltaram
-                    </th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-border">
-                  {overview.belowTarget.map((member) => (
-                    <tr key={member.id}>
-                      <th scope="row" className="px-5 py-4 text-left font-medium sm:px-6">
-                        {member.name}
-                        {member.pendingReviews > 0 && (
-                          <span className="mt-1 block text-xs font-normal text-amber-700 dark:text-amber-300">
-                            {member.pendingReviews} registro(s) em revisão
-                          </span>
-                        )}
-                      </th>
-                      <td className="px-5 py-4 text-muted-foreground">{member.area}</td>
-                      <td className="whitespace-nowrap px-5 py-4 text-right tabular-nums">
-                        {formatDuration(member.completedSeconds)}
-                      </td>
-                      <td className="whitespace-nowrap px-5 py-4 text-right tabular-nums text-muted-foreground sm:px-6">
-                        {formatDuration(member.remainingSeconds)}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          ) : (
-            <p className="px-5 py-8 text-sm text-muted-foreground sm:px-6">
-              {previous?.summary.requiredMembers
-                ? 'Todos os integrantes com meta cumpriram as horas da semana passada.'
-                : 'Não havia integrantes com meta de presença nessa semana.'}
-            </p>
-          )
-        ) : (
-          <p role="status" className="px-5 py-8 text-sm text-muted-foreground sm:px-6">
-            Não foi possível consultar a semana passada. Abra o painel de presença para tentar
-            novamente.
-          </p>
-        )}
-      </section>
-
-      {/* ATALHOS RÁPIDOS DA GESTÃO */}
-      <nav aria-label="Atalhos da gestão" className="flex flex-wrap gap-3">
-        <Link href="/gestao/dashboard" className={action}>
-          Dashboard da equipe
-          <ArrowRight size={15} aria-hidden="true" />
-        </Link>
-        <Link href="/gestao/divisoes" className={action}>
-          Divisões (Harpia & Nautilus)
-          <ArrowRight size={15} aria-hidden="true" />
-        </Link>
-        <Link href="/reunioes" className={action}>
-          Reuniões de área
-          <ArrowRight size={15} aria-hidden="true" />
-        </Link>
-        <Link href="/gestao/advertencias" className={action}>
-          Gestão disciplinar
-          <ArrowRight size={15} aria-hidden="true" />
-        </Link>
-        <Link href="/gestao/projetos" className={action}>
-          Projetos
-          <ArrowRight size={15} aria-hidden="true" />
-        </Link>
-        <Link href="/gestao/site" className={action}>
-          Site institucional
-          <ArrowRight size={15} aria-hidden="true" />
-        </Link>
-        <Link href="/gestao/presenca/qr" className={action}>
-          QR do laboratório
-          <ArrowRight size={15} aria-hidden="true" />
-        </Link>
-      </nav>
     </div>
   );
 }

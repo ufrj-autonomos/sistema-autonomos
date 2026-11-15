@@ -1,4 +1,4 @@
-import { isGestaoArea, normalizeMemberArea } from './member-fields';
+import { isGestaoArea, isProfessorAdvisor, normalizeMemberArea } from './member-fields';
 import { Prisma } from '@prisma/client';
 import { prisma } from './prisma';
 import { db } from './institutional/db';
@@ -70,8 +70,9 @@ export async function savePrivateDetails(table: 'member' | 'project', id: number
   const { userId, area: rawArea, name: rawName, ...stored } = data;
   const instMember = await db.institutionalMember.findUniqueOrThrow({
     where: { id },
-    select: { id: true, name: true, area: true, course: true },
+    select: { id: true, name: true, area: true, course: true, role: true, active: true },
   });
+  const isAdvisorOrInactive = !instMember.active || isProfessorAdvisor(instMember);
 
   try {
     const saved = await prisma.$transaction(async tx => {
@@ -96,10 +97,13 @@ export async function savePrivateDetails(table: 'member' | 'project', id: number
             ...stored,
             name: rawName || targetAccount.name || instMember.name,
             area: nextArea,
+            ...(isAdvisorOrInactive ? { active: false } : {}),
             ...((targetAccount.role === 'MEMBER' || targetAccount.role === 'TRAINEE') && isGestaoArea(nextArea) ? { role: 'MANAGEMENT' } : {}),
           },
         });
-        await ensureAttendanceEnrollment(tx, current);
+        if (!isAdvisorOrInactive && !isProfessorAdvisor({ area: nextArea })) {
+          await ensureAttendanceEnrollment(tx, current);
+        }
         return current;
       }
 
@@ -111,6 +115,7 @@ export async function savePrivateDetails(table: 'member' | 'project', id: number
             ...stored,
             name: rawName || current.name || instMember.name,
             area: nextArea,
+            ...(isAdvisorOrInactive ? { active: false } : {}),
             ...((current.role === 'MEMBER' || current.role === 'TRAINEE') && isGestaoArea(nextArea) ? { role: 'MANAGEMENT' } : {}),
           },
         });
@@ -124,11 +129,14 @@ export async function savePrivateDetails(table: 'member' | 'project', id: number
           name: rawName || instMember.name,
           area: initialArea,
           course: stored.course !== undefined ? stored.course : instMember.course,
+          active: !isAdvisorOrInactive && !isProfessorAdvisor({ area: initialArea }),
           role: isGestaoArea(initialArea) ? 'MANAGEMENT' : 'MEMBER',
           status: 'APPROVED',
         },
       });
-      await ensureAttendanceEnrollment(tx, created);
+      if (!isAdvisorOrInactive && !isProfessorAdvisor({ area: initialArea })) {
+        await ensureAttendanceEnrollment(tx, created);
+      }
       return created;
     }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
 

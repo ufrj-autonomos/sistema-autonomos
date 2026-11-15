@@ -5,6 +5,7 @@ import { useMemo, useState } from 'react';
 import {
   Bug,
   CheckCircle2,
+  ChevronDown,
   Clock3,
   ExternalLink,
   EyeOff,
@@ -88,6 +89,11 @@ export function MemberFeedbackClient({
   const [uploadingFile, setUploadingFile] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [votingId, setVotingId] = useState<string | null>(null);
+  const [expandedIds, setExpandedIds] = useState<string[]>([]);
+
+  function toggleExpand(id: string) {
+    setExpandedIds(prev => (prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]));
+  }
 
   async function refreshBoard() {
     const res = await fetch('/api/melhorias?scope=member', { cache: 'no-store' });
@@ -655,7 +661,7 @@ export function MemberFeedbackClient({
             </p>
           </div>
         ) : (
-          <div className="p-4 space-y-3">
+          <div className="p-4 space-y-3.5">
             {filteredItems.map(item => {
               const scopeMeta = FEEDBACK_SCOPE_META[item.scope];
               const catMeta = FEEDBACK_CATEGORY_META[item.category];
@@ -663,124 +669,148 @@ export function MemberFeedbackClient({
               const validityMeta = FEEDBACK_VALIDITY_META[item.validity];
               const teamMeta = FEEDBACK_TARGET_TEAM_META[item.targetTeam];
               const prioMeta = FEEDBACK_PRIORITY_META[item.priority];
+              const hasExtraDetails = Boolean(
+                item.pageOrLocation ||
+                  item.stepsToReproduce ||
+                  item.expectedOutcome ||
+                  item.attachmentUrl
+              );
+              const isExpanded = expandedIds.includes(item.id);
 
               return (
-                <div
+                <article
                   key={item.id}
                   className={cn(
-                    'rounded-xl p-4 sm:p-5 flex flex-col sm:flex-row gap-4 justify-between transition-all',
+                    'rounded-xl bg-card p-4 sm:p-5 flex gap-3.5 sm:gap-4 transition-all shadow-2xs',
                     getFeedbackCardBorderClasses(item)
                   )}
                 >
-                  <div className="flex gap-3.5 min-w-0 flex-1">
-                    {/* Upvote column */}
-                    <button
-                      type="button"
-                      disabled={votingId === item.id}
-                      onClick={() => void handleVote(item)}
-                      className={cn(
-                        'flex flex-col items-center justify-center rounded-xl border px-2.5 py-2 min-w-[54px] h-fit shrink-0 transition-colors cursor-pointer',
-                        item.viewerHasVoted
-                          ? 'border-primary bg-primary/10 text-primary'
-                          : 'border-border bg-muted/30 text-muted-foreground hover:text-foreground'
-                      )}
-                      title="Apoiar / concordar com esta ideia ou bug"
-                    >
-                      <ThumbsUp className="h-4 w-4" />
-                      <span className="mt-1 font-mono text-xs font-bold tabular-nums">
-                        {item.voteCount}
-                      </span>
-                    </button>
+                  {/* Upvote column */}
+                  <button
+                    type="button"
+                    disabled={votingId === item.id}
+                    onClick={() => void handleVote(item)}
+                    className={cn(
+                      'flex flex-col items-center justify-center rounded-xl border px-2.5 py-2 min-w-[52px] h-fit shrink-0 transition-colors cursor-pointer',
+                      item.viewerHasVoted
+                        ? 'border-primary bg-primary/10 text-primary'
+                        : 'border-border bg-muted/30 text-muted-foreground hover:text-foreground'
+                    )}
+                    title="Apoiar / concordar com esta ideia ou bug"
+                  >
+                    <ThumbsUp className="h-4 w-4" />
+                    <span className="mt-1 font-mono text-xs font-bold tabular-nums">
+                      {item.voteCount}
+                    </span>
+                  </button>
 
-                    <div className="min-w-0 flex-1 space-y-2">
-                      <div className="flex flex-wrap items-center gap-1.5">
-                        <span className="font-mono text-xs font-semibold text-primary">
-                          {item.code}
-                        </span>
+                  <div className="min-w-0 flex-1 space-y-3">
+                    {/* Header row */}
+                    <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border/60 pb-2">
+                      <div className="flex flex-wrap items-center gap-2 min-w-0">
                         <span
                           className={cn(
-                            'rounded-full border px-2 py-0.5 text-[11px] font-semibold',
-                            TONE_CLASSES[teamMeta.tone]
-                          )}
-                        >
-                          {teamMeta.shortLabel}
-                        </span>
-                        <span
-                          className={cn(
-                            'rounded-full border px-2 py-0.5 text-[11px] font-medium',
-                            TONE_CLASSES[scopeMeta.tone]
-                          )}
-                        >
-                          {scopeMeta.shortLabel}
-                        </span>
-                        <span
-                          className={cn(
-                            'rounded-full border px-2 py-0.5 text-[11px] font-medium',
+                            'rounded-full border px-2.5 py-0.5 text-[11px] font-semibold',
                             TONE_CLASSES[catMeta.tone]
                           )}
                         >
                           {catMeta.shortLabel}
                         </span>
+                        <span className="font-mono text-xs font-semibold text-primary">
+                          {item.code}
+                        </span>
+                        <span className="text-xs text-muted-foreground">
+                          Para <strong className="font-medium text-foreground">{teamMeta.shortLabel}</strong> · {scopeMeta.shortLabel}
+                        </span>
+                      </div>
+
+                      <div className="flex flex-wrap items-center gap-1.5 shrink-0">
                         <span
                           className={cn(
-                            'rounded-full border px-2 py-0.5 text-[11px] font-semibold',
+                            'rounded-full border px-2.5 py-0.5 text-[11px] font-semibold',
                             TONE_CLASSES[statusMeta.tone]
                           )}
                         >
                           {statusMeta.shortLabel}
                         </span>
-                        {item.validity !== 'PENDENTE' && (
+                        {item.validity === 'VALIDA' ? (
                           <span
                             className={cn(
-                              'rounded-full border px-2 py-0.5 text-[11px] font-medium',
+                              'rounded-full border px-2.5 py-0.5 text-[11px] font-semibold',
+                              TONE_CLASSES[prioMeta.tone]
+                            )}
+                          >
+                            Válida · {prioMeta.shortLabel}
+                          </span>
+                        ) : item.validity !== 'PENDENTE' ? (
+                          <span
+                            className={cn(
+                              'rounded-full border px-2.5 py-0.5 text-[11px] font-medium',
                               TONE_CLASSES[validityMeta.tone]
                             )}
                           >
                             {validityMeta.shortLabel}
                           </span>
-                        )}
-                        {item.validity === 'VALIDA' && (
-                          <span
-                            className={cn(
-                              'rounded-full border px-2 py-0.5 text-[11px] font-semibold',
-                              TONE_CLASSES[prioMeta.tone]
-                            )}
-                          >
-                            Prioridade {prioMeta.shortLabel}
-                          </span>
-                        )}
+                        ) : null}
                       </div>
+                    </div>
 
-                      <h3 className="text-base font-semibold text-foreground">{item.title}</h3>
-                      <p className="text-sm text-muted-foreground whitespace-pre-line">
+                    {/* Body */}
+                    <div className="space-y-2">
+                      <h3 className="text-base font-semibold text-foreground leading-snug">
+                        {item.title}
+                      </h3>
+                      <p className="text-sm text-muted-foreground leading-relaxed whitespace-pre-line">
                         {item.description}
                       </p>
 
-                      {(item.pageOrLocation || item.expectedOutcome || item.attachmentUrl) && (
-                        <div className="flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
-                          {item.pageOrLocation && (
-                            <span>
-                              <strong className="text-foreground">Local/Tela:</strong>{' '}
-                              {item.pageOrLocation}
-                            </span>
-                          )}
-                          {item.expectedOutcome && (
-                            <span>
-                              <strong className="text-foreground">Esperado:</strong>{' '}
-                              {item.expectedOutcome}
-                            </span>
-                          )}
-                          {item.attachmentUrl && (
-                            <a
-                              href={item.attachmentUrl}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="inline-flex items-center gap-1 text-primary hover:underline"
-                            >
-                              <Paperclip className="h-3.5 w-3.5" />
-                              {item.attachmentName || 'Ver anexo'}
-                              <ExternalLink className="h-3 w-3" />
-                            </a>
+                      {hasExtraDetails && (
+                        <div>
+                          <button
+                            type="button"
+                            onClick={() => toggleExpand(item.id)}
+                            aria-expanded={isExpanded}
+                            className="inline-flex items-center gap-1 text-xs font-semibold text-primary hover:underline cursor-pointer"
+                          >
+                            {isExpanded ? 'Ocultar detalhes' : 'Ver detalhes técnicos'}
+                            <ChevronDown
+                              className={cn('h-3.5 w-3.5 transition-transform', isExpanded && 'rotate-180')}
+                            />
+                          </button>
+
+                          {isExpanded && (
+                            <div className="mt-2 rounded-lg border border-border bg-muted/25 p-3 text-xs text-muted-foreground space-y-1.5">
+                              {item.pageOrLocation && (
+                                <p>
+                                  <strong className="text-foreground">Local/Tela:</strong>{' '}
+                                  {item.pageOrLocation}
+                                </p>
+                              )}
+                              {item.stepsToReproduce && (
+                                <div>
+                                  <strong className="text-foreground">Como reproduzir:</strong>
+                                  <p className="mt-0.5 whitespace-pre-line">{item.stepsToReproduce}</p>
+                                </div>
+                              )}
+                              {item.expectedOutcome && (
+                                <p>
+                                  <strong className="text-foreground">Resultado esperado:</strong>{' '}
+                                  {item.expectedOutcome}
+                                </p>
+                              )}
+                              {item.attachmentUrl && (
+                                <a
+                                  href={item.attachmentUrl}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="inline-flex items-center gap-1 text-primary hover:underline pt-1"
+                                >
+                                  <Paperclip className="h-3.5 w-3.5" />
+                                  {item.attachmentName || 'Ver anexo'}
+                                  <ExternalLink className="h-3 w-3" />
+                                </a>
+                              )}
+                            </div>
                           )}
                         </div>
                       )}
@@ -799,31 +829,37 @@ export function MemberFeedbackClient({
                           <p className="text-foreground whitespace-pre-line">{item.responseNotes}</p>
                         </div>
                       )}
+                    </div>
 
-                      <div className="flex flex-wrap items-center gap-3 text-[11px] text-muted-foreground">
-                        <span>Por: {item.authorDisplayName}</span>
+                    {/* Footer */}
+                    <div className="flex flex-wrap items-center justify-between gap-2 border-t border-border/60 pt-2.5 text-xs text-muted-foreground">
+                      <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+                        <span>Por {item.authorDisplayName}</span>
                         <span className="inline-flex items-center gap-1">
                           <Clock3 className="h-3 w-3" />
                           {new Date(item.createdAt).toLocaleDateString('pt-BR')}
                         </span>
                         {item.assignedArea && <span>Responsável: {item.assignedArea}</span>}
+                        {!isExpanded && item.attachmentUrl && (
+                          <span className="inline-flex items-center gap-1 text-primary">
+                            <Paperclip className="h-3 w-3" /> Anexo
+                          </span>
+                        )}
                       </div>
+
+                      {item.isMine && item.status === 'RECEBIDA' && (
+                        <button
+                          type="button"
+                          onClick={() => void handleWithdraw(item)}
+                          className="inline-flex min-h-8 items-center gap-1 rounded-lg border border-border px-2.5 text-xs text-destructive hover:bg-destructive/10 cursor-pointer"
+                        >
+                          <Trash2 className="h-3.5 w-3.5" />
+                          Retirar
+                        </button>
+                      )}
                     </div>
                   </div>
-
-                  {item.isMine && item.status === 'RECEBIDA' && (
-                    <div className="shrink-0">
-                      <button
-                        type="button"
-                        onClick={() => void handleWithdraw(item)}
-                        className="inline-flex min-h-8 items-center gap-1 rounded-lg border border-border px-2.5 text-xs text-destructive hover:bg-destructive/10 cursor-pointer"
-                      >
-                        <Trash2 className="h-3.5 w-3.5" />
-                        Retirar
-                      </button>
-                    </div>
-                  )}
-                </div>
+                </article>
               );
             })}
           </div>

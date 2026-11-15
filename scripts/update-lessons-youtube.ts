@@ -38,12 +38,28 @@ Caso queira ajustar a legenda automática ou alternar para a faixa dublada no Yo
     { orderIndex: 80, youtubeVideoId: 'VFn8vvvN_LY', duration: 573 },
     { orderIndex: 82, youtubeVideoId: 'yXS1-zyZS90', duration: 386 },
     { orderIndex: 83, youtubeVideoId: 'E_WY0yGy1Sg', duration: 455 },
+    { orderIndex: 84, youtubeVideoId: 'IfjF4yNg-0U', duration: 654 },
+    { orderIndex: 87, youtubeVideoId: 'I1oSW0p0ifc', duration: 127 },
+    { orderIndex: 88, youtubeVideoId: 'bItJGtGTjOQ', duration: 821 },
+    { orderIndex: 89, youtubeVideoId: 'G0Qwb6q5NDA', duration: 739 },
+    { orderIndex: 90, youtubeVideoId: 'VWBPApj51hQ', duration: 398 },
+    { orderIndex: 91, youtubeVideoId: '9L961AxCxd8', duration: 585 },
+    { orderIndex: 92, youtubeVideoId: 'elpQo0beLyk', duration: 774 },
+    { orderIndex: 94, youtubeVideoId: 'KevZFC68WS8', duration: 796 },
+    { orderIndex: 96, youtubeVideoId: 'j8mNlvNBuUc', duration: 52 },
+    { orderIndex: 99, youtubeVideoId: 'sYFGwjzl0wE', duration: 1900 },
+    { orderIndex: 100, youtubeVideoId: 'zr0T3YsreYY', duration: 1212 },
+    { orderIndex: 102, youtubeVideoId: 'eQA8c7eI82U', duration: 1470 },
+    { orderIndex: 103, youtubeVideoId: 'yVTgtcRhJjc', duration: 466 },
+    { orderIndex: 104, youtubeVideoId: 'EYPrZvWpTzU', duration: 834 },
+    { orderIndex: 106, youtubeVideoId: 'bt5A9PVmYBs', duration: 99 },
   ];
 
   for (const u of updates) {
     const res = await prisma.lesson.updateMany({
       where: { orderIndex: u.orderIndex },
       data: {
+        lessonType: 'VIDEO',
         youtubeVideoId: u.youtubeVideoId,
         videoStatus: 'AVAILABLE',
         videoDurationSeconds: u.duration,

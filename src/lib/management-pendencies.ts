@@ -4,7 +4,12 @@ import type { SafeUser } from '@/lib/session';
 import { calculateDisciplinaryStatus } from '@/lib/disciplinary/service';
 import { formatBRL } from '@/lib/finance/constants';
 import { pendingMeetingMinutes } from '@/lib/meetings/service';
-import { computeMissingProfileFields, resolveMemberAreas } from '@/lib/member-fields';
+import {
+  computeMissingProfileFields,
+  isOperationalActiveMember,
+  isProfessorAdvisor,
+  resolveMemberAreas,
+} from '@/lib/member-fields';
 
 export type PendencyTone = 'rose' | 'amber' | 'violet' | 'blue';
 export type PendencyKind = 'approval' | 'attention';
@@ -114,15 +119,10 @@ export async function getManagementPendencies(
     reimbursementsRowsRes,
     feedbackCountRes,
     feedbackRowsRes,
-    justCountRes,
     justRowsRes,
-    visitsReviewCountRes,
     visitsReviewRowsRes,
-    accountsCountRes,
     accountsRowsRes,
-    siteChangesCountRes,
     siteChangesRowsRes,
-    emailChangesCountRes,
     emailChangesRowsRes,
     cashEntriesCountRes,
     cashEntriesRowsRes,
@@ -178,57 +178,47 @@ export async function getManagementPendencies(
         authorName: true,
       },
     }),
-    prisma.attendanceJustification.count({ where: { status: 'PENDING' } }),
     prisma.attendanceJustification.findMany({
-      where: { status: 'PENDING' },
+      where: { status: 'PENDING', member: { active: true } },
       orderBy: { createdAt: 'desc' },
-      take: 4,
       select: {
         id: true,
         reason: true,
         weekStartsOn: true,
-        member: { select: { name: true, area: true } },
+        member: { select: { name: true, area: true, role: true, active: true, institutionalMemberId: true } },
       },
     }),
-    prisma.attendanceVisit.count({ where: { status: 'REVIEW' } }),
     prisma.attendanceVisit.findMany({
-      where: { status: 'REVIEW' },
+      where: { status: 'REVIEW', member: { active: true } },
       orderBy: { checkedInAt: 'desc' },
-      take: 4,
       select: {
         id: true,
         checkedInAt: true,
-        member: { select: { name: true, area: true } },
+        member: { select: { name: true, area: true, role: true, active: true, institutionalMemberId: true } },
       },
     }),
-    prisma.member.count({ where: { status: 'PENDING' } }),
     prisma.member.findMany({
-      where: { status: 'PENDING' },
+      where: { status: 'PENDING', active: true },
       orderBy: { createdAt: 'desc' },
-      take: 4,
-      select: { id: true, name: true, email: true, area: true },
+      select: { id: true, name: true, email: true, area: true, role: true, active: true, institutionalMemberId: true },
     }),
-    prisma.memberProfileChange.count({ where: { status: 'PENDING' } }),
     prisma.memberProfileChange.findMany({
-      where: { status: 'PENDING' },
+      where: { status: 'PENDING', member: { active: true } },
       orderBy: { createdAt: 'asc' },
-      take: 4,
       select: {
         id: true,
         createdAt: true,
-        member: { select: { name: true, area: true } },
+        member: { select: { name: true, area: true, role: true, active: true, institutionalMemberId: true } },
       },
     }),
-    prisma.emailChangeRequest.count({ where: { status: 'PENDING' } }),
     prisma.emailChangeRequest.findMany({
-      where: { status: 'PENDING' },
+      where: { status: 'PENDING', member: { active: true } },
       orderBy: { createdAt: 'asc' },
-      take: 4,
       select: {
         id: true,
         currentEmail: true,
         newEmail: true,
-        member: { select: { name: true, area: true } },
+        member: { select: { name: true, area: true, role: true, active: true, institutionalMemberId: true } },
       },
     }),
     prisma.financialEntry.count({
@@ -253,6 +243,9 @@ export async function getManagementPendencies(
         id: true,
         institutionalMemberId: true,
         name: true,
+        role: true,
+        active: true,
+        status: true,
         area: true,
         course: true,
         academicPeriod: true,
@@ -301,10 +294,37 @@ export async function getManagementPendencies(
       select: {
         memberId: true,
         type: true,
-        member: { select: { id: true, name: true, area: true } },
+        member: {
+          select: {
+            id: true,
+            name: true,
+            area: true,
+            role: true,
+            active: true,
+            status: true,
+            institutionalMemberId: true,
+          },
+        },
       },
     }),
   ]);
+
+  const instMap = new Map(
+    (instMembersRes.status === 'fulfilled' ? instMembersRes.value : []).map((row) => [row.id, row])
+  );
+  const keepOperational = (
+    member: {
+      active?: boolean | null;
+      role?: string | null;
+      area?: string | null;
+      status?: string | null;
+      institutionalMemberId?: number | null;
+    } | null
+  ) => {
+    if (!member) return false;
+    const inst = member.institutionalMemberId ? instMap.get(member.institutionalMemberId) : undefined;
+    return isOperationalActiveMember(member, inst);
+  };
 
   const reimbursementsCount =
     reimbursementsCountRes.status === 'fulfilled' ? reimbursementsCountRes.value : 0;
@@ -314,27 +334,39 @@ export async function getManagementPendencies(
   const feedbackCount = feedbackCountRes.status === 'fulfilled' ? feedbackCountRes.value : 0;
   const feedbackRows = feedbackRowsRes.status === 'fulfilled' ? feedbackRowsRes.value : [];
 
-  const justCount = justCountRes.status === 'fulfilled' ? justCountRes.value : 0;
-  const justRows = justRowsRes.status === 'fulfilled' ? justRowsRes.value : [];
+  const filteredJustRows = (justRowsRes.status === 'fulfilled' ? justRowsRes.value : []).filter(
+    (j) => keepOperational(j.member)
+  );
+  const justCount = filteredJustRows.length;
+  const justRows = filteredJustRows.slice(0, 4);
 
-  const visitsReviewCount =
-    visitsReviewCountRes.status === 'fulfilled' ? visitsReviewCountRes.value : 0;
-  const visitsReviewRows =
-    visitsReviewRowsRes.status === 'fulfilled' ? visitsReviewRowsRes.value : [];
+  const filteredVisitsReviewRows = (
+    visitsReviewRowsRes.status === 'fulfilled' ? visitsReviewRowsRes.value : []
+  ).filter((v) => keepOperational(v.member));
+  const visitsReviewCount = filteredVisitsReviewRows.length;
+  const visitsReviewRows = filteredVisitsReviewRows.slice(0, 4);
   const attendanceTotal = justCount + visitsReviewCount;
 
-  const accountsCount = accountsCountRes.status === 'fulfilled' ? accountsCountRes.value : 0;
-  const accountsRows = accountsRowsRes.status === 'fulfilled' ? accountsRowsRes.value : [];
+  const filteredAccountsRows = (
+    accountsRowsRes.status === 'fulfilled' ? accountsRowsRes.value : []
+  ).filter((a) => {
+    const inst = a.institutionalMemberId ? instMap.get(a.institutionalMemberId) : undefined;
+    return a.active && !isProfessorAdvisor(a) && !(inst && (!inst.active || isProfessorAdvisor(inst)));
+  });
+  const accountsCount = filteredAccountsRows.length;
+  const accountsRows = filteredAccountsRows.slice(0, 4);
 
-  const siteChangesCount =
-    siteChangesCountRes.status === 'fulfilled' ? siteChangesCountRes.value : 0;
-  const siteChangesRows =
-    siteChangesRowsRes.status === 'fulfilled' ? siteChangesRowsRes.value : [];
+  const filteredSiteChangesRows = (
+    siteChangesRowsRes.status === 'fulfilled' ? siteChangesRowsRes.value : []
+  ).filter((s) => keepOperational(s.member));
+  const siteChangesCount = filteredSiteChangesRows.length;
+  const siteChangesRows = filteredSiteChangesRows.slice(0, 4);
 
-  const emailChangesCount =
-    emailChangesCountRes.status === 'fulfilled' ? emailChangesCountRes.value : 0;
-  const emailChangesRows =
-    emailChangesRowsRes.status === 'fulfilled' ? emailChangesRowsRes.value : [];
+  const filteredEmailChangesRows = (
+    emailChangesRowsRes.status === 'fulfilled' ? emailChangesRowsRes.value : []
+  ).filter((e) => keepOperational(e.member));
+  const emailChangesCount = filteredEmailChangesRows.length;
+  const emailChangesRows = filteredEmailChangesRows.slice(0, 4);
 
   const cashEntriesCount =
     cashEntriesCountRes.status === 'fulfilled' ? cashEntriesCountRes.value : 0;
@@ -348,9 +380,6 @@ export async function getManagementPendencies(
   const assetsRows = assetsRowsRes.status === 'fulfilled' ? assetsRowsRes.value : [];
 
   // Perfis operacionais incompletos (todos os campos operacionais obrigatórios)
-  const instMap = new Map(
-    (instMembersRes.status === 'fulfilled' ? instMembersRes.value : []).map((row) => [row.id, row])
-  );
   const incompleteItems: ManagementPendencyPreviewItem[] = [];
   let incompleteProfilesCount = 0;
 
@@ -359,7 +388,7 @@ export async function getManagementPendencies(
       const inst = member.institutionalMemberId
         ? instMap.get(member.institutionalMemberId)
         : undefined;
-      if (inst && (!inst.active || inst.role === 'Alumni')) continue;
+      if (!isOperationalActiveMember(member, inst)) continue;
 
       const resolvedArea = resolveMemberAreas(inst?.area, member.area).internal || member.area;
       const missing = computeMissingProfileFields({
@@ -397,6 +426,10 @@ export async function getManagementPendencies(
   >();
   if (warningsRes.status === 'fulfilled') {
     for (const row of warningsRes.value) {
+      const inst = row.member.institutionalMemberId
+        ? instMap.get(row.member.institutionalMemberId)
+        : undefined;
+      if (!isOperationalActiveMember(row.member, inst)) continue;
       const prev = warningGroups.get(row.memberId) ?? {
         name: row.member.name,
         area: row.member.area,

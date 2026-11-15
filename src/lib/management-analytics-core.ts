@@ -1,7 +1,7 @@
-import { resolveMemberAreas } from './member-fields';
+import { isOperationalActiveMember, isProfessorAdvisor, resolveMemberAreas } from './member-fields';
 import { memberSummary, type PeriodRecord, type VisitRecord } from './attendance/summary';
 import { dateKey, nextWeek, weekKey, weekRange, MAX_SESSION_SECONDS } from './attendance/time';
-export type DirectoryIdentity = { id: number; name: string; area: string; active: boolean; course: string | null; team: { name: string; slug: string } | null };
+export type DirectoryIdentity = { id: number; name: string; role?: string | null; area: string; active: boolean; course: string | null; team: { name: string; slug: string } | null };
 export type AnalyticsMember = { id: string; institutionalMemberId: number | null; name: string; area: string; email: string | null; status: string; role: string; active: boolean; course: string | null; phone: string | null; dre: string | null; emergencyContactPhone: string | null; profileCompletedAt: Date | null; credential: { memberId: string } | null; attendanceJustifications?: { weekStartsOn: Date }[]; attendancePeriods: PeriodRecord[]; attendanceVisits: VisitRecord[] };
 export function distribution(values: string[]) {
   const counts = new Map<string, number>();
@@ -10,7 +10,12 @@ export function distribution(values: string[]) {
 }
 export function rosterAnalytics(directory: DirectoryIdentity[], operational: AnalyticsMember[] | null) {
   const byId = new Map(operational?.filter(member => member.institutionalMemberId !== null).map(member => [member.institutionalMemberId!, member]) || []);
-  const active = directory.filter(member => member.active);
+  const nonAdvisors = directory.filter(member => !isProfessorAdvisor(member));
+  const active = nonAdvisors.filter(member => {
+    const internal = byId.get(member.id);
+    if (isProfessorAdvisor(internal)) return false;
+    return internal ? isOperationalActiveMember(internal, member) : member.active;
+  });
   const linked = active.map(member => ({ identity: member, internal: byId.get(member.id) }));
   const missing = operational ? [
     { label: 'Perfil ainda não concluído', count: linked.filter(member => !member.internal?.profileCompletedAt).length },
@@ -20,7 +25,7 @@ export function rosterAnalytics(directory: DirectoryIdentity[], operational: Ana
     { label: 'Contato de emergência não informado', count: linked.filter(member => !member.internal?.emergencyContactPhone).length },
   ] : null;
   return {
-    total: directory.length, active: active.length, inactive: directory.length - active.length,
+    total: nonAdvisors.length, active: active.length, inactive: nonAdvisors.length - active.length,
     areas: distribution(linked.map(member => resolveMemberAreas(member.identity.area, member.internal?.area).internal || 'Não informada')),
     teams: distribution(active.map(member => member.team?.name || 'Autônomos')),
     courses: distribution(linked.map(member => member.internal?.course?.trim() || member.identity.course?.trim() || 'Não informado')),
@@ -35,7 +40,10 @@ export function presenceAnalytics(operational: AnalyticsMember[], directory: Dir
   const keys = Array.from({ length: weeks + 1 }, (_, index) => nextWeek(start, index));
   // Clipping periods bounds work to the selected window; historical totals outside it
   // are intentionally not computed or exposed as if they were complete.
-  const normalized = operational.filter(member => member.active && member.attendancePeriods.length).map(member => {
+  const normalized = operational.filter(member => {
+    const identity = member.institutionalMemberId ? byId.get(member.institutionalMemberId) : null;
+    return isOperationalActiveMember(member, identity) && member.attendancePeriods.length > 0;
+  }).map(member => {
     const identity = member.institutionalMemberId ? byId.get(member.institutionalMemberId) : null;
     const periods = member.attendancePeriods.filter(period => !period.endsOn || dateKey(period.endsOn) > start).map(period => ({ ...period, startsOn: new Date(`${dateKey(period.startsOn) < start ? start : dateKey(period.startsOn)}T00:00:00Z`) }));
     const profile = { id: member.id, name: identity?.name || member.name, area: resolveMemberAreas(identity?.area, member.area).internal || 'Não informada', email: null };
@@ -53,7 +61,10 @@ export function presenceAnalytics(operational: AnalyticsMember[], directory: Dir
   const required = currentRows.filter(row => row.requiredSeconds > 0).length;
   const met = currentRows.filter(row => row.status === 'MET').length;
   const previous = trend.at(-1)!;
-  const review = new Set(operational.filter(member => member.active).flatMap(member => member.attendanceVisits.filter(visit => visit.status === 'REVIEW' || (visit.status === 'OPEN' && now.getTime() - visit.checkedInAt.getTime() > maxSeconds * 1000)).map(visit => visit.id))).size;
+  const review = new Set(operational.filter(member => {
+    const identity = member.institutionalMemberId ? byId.get(member.institutionalMemberId) : null;
+    return isOperationalActiveMember(member, identity);
+  }).flatMap(member => member.attendanceVisits.filter(visit => visit.status === 'REVIEW' || (visit.status === 'OPEN' && now.getTime() - visit.checkedInAt.getTime() > maxSeconds * 1000)).map(visit => visit.id))).size;
   const totalRequired = trend.reduce((sum, week) => sum + week.required, 0);
   const totalMet = trend.reduce((sum, week) => sum + week.met, 0);
   const attention = normalized.filter(member => member.requiredWeeks > 0).map(({ summaries, ...member }) => ({ ...member, percentage: Math.round(member.metWeeks / member.requiredWeeks * 100) })).sort((a, b) => b.missedWeeks - a.missedWeeks || a.percentage - b.percentage || a.name.localeCompare(b.name, 'pt-BR'));

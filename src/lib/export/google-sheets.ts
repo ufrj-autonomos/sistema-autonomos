@@ -1,5 +1,6 @@
 import { prisma } from '@/lib/prisma';
 import { db } from '@/lib/institutional/db';
+import { isOperationalActiveMember } from '@/lib/member-fields';
 import type { SafeUser } from '@/lib/session';
 import { hasManagementAccess } from '@/lib/access-policy';
 import { getMeetingsDashboardData, calculateAttendanceScore, KNOWN_AREAS } from '@/lib/meetings/service';
@@ -206,7 +207,9 @@ export async function exportMembersToSheets(): Promise<ExportDataResult> {
     'Perfil Completo',
   ];
 
-  const rows: (string | number | boolean | null | undefined)[][] = institutional.map((inst) => {
+  const rows: (string | number | boolean | null | undefined)[][] = institutional
+    .filter((inst) => isOperationalActiveMember(inst, inst) && (!memberByInstId.get(inst.id) || isOperationalActiveMember(memberByInstId.get(inst.id), inst)))
+    .map((inst) => {
     const mem = memberByInstId.get(inst.id);
     const roleLabel = mem?.role || inst.role || 'TRAINEE';
     const teamName = inst.team?.name || 'Autônomos Geral';
