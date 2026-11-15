@@ -25,6 +25,8 @@ import { prisma } from '@/lib/prisma';
 import { getMemberDisciplinarySummary } from '@/lib/disciplinary/service';
 import { MemberWarningBanner } from '@/components/disciplinary/member-warning-banner';
 import { getMemberHomeInsights } from '@/lib/platform-insights';
+import { getHomeAreaEvaluations } from '@/lib/evaluations/service';
+import { HomeAreaScoresSection } from '@/components/evaluations/home-area-scores-section';
 import {
   MemberWeeklyLabChart,
   MeetingsPerformanceByAreaChart,
@@ -88,9 +90,10 @@ export default async function HomePage() {
   const user = await requirePageUser();
 
   if (hasManagementAccess(user.role)) {
-    const [personalAttendance, homeInsights] = await Promise.all([
+    const [personalAttendance, homeInsights, areaEvaluations] = await Promise.all([
       attendanceReport(undefined, user.id).catch(() => null),
       getMemberHomeInsights(user),
+      getHomeAreaEvaluations(user).catch(() => null),
     ]);
 
     const missingFields = homeInsights?.profileStatus.missingOperationalFields ?? [];
@@ -243,11 +246,17 @@ export default async function HomePage() {
             </div>
           </div>
         </section>
+
+        {areaEvaluations ? (
+          <section className="pt-2 border-t border-border">
+            <HomeAreaScoresSection data={areaEvaluations} />
+          </section>
+        ) : null}
       </div>
     );
   }
 
-  const [disciplinary, courses, attendance, homeInsights] = await Promise.all([
+  const [disciplinary, courses, attendance, homeInsights, areaEvaluations] = await Promise.all([
     getMemberDisciplinarySummary(user.id),
     prisma.course.findMany({
       where: { published: true },
@@ -264,6 +273,7 @@ export default async function HomePage() {
     }),
     attendanceReport(undefined, user.id).catch(() => null),
     getMemberHomeInsights(user),
+    getHomeAreaEvaluations(user).catch(() => null),
   ]);
 
   const missingProfileFields = homeInsights?.profileStatus.missingOperationalFields ?? [];
@@ -846,6 +856,13 @@ export default async function HomePage() {
           </div>
         </section>
       )}
+
+      {/* NOTAS DAS ÁREAS */}
+      {areaEvaluations ? (
+        <section className="pt-2 border-t border-border">
+          <HomeAreaScoresSection data={areaEvaluations} />
+        </section>
+      ) : null}
 
       {/* TRILHA DE CAPACITAÇÃO & ENSINO */}
       <section aria-labelledby="courses-heading" className="space-y-4 pt-2 border-t border-border">

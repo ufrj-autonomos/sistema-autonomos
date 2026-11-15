@@ -175,6 +175,13 @@ model Member {
   // In-app notifications
   notifications Notification[] @relation("MemberNotifications")
 
+  // Semestral evaluations
+  memberEvaluationsReceived      MemberEvaluation[]      @relation("MemberEvaluated")
+  memberEvaluationsGiven         MemberEvaluation[]      @relation("MemberEvaluator")
+  coordinatorEvaluationsReceived CoordinatorEvaluation[] @relation("CoordinatorEvaluated")
+  coordinatorEvaluationsGiven    CoordinatorEvaluation[] @relation("CoordinatorEvaluator")
+  areaEvaluationsGiven           AreaEvaluation[]        @relation("AreaEvaluator")
+
   @@index([email])
   @@index([institutionalMemberId])
 }
@@ -972,4 +979,66 @@ model NotificationRule {
   sendToManagement Boolean  @default(false)
   updatedById      String?
   updatedAt        DateTime @updatedAt @db.Timestamptz(3)
+}
+
+// ---------------------------------------------------------------------------
+// 11. SEMESTRAL EVALUATIONS (Membros, Áreas e Coordenadores)
+// ---------------------------------------------------------------------------
+
+model MemberEvaluation {
+  id            String   @id @default(cuid())
+  periodCode    String
+  memberId      String
+  member        Member   @relation("MemberEvaluated", fields: [memberId], references: [id], onDelete: Cascade)
+  evaluatorId   String?
+  evaluator     Member?  @relation("MemberEvaluator", fields: [evaluatorId], references: [id], onDelete: SetNull)
+  evaluatorName String
+  teamId        Int?
+  area          String
+  score         Float
+  notes         String   @db.Text
+  createdAt     DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt     DateTime @updatedAt @db.Timestamptz(3)
+
+  @@unique([periodCode, memberId])
+  @@index([periodCode, teamId, area])
+  @@index([memberId])
+}
+
+model AreaEvaluation {
+  id            String   @id @default(cuid())
+  periodCode    String
+  scopeKey      String
+  teamId        Int?
+  area          String
+  score         Float
+  notes         String   @db.Text
+  evaluatorId   String?
+  evaluator     Member?  @relation("AreaEvaluator", fields: [evaluatorId], references: [id], onDelete: SetNull)
+  evaluatorName String
+  createdAt     DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt     DateTime @updatedAt @db.Timestamptz(3)
+
+  @@unique([periodCode, scopeKey])
+  @@index([periodCode])
+}
+
+model CoordinatorEvaluation {
+  id            String   @id @default(cuid())
+  periodCode    String
+  coordinatorId String
+  coordinator   Member   @relation("CoordinatorEvaluated", fields: [coordinatorId], references: [id], onDelete: Cascade)
+  evaluatorId   String?
+  evaluator     Member?  @relation("CoordinatorEvaluator", fields: [evaluatorId], references: [id], onDelete: SetNull)
+  evaluatorName String
+  teamId        Int?
+  area          String
+  score         Float
+  notes         String   @db.Text
+  createdAt     DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt     DateTime @updatedAt @db.Timestamptz(3)
+
+  @@unique([periodCode, coordinatorId])
+  @@index([periodCode])
+  @@index([coordinatorId])
 }

@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
-import { Boxes, ChartNoAxesCombined, ScrollText, ArrowLeft, ArrowUpRight, ChevronRight, ChevronDown, Clock3, LayoutDashboard, Lightbulb, Globe, LogOut, Mail, Menu, Network, Server, ShieldAlert, ShieldCheck, Users, UserMinus, Wallet, Eye, FolderKanban, X } from 'lucide-react';
+import { Boxes, ChartNoAxesCombined, ClipboardCheck, ScrollText, ArrowLeft, ArrowUpRight, ChevronRight, ChevronDown, Clock3, LayoutDashboard, Lightbulb, Globe, LogOut, Mail, Menu, Network, Server, ShieldAlert, ShieldCheck, Users, UserMinus, Wallet, Eye, FolderKanban, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { ThemeToggle } from '@/components/layout/theme-toggle';
 import { NotificationBell } from '@/components/layout/notification-bell';
@@ -20,6 +20,7 @@ const icons = {
   members: Users,
   alumni: UserMinus,
   disciplinary: ShieldAlert,
+  evaluations: ClipboardCheck,
   attendance: Clock3,
   divisions: Network,
   finance: Wallet,
