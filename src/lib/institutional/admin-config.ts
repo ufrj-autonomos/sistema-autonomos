@@ -51,7 +51,7 @@ export const adminModels: Record<string, AdminModel> = {
     fields: [
       { name: "showOnSite", label: "Exibir no site", type: "boolean", description: "Desmarque para manter este cadastro visível apenas na gestão." },
       { name: "name", label: "Nome", type: "string", required: true, description: "Nome completo do membro. Ex: João da Silva" },
-      { name: "teamId", label: "Equipe / Divisão", type: "select", options: [{ label: 'UFRJ Autônomos (Geral: Gestão, Marketing, Diretoria)', value: '' }, ...teamOptions], required: false, description: "Selecione a equipe. Deixe como Autônomos para membros de Gestão, Marketing, Diretoria e Capitania." },
+      { name: "teamId", label: "Equipe / Divisão", type: "select", options: [{ label: 'UFRJ Autônomos (Geral: Gestão, Marketing, Diretoria)', value: '' }, ...teamOptions], required: false, description: "Selecione a equipe. Deixe como Autônomos para Gestão, Marketing, Diretoria/Capitania ou membros técnicos que atuam em Harpia e Nautilus." },
       { name: "role", label: "Cargo na equipe", type: "select", required: true, description: "Cargo organizacional. O acesso à plataforma é definido em Contas e permissões.", options: MEMBER_ROLES },
       { name: "isFemale", label: "Gênero Feminino (adapta Coordenadora, Diretora, etc.)", type: "boolean", description: "Adapta automaticamente cargos gramaticais para o feminino (ex: Coordenadora, Diretora, Capitã, Professora)." },
       { name: "age", label: "Idade", type: "number", description: "Idade do membro em anos. Ex: 21" },
