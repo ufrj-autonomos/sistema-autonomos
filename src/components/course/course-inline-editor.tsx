@@ -2,7 +2,7 @@
 
 import { useState, type FormEvent } from 'react';
 import { useRouter } from 'next/navigation';
-import { Pencil, Plus, Trash2 } from 'lucide-react';
+import { Loader2, Pencil, Plus, Sparkles, Trash2 } from 'lucide-react';
 import {
   Dialog,
   DialogContent,
@@ -63,6 +63,7 @@ export function LessonEditButton({
   const [textContent, setTextContent] = useState(lesson.textContent || '');
   const [rosDocsUrl, setRosDocsUrl] = useState(lesson.rosDocsUrl || '');
   const [busy, setBusy] = useState(false);
+  const [aiBusy, setAiBusy] = useState(false);
   const [error, setError] = useState('');
 
   function openDialog() {
@@ -74,6 +75,32 @@ export function LessonEditButton({
     setRosDocsUrl(lesson.rosDocsUrl || '');
     setError('');
     setOpen(true);
+  }
+
+  async function handleGenerateAi() {
+    if (aiBusy || busy) return;
+    if (!title.trim() && !youtubeUrl.trim()) {
+      setError('Informe o título da aula ou o link do YouTube antes de gerar com IA.');
+      return;
+    }
+    setAiBusy(true);
+    setError('');
+    try {
+      const res = await fetch('/api/lessons/ai-generate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ title, youtubeUrl }),
+      });
+      const data = await res.json().catch(() => null);
+      if (!res.ok) throw new Error(data?.error || 'Erro ao gerar texto com IA.');
+      if (!title.trim() && data.videoTitle) setTitle(data.videoTitle);
+      if (data.summary) setSummary(data.summary);
+      if (data.textContent) setTextContent(data.textContent);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Erro ao gerar texto com IA.');
+    } finally {
+      setAiBusy(false);
+    }
   }
 
   async function handleSave(e: FormEvent) {
@@ -206,15 +233,26 @@ export function LessonEditButton({
               />
             </label>
 
-            <label className="block text-sm font-medium">
-              Conteúdo / Notas da aula (Markdown)
+            <div className="space-y-1">
+              <div className="flex items-center justify-between gap-2">
+                <label className="text-sm font-medium">Conteúdo / Notas da aula (Markdown)</label>
+                <button
+                  type="button"
+                  disabled={aiBusy || busy}
+                  onClick={handleGenerateAi}
+                  className={btnSecondary}
+                >
+                  {aiBusy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Sparkles className="h-3.5 w-3.5 text-amber-500" />}
+                  <span>{aiBusy ? 'Gerando…' : 'Gerar texto com IA'}</span>
+                </button>
+              </div>
               <textarea
                 rows={6}
                 value={textContent}
                 onChange={(e) => setTextContent(e.target.value)}
                 className={`${inputCls} font-mono text-xs`}
               />
-            </label>
+            </div>
 
             {error && <p className="text-sm text-red-600 dark:text-red-400">{error}</p>}
 
@@ -277,6 +315,7 @@ export function CourseEditorToolbar({
   const [lessonContent, setLessonContent] = useState('');
 
   const [busy, setBusy] = useState(false);
+  const [aiBusy, setAiBusy] = useState(false);
   const [error, setError] = useState('');
 
   async function saveCourse(e: FormEvent) {
@@ -306,6 +345,36 @@ export function CourseEditorToolbar({
       setError(err instanceof Error ? err.message : 'Erro ao atualizar curso.');
     } finally {
       setBusy(false);
+    }
+  }
+
+  async function handleGenerateLessonAi() {
+    if (aiBusy || busy) return;
+    if (!lessonTitle.trim() && !youtubeUrl.trim()) {
+      setError('Informe o título da aula ou o link do YouTube antes de gerar com IA.');
+      return;
+    }
+    setAiBusy(true);
+    setError('');
+    try {
+      const res = await fetch('/api/lessons/ai-generate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          title: lessonTitle,
+          youtubeUrl,
+          courseTitle: course.title,
+        }),
+      });
+      const data = await res.json().catch(() => null);
+      if (!res.ok) throw new Error(data?.error || 'Erro ao gerar texto com IA.');
+      if (!lessonTitle.trim() && data.videoTitle) setLessonTitle(data.videoTitle);
+      if (data.summary) setLessonSummary(data.summary);
+      if (data.textContent) setLessonContent(data.textContent);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Erro ao gerar texto com IA.');
+    } finally {
+      setAiBusy(false);
     }
   }
 
@@ -462,10 +531,21 @@ export function CourseEditorToolbar({
               Resumo
               <input type="text" value={lessonSummary} onChange={(e) => setLessonSummary(e.target.value)} className={inputCls} />
             </label>
-            <label className="block text-sm font-medium">
-              Conteúdo (Markdown)
+            <div className="space-y-1">
+              <div className="flex items-center justify-between gap-2">
+                <label className="text-sm font-medium">Conteúdo (Markdown)</label>
+                <button
+                  type="button"
+                  disabled={aiBusy || busy}
+                  onClick={handleGenerateLessonAi}
+                  className={btnSecondary}
+                >
+                  {aiBusy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Sparkles className="h-3.5 w-3.5 text-amber-500" />}
+                  <span>{aiBusy ? 'Gerando com IA…' : 'Gerar texto com IA'}</span>
+                </button>
+              </div>
               <textarea rows={4} value={lessonContent} onChange={(e) => setLessonContent(e.target.value)} className={`${inputCls} font-mono text-xs`} />
-            </label>
+            </div>
             {error && <p className="text-sm text-red-600 dark:text-red-400">{error}</p>}
             <DialogFooter>
               <button type="button" disabled={busy} onClick={() => setAddLessonOpen(false)} className={btnSecondary}>Cancelar</button>

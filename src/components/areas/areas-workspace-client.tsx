@@ -19,6 +19,7 @@ import {
   Plus,
   Search,
   Send,
+  Sparkles,
   Trash2,
   Users,
   Video,
@@ -157,6 +158,7 @@ export function AreasWorkspaceClient({
   } | null>(null);
 
   const [busy, setBusy] = useState(false);
+  const [aiLessonBusy, setAiLessonBusy] = useState(false);
   const openDialog = taskModal ? 'task' : handoffModal ? 'handoff' : courseModal ? 'course' : lessonModal ? 'lesson' : null;
 
   useEffect(() => {
@@ -405,6 +407,44 @@ export function AreasWorkspaceClient({
       textContent: '',
       rosDocsUrl: '',
     });
+  }
+
+  async function generateAreaLessonAi() {
+    if (!lessonModal || aiLessonBusy || busy) return;
+    if (!lessonModal.title.trim() && !lessonModal.youtubeUrl.trim()) {
+      toast.error('Informe o título da aula ou o link do YouTube para gerar com IA.');
+      return;
+    }
+    setAiLessonBusy(true);
+    try {
+      const res = await fetch('/api/lessons/ai-generate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          title: lessonModal.title,
+          youtubeUrl: lessonModal.youtubeUrl,
+          courseTitle: lessonModal.course.title,
+          area: data.selectedScope.area,
+        }),
+      });
+      const json = await res.json().catch(() => null);
+      if (!res.ok) throw new Error(json?.error || 'Erro ao gerar conteúdo com IA.');
+      setLessonModal((prev) =>
+        prev
+          ? {
+              ...prev,
+              title: prev.title.trim() ? prev.title : json.videoTitle || prev.title,
+              summary: json.summary || prev.summary,
+              textContent: json.textContent || prev.textContent,
+            }
+          : prev
+      );
+      toast.success('Texto da aula gerado com IA!');
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Erro ao gerar conteúdo com IA.');
+    } finally {
+      setAiLessonBusy(false);
+    }
   }
 
   async function submitLessonModal(e: React.FormEvent) {
@@ -1681,9 +1721,20 @@ export function AreasWorkspaceClient({
               </div>
 
               <div className="space-y-1.5">
-                <label htmlFor="area-field-23" className="text-xs font-semibold text-foreground">
-                  Conteúdo / Apostila em Markdown
-                </label>
+                <div className="flex items-center justify-between gap-2">
+                  <label htmlFor="area-field-23" className="text-xs font-semibold text-foreground">
+                    Conteúdo / Apostila em Markdown
+                  </label>
+                  <button
+                    type="button"
+                    disabled={aiLessonBusy || busy}
+                    onClick={generateAreaLessonAi}
+                    className="inline-flex min-h-8 items-center gap-1.5 rounded-lg border border-border bg-card px-2.5 py-1 text-xs font-medium text-foreground hover:bg-muted disabled:opacity-50 cursor-pointer"
+                  >
+                    <Sparkles className="h-3.5 w-3.5 text-amber-500" />
+                    <span>{aiLessonBusy ? 'Gerando com IA…' : 'Gerar texto com IA'}</span>
+                  </button>
+                </div>
                 <textarea id="area-field-23"
                   rows={4}
                   value={lessonModal.textContent}
