@@ -161,9 +161,10 @@ function withAreaStubs<T>(
   patch('areaEvaluation', 'findMany', async () => []);
   patch('courseProgress', 'findMany', async () => []);
 
-  patch('areaTask', 'findMany', async (args?: { where?: { scopeKey?: string; status?: { not?: string } } }) => {
+  patch('areaTask', 'findMany', async (args?: { where?: { scopeKey?: string; status?: { not?: string }; assignments?: { some: { memberId: string } } } }) => {
     return store.tasks.filter((t) => {
       if (args?.where?.scopeKey && t.scopeKey !== args.where.scopeKey) return false;
+      if (args?.where?.assignments && !t.assignments.some((assignment) => assignment.memberId === args.where!.assignments!.some.memberId)) return false;
       if (args?.where?.status?.not && t.status === args.where.status.not) return false;
       return true;
     });
@@ -681,7 +682,20 @@ test('membros e coordenadores técnicos da Autônomos atuam em Harpia e Nautilus
       assert.equal(wsNautilus.members.length, 2);
 
       const wsMec = await getAreasWorkspace(coordAutoSw, 'harpia:Mecânica');
-      assert.equal(wsMec.canManageSelectedArea, false);
+      assert.equal(wsMec.workspaceMode, 'coordinator');
+      assert.equal(wsMec.selectedScope.scopeKey, 'harpia:Software');
+      assert.equal(wsMec.canManageSelectedArea, true);
+      assert.ok(wsMec.scopes.every((scope) => scope.area === 'Software'));
+
+      const management = await getAreasWorkspace(makeUser({ role: 'MANAGEMENT' }), 'harpia:Mecânica');
+      assert.equal(management.workspaceMode, 'management');
+      assert.equal(management.selectedScope.scopeKey, 'harpia:Mecânica');
+      assert.ok(management.scopes.some((scope) => scope.area === 'Mecânica'));
+
+      const memberView = await getAreasWorkspace(memberAutoSw, 'harpia:Mecânica');
+      assert.equal(memberView.workspaceMode, 'member');
+      assert.equal(memberView.selectedScope.area, 'Software');
+      assert.ok(memberView.scopes.every((scope) => scope.isUserArea));
 
       // Membro técnico da Autônomos pode criar passagem de tarefa em ambas as equipes
       const taskNautilus = await createAreaTask(coordAutoSw, {
@@ -690,6 +704,10 @@ test('membros e coordenadores técnicos da Autônomos atuam em Harpia e Nautilus
         assigneeIds: [memberAutoSw.id],
       });
       assert.equal(taskNautilus.scopeKey, 'nautilus:Software');
+
+      const unlinkedMember = await getAreasWorkspace({ ...makeUser({ id: 'unlinked' }), area: null, teamId: null });
+      assert.equal(unlinkedMember.tasks.length, 0);
+      assert.equal(unlinkedMember.scopes.length, 0);
 
       const updatedNautilus = await updateAreaTask(memberAutoSw, taskNautilus.id, {
         status: 'IN_PROGRESS',

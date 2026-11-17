@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import {
   ArrowRight,
@@ -13,15 +13,12 @@ import {
   FileText,
   FolderPlus,
   GraduationCap,
-  Layers,
   Link2,
-  ListChecks,
   Pencil,
   PlayCircle,
   Plus,
   Search,
   Send,
-  Sparkles,
   Trash2,
   Users,
   Video,
@@ -55,7 +52,7 @@ const STATUS_META: Record<
     columnBorder: 'border-sky-500/30',
   },
   REVIEW: {
-    label: 'Revisão / Passagem',
+    label: 'Em revisão',
     badge: 'bg-amber-500/15 text-amber-800 dark:text-amber-300 border-amber-500/35',
     columnBorder: 'border-amber-500/30',
   },
@@ -100,15 +97,19 @@ export function AreasWorkspaceClient({
   initialData,
   currentUserId,
   initialTab = 'tasks',
+  tasksOnly = false,
 }: {
   initialData: AreasWorkspaceDTO;
   currentUserId: string;
   initialTab?: ActiveTab;
+  tasksOnly?: boolean;
 }) {
   const [data, setData] = useState<AreasWorkspaceDTO>(initialData);
   const [loadingScope, setLoadingScope] = useState(false);
-  const [activeTab, setActiveTab] = useState<ActiveTab>(initialTab);
-  const [taskFilter, setTaskFilter] = useState<'all' | 'mine' | AreaTaskStatus>('all');
+  const isMemberView = tasksOnly || initialData.workspaceMode === 'member';
+  const [activeTab, setActiveTab] = useState<ActiveTab>(isMemberView ? 'tasks' : initialTab);
+  const [taskView, setTaskView] = useState<'list' | 'board'>(isMemberView ? 'list' : 'board');
+  const [taskFilter, setTaskFilter] = useState<'all' | 'mine' | 'overdue' | 'unassigned' | AreaTaskStatus>(isMemberView ? 'mine' : 'all');
   const [search, setSearch] = useState('');
 
   // Modal: Create / Edit Task (Coordinator / ADMIN)
@@ -156,6 +157,31 @@ export function AreasWorkspaceClient({
   } | null>(null);
 
   const [busy, setBusy] = useState(false);
+  const openDialog = taskModal ? 'task' : handoffModal ? 'handoff' : courseModal ? 'course' : lessonModal ? 'lesson' : null;
+
+  useEffect(() => {
+    if (!openDialog) return;
+    const previousFocus = document.activeElement as HTMLElement | null;
+    const dialog = document.querySelector<HTMLElement>('[role="dialog"]');
+    if (!dialog) return;
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    const focusable = () => Array.from(dialog.querySelectorAll<HTMLElement>('button:not(:disabled), input:not(:disabled), select:not(:disabled), textarea:not(:disabled), a[href]'));
+    (dialog.querySelector<HTMLElement>('input, select, textarea') ?? focusable()[0])?.focus();
+    function onKeyDown(event: KeyboardEvent) {
+      if (event.key === 'Escape') {
+        setTaskModal(null); setHandoffModal(null); setCourseModal(null); setLessonModal(null);
+      }
+      if (event.key === 'Tab') {
+        const elements = focusable();
+        const first = elements[0]; const last = elements.at(-1);
+        if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last?.focus(); }
+        else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first?.focus(); }
+      }
+    }
+    document.addEventListener('keydown', onKeyDown);
+    return () => { document.removeEventListener('keydown', onKeyDown); document.body.style.overflow = previousOverflow; previousFocus?.focus(); };
+  }, [openDialog]);
 
   async function reloadScope(scopeKey: string) {
     setLoadingScope(true);
@@ -182,10 +208,14 @@ export function AreasWorkspaceClient({
       if (
         taskFilter !== 'all' &&
         taskFilter !== 'mine' &&
+        taskFilter !== 'overdue' &&
+        taskFilter !== 'unassigned' &&
         t.status !== taskFilter
       ) {
         return false;
       }
+      if (taskFilter === 'overdue' && (t.status === 'DONE' || !t.dueDate || t.dueDate >= new Date().toLocaleDateString('sv-SE', { timeZone: 'America/Sao_Paulo' }))) return false;
+      if (taskFilter === 'unassigned' && (t.status === 'DONE' || t.assignments.length > 0)) return false;
       if (q) {
         const hay = `${t.title} ${t.description} ${t.handoffNotes} ${t.assignments.map((a) => a.memberName).join(' ')}`.toLowerCase();
         if (!hay.includes(q)) return false;
@@ -193,11 +223,6 @@ export function AreasWorkspaceClient({
       return true;
     });
   }, [data.tasks, taskFilter, search, currentUserId]);
-
-  const coordinators = useMemo(
-    () => data.members.filter((m) => m.isCoordinator),
-    [data.members]
-  );
 
   function openNewTaskModal() {
     setTaskModal({
@@ -428,251 +453,53 @@ export function AreasWorkspaceClient({
     }
   }
 
-  const teamBadgeColor =
-    data.selectedScope.teamSlug === 'harpia'
-      ? 'border-purple-500/35 bg-purple-500/10 text-purple-700 dark:text-purple-300'
-      : data.selectedScope.teamSlug === 'nautilus'
-        ? 'border-sky-500/35 bg-sky-500/10 text-sky-700 dark:text-sky-300'
-        : 'border-border bg-muted text-foreground';
+  const today = new Date().toLocaleDateString('sv-SE', { timeZone: 'America/Sao_Paulo' });
+  const overdueTasks = data.tasks.filter((task) => task.status !== 'DONE' && task.dueDate && task.dueDate < today);
+  const unassignedTasks = data.tasks.filter((task) => task.status !== 'DONE' && task.assignments.length === 0);
 
   return (
-    <div className="mx-auto w-full max-w-[1680px] min-w-0 px-3 sm:px-6 py-6 sm:py-8 space-y-6">
-      {/* 1. CABEÇALHO & SELETOR DE ÁREAS DA EQUIPE */}
-      <header className="space-y-4 border-b border-border pb-6">
+    <div className="mx-auto w-full max-w-[1440px] min-w-0 px-4 py-8 sm:px-8 space-y-7">
+      <header className="space-y-6">
         <div className="flex flex-wrap items-start justify-between gap-4">
-          <div className="space-y-1.5 min-w-0">
-            <div className="flex flex-wrap items-center gap-2">
-              <span
-                className={cn(
-                  'inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-xs font-semibold',
-                  teamBadgeColor
-                )}
-              >
-                <Layers className="h-3.5 w-3.5" />
-                {data.selectedScope.teamName}
-              </span>
-              {data.userScopeKey === data.selectedScope.scopeKey && (
-                <span className="inline-flex items-center gap-1 rounded-full border border-primary/40 bg-primary/15 px-2.5 py-0.5 text-xs font-semibold text-primary">
-                  <Sparkles className="h-3 w-3" />
-                  Sua área na equipe
-                </span>
-              )}
-              {data.canManageSelectedArea && (
-                <span className="inline-flex items-center gap-1 rounded-full border border-emerald-500/35 bg-emerald-500/10 px-2.5 py-0.5 text-xs font-semibold text-emerald-700 dark:text-emerald-300">
-                  Permissão de coordenação ativa
-                </span>
-              )}
-            </div>
-
-            <h1 className="font-display text-2xl sm:text-3xl font-bold text-foreground">
-              {data.selectedScope.area === 'Gestão'
-                ? 'Gente e Gestão'
-                : data.selectedScope.area}{' '}
-              · Espaço da Área
+          <div className="space-y-2">
+            <h1 className="font-display text-2xl sm:text-3xl font-semibold tracking-tight">
+              {isMemberView ? 'Tarefas' : data.workspaceMode === 'management' ? 'Áreas' : data.selectedScope.area}
             </h1>
-            <p className="text-xs sm:text-sm text-muted-foreground max-w-3xl">
-              Central da área para passagem e acompanhamento de tarefas, entregas da equipe e capacitação com cursos próprios da divisão.
+            <p className="text-sm text-muted-foreground max-w-2xl">
+              {isMemberView ? `Suas entregas, prazos e próximos passos.${data.userScopeKey ? ` ${data.selectedScope.label}.` : ''}` : `${data.selectedScope.label} · Acompanhe as entregas e organize o trabalho da equipe.`}
             </p>
           </div>
-
           <div className="flex flex-wrap items-center gap-2">
-            {data.canManageSelectedArea && (
-              <>
-                <button
-                  type="button"
-                  onClick={openNewTaskModal}
-                  className="inline-flex min-h-10 items-center gap-2 rounded-lg bg-primary px-3.5 py-2 text-xs font-semibold text-primary-foreground hover:bg-primary/90 transition cursor-pointer"
-                >
-                  <Plus className="h-4 w-4" />
-                  Nova Tarefa
-                </button>
-                <button
-                  type="button"
-                  onClick={() => openNewCourseModal()}
-                  className="inline-flex min-h-10 items-center gap-2 rounded-lg border border-border bg-card px-3.5 py-2 text-xs font-semibold text-foreground hover:bg-accent transition cursor-pointer"
-                >
-                  <FolderPlus className="h-4 w-4 text-purple-500" />
-                  Novo Curso
-                </button>
-              </>
-            )}
+            <Link href="/ensino" className="inline-flex min-h-11 items-center gap-2 rounded-lg border border-border px-4 text-sm hover:bg-accent"><BookOpen className="h-4 w-4" />Ensino</Link>
+            {!isMemberView && data.canManageSelectedArea && <button type="button" onClick={openNewTaskModal} className="inline-flex min-h-11 items-center gap-2 rounded-lg bg-primary px-4 text-sm font-semibold text-primary-foreground hover:bg-primary/90"><Plus className="h-4 w-4" />Nova tarefa</button>}
           </div>
         </div>
-
-        {/* Seletor rápido entre áreas e divisões */}
-        <div className="space-y-2">
-          <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-            Navegar entre áreas da equipe {loadingScope ? '(carregando...)' : ''}
-          </p>
-          <div className="grid gap-2 grid-cols-2 sm:grid-cols-4 xl:grid-cols-8">
-            {data.scopes.map((s) => {
-              const selected = s.scopeKey === data.selectedScope.scopeKey;
-              return (
-                <button
-                  key={s.scopeKey}
-                  type="button"
-                  disabled={loadingScope}
-                  onClick={() => void reloadScope(s.scopeKey)}
-                  className={cn(
-                    'flex flex-col justify-between rounded-xl border p-2.5 text-left transition cursor-pointer',
-                    selected
-                      ? 'border-primary bg-primary/10 ring-1 ring-primary/30'
-                      : 'border-border bg-card hover:bg-accent/50'
-                  )}
-                >
-                  <div className="flex items-center justify-between gap-1">
-                    <span className="text-xs font-semibold text-foreground truncate">
-                      {s.area === 'Gestão' ? 'Gestão' : s.area}
-                    </span>
-                    {s.isUserArea && (
-                      <span className="h-2 w-2 shrink-0 rounded-full bg-primary" title="Sua área" />
-                    )}
-                  </div>
-                  <p className="text-[10px] text-muted-foreground truncate">
-                    {s.teamSlug === 'harpia'
-                      ? 'Harpia (UAV)'
-                      : s.teamSlug === 'nautilus'
-                        ? 'Nautilus (AUV)'
-                        : 'Geral'}
-                  </p>
-                  <div className="mt-2 flex items-center justify-between text-[10px] font-mono text-muted-foreground">
-                    <span>{s.openTasksCount} tar.</span>
-                    <span>{s.coursesCount} cur.</span>
-                  </div>
-                </button>
-              );
-            })}
+        {data.scopes.length > 1 && <div className="max-w-md space-y-2">
+          <label htmlFor="workspace-scope" className="text-sm font-medium">{data.workspaceMode === 'management' && !isMemberView ? 'Área e divisão' : 'Divisão'}</label>
+          <select id="workspace-scope" value={data.selectedScope.scopeKey} disabled={loadingScope} onChange={(event) => void reloadScope(event.target.value)} className="min-h-11 w-full rounded-lg border border-input bg-background px-3 text-sm">
+            {data.scopes.map((scope) => <option key={scope.scopeKey} value={scope.scopeKey}>{scope.label}</option>)}
+          </select>
+          {loadingScope && <p role="status" className="text-sm text-muted-foreground">Carregando tarefas…</p>}
+        </div>}
+        {!isMemberView && <>
+          <div className="flex flex-wrap gap-x-10 gap-y-4 border-y border-border py-5">
+            {[[data.stats.totalMembers, 'integrantes'], [data.stats.inProgressCount, 'em andamento'], [data.stats.reviewCount, 'aguardando revisão'], [overdueTasks.length, 'com prazo vencido']].map(([count, label]) => <div key={label} className="flex items-baseline gap-2"><span className="text-2xl font-semibold tabular-nums">{count}</span><span className="text-sm text-muted-foreground">{label}</span></div>)}
           </div>
-        </div>
-
-        {/* KPIs da Área */}
-        <div className="grid gap-3 grid-cols-2 sm:grid-cols-3 lg:grid-cols-6">
-          <div className="rounded-xl border border-border bg-card p-3.5 shadow-xs">
-            <p className="text-[11px] uppercase tracking-wider text-muted-foreground">Integrantes</p>
-            <p className="mt-1 font-display text-2xl font-bold tabular-nums text-foreground">
-              {data.stats.totalMembers}
-            </p>
-            <p className="text-[11px] text-muted-foreground truncate">
-              {coordinators.length > 0
-                ? `Coord: ${coordinators.map((c) => c.name.split(' ')[0]).join(', ')}`
-                : 'Sem coordenação vinculada'}
-            </p>
-          </div>
-
-          <div className="rounded-xl border border-border bg-card p-3.5 shadow-xs">
-            <p className="text-[11px] uppercase tracking-wider text-muted-foreground">A Fazer</p>
-            <p className="mt-1 font-display text-2xl font-bold tabular-nums text-foreground">
-              {data.stats.todoCount}
-            </p>
-            <p className="text-[11px] text-muted-foreground">Na fila da área</p>
-          </div>
-
-          <div className="rounded-xl border border-sky-500/25 bg-sky-500/[0.04] p-3.5 shadow-xs">
-            <p className="text-[11px] uppercase tracking-wider text-muted-foreground">Em Andamento</p>
-            <p className="mt-1 font-display text-2xl font-bold tabular-nums text-sky-700 dark:text-sky-300">
-              {data.stats.inProgressCount}
-            </p>
-            <p className="text-[11px] text-muted-foreground">Em execução</p>
-          </div>
-
-          <div className="rounded-xl border border-amber-500/25 bg-amber-500/[0.04] p-3.5 shadow-xs">
-            <p className="text-[11px] uppercase tracking-wider text-muted-foreground">Em Passagem</p>
-            <p className="mt-1 font-display text-2xl font-bold tabular-nums text-amber-700 dark:text-amber-300">
-              {data.stats.reviewCount}
-            </p>
-            <p className="text-[11px] text-muted-foreground">Aguardando revisão</p>
-          </div>
-
-          <div className="rounded-xl border border-emerald-500/25 bg-emerald-500/[0.04] p-3.5 shadow-xs">
-            <p className="text-[11px] uppercase tracking-wider text-muted-foreground">Concluídas</p>
-            <p className="mt-1 font-display text-2xl font-bold tabular-nums text-emerald-700 dark:text-emerald-300">
-              {data.stats.doneCount}
-            </p>
-            <p className="text-[11px] text-muted-foreground">Entregues na área</p>
-          </div>
-
-          <div className="rounded-xl border border-border bg-card p-3.5 shadow-xs">
-            <p className="text-[11px] uppercase tracking-wider text-muted-foreground">Cursos &amp; Nota</p>
-            <p className="mt-1 font-display text-2xl font-bold tabular-nums text-foreground">
-              {data.stats.coursesCount}
-              {data.stats.latestScore && (
-                <span className="ml-2 font-mono text-sm font-semibold text-amber-600 dark:text-amber-300">
-                  · {data.stats.latestScore.score.toFixed(1).replace('.', ',')}/10
-                </span>
-              )}
-            </p>
-            <p className="text-[11px] text-muted-foreground">
-              {data.stats.latestScore
-                ? `Nota mensal (${data.stats.latestScore.periodCode})`
-                : `${data.recommendedSlots.length} slot(s) de cursos livres`}
-            </p>
-          </div>
-        </div>
-
-        {/* Navegação de Abas */}
-        <div className="flex flex-wrap gap-2 pt-1" role="tablist">
-          <button
-            type="button"
-            role="tab"
-            aria-selected={activeTab === 'tasks'}
-            onClick={() => setActiveTab('tasks')}
-            className={cn(
-              'inline-flex min-h-10 items-center gap-2 rounded-lg border px-4 py-2 text-xs sm:text-sm font-medium transition cursor-pointer',
-              activeTab === 'tasks'
-                ? 'border-primary bg-primary text-primary-foreground'
-                : 'border-border bg-card text-muted-foreground hover:text-foreground hover:bg-accent'
-            )}
-          >
-            <ListChecks className="h-4 w-4" />
-            <span>Passagem de Tarefas</span>
-            <span className="rounded-full bg-background/20 px-1.5 py-0.2 font-mono text-[11px]">
-              {data.tasks.filter((t) => t.status !== 'DONE').length}
-            </span>
-          </button>
-
-          <button
-            type="button"
-            role="tab"
-            aria-selected={activeTab === 'courses'}
-            onClick={() => setActiveTab('courses')}
-            className={cn(
-              'inline-flex min-h-10 items-center gap-2 rounded-lg border px-4 py-2 text-xs sm:text-sm font-medium transition cursor-pointer',
-              activeTab === 'courses'
-                ? 'border-primary bg-primary text-primary-foreground'
-                : 'border-border bg-card text-muted-foreground hover:text-foreground hover:bg-accent'
-            )}
-          >
-            <GraduationCap className="h-4 w-4" />
-            <span>Cursos &amp; Trilhas da Área</span>
-            <span className="rounded-full bg-background/20 px-1.5 py-0.2 font-mono text-[11px]">
-              {data.courses.length}
-            </span>
-          </button>
-
-          <button
-            type="button"
-            role="tab"
-            aria-selected={activeTab === 'members'}
-            onClick={() => setActiveTab('members')}
-            className={cn(
-              'inline-flex min-h-10 items-center gap-2 rounded-lg border px-4 py-2 text-xs sm:text-sm font-medium transition cursor-pointer',
-              activeTab === 'members'
-                ? 'border-primary bg-primary text-primary-foreground'
-                : 'border-border bg-card text-muted-foreground hover:text-foreground hover:bg-accent'
-            )}
-          >
-            <Users className="h-4 w-4" />
-            <span>Membros da Área</span>
-            <span className="rounded-full bg-background/20 px-1.5 py-0.2 font-mono text-[11px]">
-              {data.members.length}
-            </span>
-          </button>
-        </div>
+          {(overdueTasks.length > 0 || unassignedTasks.length > 0) && <div className="flex flex-wrap items-center gap-x-6 gap-y-2 text-sm">
+            <span className="font-medium">Precisa de atenção</span>
+            {overdueTasks.length > 0 && <button type="button" onClick={() => { setActiveTab('tasks'); setTaskFilter('overdue'); setSearch(''); }} className="min-h-11 text-amber-800 dark:text-amber-300 hover:underline underline-offset-4">{overdueTasks.length} tarefa(s) com prazo vencido <ArrowRight className="inline h-3.5 w-3.5" /></button>}
+            {unassignedTasks.length > 0 && <button type="button" onClick={() => { setActiveTab('tasks'); setTaskFilter('unassigned'); setSearch(''); }} className="min-h-11 hover:underline underline-offset-4">{unassignedTasks.length} tarefa(s) sem responsável <ArrowRight className="inline h-3.5 w-3.5" /></button>}
+          </div>}
+          <nav aria-label="Conteúdo da área" className="flex gap-5 border-b border-border overflow-x-auto">
+            {([['tasks', 'Tarefas', data.tasks.length], ['members', 'Equipe', data.members.length], ['courses', 'Formação', data.courses.length]] as const).map(([tab, label, count]) => <button key={tab} type="button" aria-current={activeTab === tab ? 'page' : undefined} onClick={() => setActiveTab(tab)} className={cn('min-h-11 shrink-0 border-b-2 px-1 text-sm transition-colors', activeTab === tab ? 'border-primary font-semibold text-foreground' : 'border-transparent text-muted-foreground hover:text-foreground')}>{label} <span className="ml-1 tabular-nums text-muted-foreground">{count}</span></button>)}
+          </nav>
+        </>}
       </header>
 
+      {!isMemberView && !data.userScopeKey && data.workspaceMode === 'coordinator' && <p className="rounded-lg bg-muted p-4 text-sm">Seu vínculo com uma área ainda não foi definido. <Link href="/perfil" className="underline underline-offset-4">Confira seu perfil</Link> ou fale com a gestão.</p>}
       {/* ABA 1: PASSAGEM DE TAREFAS */}
       {activeTab === 'tasks' && (
-        <section aria-label="Passagem de tarefas da área" className="space-y-5">
+        <section aria-label="Tarefas" aria-busy={loadingScope} className="space-y-5">
           {/* Barra de filtros */}
           <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-border bg-card p-4 shadow-xs">
             <div className="relative flex-1 min-w-[220px]">
@@ -681,8 +508,9 @@ export function AreasWorkspaceClient({
                 type="search"
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                placeholder="Buscar tarefa, responsável ou nota de passagem..."
-                className="min-h-10 w-full rounded-lg border border-input bg-background pl-9 pr-3 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+                aria-label="Buscar tarefas"
+                placeholder="Buscar tarefa ou responsável…"
+                className="min-h-11 w-full rounded-lg border border-input bg-background pl-9 pr-3 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
               />
             </div>
 
@@ -693,8 +521,10 @@ export function AreasWorkspaceClient({
                   ['mine', 'Minhas tarefas'],
                   ['TODO', 'A fazer'],
                   ['IN_PROGRESS', 'Em andamento'],
-                  ['REVIEW', 'Em passagem'],
+                  ['REVIEW', 'Em revisão'],
                   ['DONE', 'Concluídas'],
+                  ...(taskFilter === 'overdue' ? [['overdue', 'Prazo vencido'] as const] : []),
+                  ...(taskFilter === 'unassigned' ? [['unassigned', 'Sem responsável'] as const] : []),
                 ] as const
               ).map(([key, label]) => (
                 <button
@@ -702,7 +532,7 @@ export function AreasWorkspaceClient({
                   type="button"
                   onClick={() => setTaskFilter(key)}
                   className={cn(
-                    'rounded-lg border px-3 py-1.5 text-xs font-medium transition cursor-pointer',
+                    'min-h-10 rounded-lg border px-3 py-1.5 text-xs font-medium transition cursor-pointer',
                     taskFilter === key
                       ? 'border-primary bg-primary text-primary-foreground'
                       : 'border-border bg-background text-muted-foreground hover:text-foreground'
@@ -714,33 +544,65 @@ export function AreasWorkspaceClient({
             </div>
           </div>
 
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <p className="text-sm text-muted-foreground" role="status">{filteredTasks.length} tarefa(s) {taskFilter === 'mine' ? 'atribuída(s) a você' : 'encontrada(s)'}</p>
+            <div className="flex gap-1" aria-label="Visualização de tarefas">{(['list', 'board'] as const).map((view) => <button key={view} type="button" aria-pressed={taskView === view} onClick={() => setTaskView(view)} className={cn('min-h-11 rounded-lg px-3 text-sm', taskView === view ? 'bg-accent font-semibold' : 'text-muted-foreground hover:bg-accent')}>{view === 'list' ? 'Lista' : 'Quadro'}</button>)}</div>
+          </div>
           {/* Quadro de Passagem */}
-          {filteredTasks.length === 0 ? (
+          {loadingScope ? <p role="status" className="py-12 text-center text-muted-foreground">Carregando tarefas…</p> : filteredTasks.length === 0 ? (
             <div className="rounded-2xl border border-dashed border-border bg-card/40 p-10 text-center space-y-3">
               <ClipboardList className="h-8 w-8 mx-auto text-muted-foreground" />
               <div className="space-y-1">
                 <p className="font-semibold text-foreground">
-                  Nenhuma tarefa encontrada neste filtro
+                  Nenhuma tarefa por aqui
                 </p>
                 <p className="text-xs sm:text-sm text-muted-foreground max-w-md mx-auto">
                   {data.canManageSelectedArea
                     ? 'Crie uma tarefa acima para passar demandas aos integrantes da área com prazo, prioridade e registro de entrega.'
-                    : 'Quando a coordenação da área atribuir tarefas ou registrar entregas aqui, elas aparecerão neste quadro.'}
+                    : 'As tarefas atribuídas a você aparecerão aqui. Se quiser acompanhar a equipe, selecione Todas.'}
                 </p>
               </div>
               {data.canManageSelectedArea && (
                 <button
                   type="button"
                   onClick={openNewTaskModal}
-                  className="inline-flex min-h-10 items-center gap-2 rounded-lg bg-primary px-4 py-2 text-xs font-semibold text-primary-foreground hover:bg-primary/90 cursor-pointer"
+                  className="inline-flex min-h-11 items-center gap-2 rounded-lg bg-primary px-4 py-2 text-xs font-semibold text-primary-foreground hover:bg-primary/90 cursor-pointer"
                 >
                   <Plus className="h-4 w-4" />
                   Criar primeira tarefa
                 </button>
               )}
             </div>
+          ) : taskView === 'list' ? (
+            <div className="divide-y divide-border border-y border-border">
+              {filteredTasks.map((task) => {
+                const overdue = task.status !== 'DONE' && task.dueDate && task.dueDate < today;
+                return <article key={task.id} className="grid gap-4 py-5 md:grid-cols-[minmax(0,1fr)_180px_160px] md:items-center">
+                  <div className="min-w-0 space-y-2">
+                    <div className="flex flex-wrap items-center gap-2 text-xs">
+                      <span className={cn('rounded-md border px-2 py-1', STATUS_META[task.status].badge)}>{STATUS_META[task.status].label}</span>
+                      {(task.priority === 'ALTA' || task.priority === 'URGENTE') && <span className={PRIORITY_META[task.priority].cls}>{PRIORITY_META[task.priority].label}</span>}
+                    </div>
+                    <h3 className="font-semibold text-sm">{task.title}</h3>
+                    {task.description && <p className="max-w-prose line-clamp-2 text-sm leading-relaxed text-muted-foreground">{task.description}</p>}
+                    <div className="flex flex-wrap gap-4 text-xs">
+                      {task.referenceUrl && <a href={task.referenceUrl} target="_blank" rel="noopener noreferrer" className="inline-flex min-h-8 items-center gap-1 hover:underline"><Link2 className="h-3.5 w-3.5" />Referência</a>}
+                      {task.deliveryUrl && <a href={task.deliveryUrl} target="_blank" rel="noopener noreferrer" className="inline-flex min-h-8 items-center gap-1 hover:underline"><ExternalLink className="h-3.5 w-3.5" />Ver entrega</a>}
+                    </div>
+                  </div>
+                  <div className="space-y-1 text-xs text-muted-foreground">
+                    <p className="text-foreground">{task.assignments.map((assignment) => assignment.memberName).join(', ') || 'Sem responsável definido'}</p>
+                    <p className={cn(overdue && 'text-red-700 dark:text-red-300')}>{task.dueDate ? `${overdue ? 'Prazo vencido · ' : 'Prazo: '}${formatDateBr(task.dueDate)}` : 'Sem prazo definido'}</p>
+                  </div>
+                  <div className="flex flex-wrap items-center gap-2 md:justify-end">
+                    {task.canEditTask && <button type="button" aria-label={`Editar tarefa ${task.title}`} onClick={() => openEditTaskModal(task)} className="min-h-11 min-w-11 rounded-lg border border-border p-3 hover:bg-accent"><Pencil className="h-4 w-4" /></button>}
+                    {task.canUpdateProgress && <button type="button" disabled={busy} onClick={() => task.status === 'TODO' ? void quickMoveStatus(task, 'IN_PROGRESS') : setHandoffModal({ task, status: task.status, handoffNotes: task.handoffNotes, deliveryUrl: task.deliveryUrl ?? '' })} className="min-h-11 rounded-lg border border-border px-3 text-xs font-semibold hover:bg-accent disabled:opacity-50">{task.status === 'TODO' ? 'Iniciar tarefa' : 'Atualizar entrega'}</button>}
+                  </div>
+                </article>;
+              })}
+            </div>
           ) : (
-            <div className="grid gap-4 lg:grid-cols-2 xl:grid-cols-4 items-start">
+            <div className="grid gap-4 items-start lg:grid-cols-2 xl:grid-cols-4">
               {(['TODO', 'IN_PROGRESS', 'REVIEW', 'DONE'] as AreaTaskStatus[]).map((colStatus) => {
                 const colTasks = filteredTasks.filter((t) => t.status === colStatus);
                 const meta = STATUS_META[colStatus];
@@ -767,6 +629,7 @@ export function AreasWorkspaceClient({
                     </div>
 
                     <div className="space-y-3">
+                      {colTasks.length === 0 && <p className="py-5 text-center text-xs text-muted-foreground">Nenhuma tarefa nesta etapa.</p>}
                       {colTasks.map((task) => {
                         const pri = PRIORITY_META[task.priority];
                         const isMine = task.assignments.some((a) => a.memberId === currentUserId);
@@ -904,10 +767,10 @@ export function AreasWorkspaceClient({
                                         deliveryUrl: task.deliveryUrl ?? '',
                                       })
                                     }
-                                    className="inline-flex items-center gap-1 rounded-md border border-amber-500/35 bg-amber-500/15 px-2.5 py-1 text-[11px] font-semibold text-amber-800 dark:text-amber-300 hover:bg-amber-500/25 cursor-pointer"
+                                    className="inline-flex min-h-9 items-center gap-1 rounded-md border border-amber-500/35 bg-amber-500/15 px-2.5 py-1 text-[11px] font-semibold text-amber-800 dark:text-amber-300 hover:bg-amber-500/25 cursor-pointer"
                                   >
                                     <Send className="h-3 w-3" />
-                                    Passar / Revisão
+                                    Enviar para revisão
                                   </button>
                                 )}
                                 {task.status !== 'DONE' && (
@@ -915,7 +778,7 @@ export function AreasWorkspaceClient({
                                     type="button"
                                     disabled={busy}
                                     onClick={() => void quickMoveStatus(task, 'DONE')}
-                                    className="inline-flex items-center gap-1 rounded-md border border-emerald-500/35 bg-emerald-500/15 px-2.5 py-1 text-[11px] font-semibold text-emerald-700 dark:text-emerald-300 hover:bg-emerald-500/25 cursor-pointer"
+                                    className="inline-flex min-h-9 items-center gap-1 rounded-md border border-emerald-500/35 bg-emerald-500/15 px-2.5 py-1 text-[11px] font-semibold text-emerald-700 dark:text-emerald-300 hover:bg-emerald-500/25 cursor-pointer"
                                   >
                                     <CheckCircle2 className="h-3 w-3" />
                                     Concluir
@@ -932,9 +795,9 @@ export function AreasWorkspaceClient({
                                       deliveryUrl: task.deliveryUrl ?? '',
                                     })
                                   }
-                                  className="ml-auto rounded-md border border-border bg-background px-2 py-1 text-[11px] font-medium text-muted-foreground hover:text-foreground hover:bg-accent cursor-pointer"
+                                  className="ml-auto min-h-9 rounded-md border border-border bg-background px-2 py-1 text-[11px] font-medium text-muted-foreground hover:text-foreground hover:bg-accent cursor-pointer"
                                 >
-                                  Passagem / Obs.
+                                  Atualizar entrega
                                 </button>
                               </div>
                             )}
@@ -951,7 +814,7 @@ export function AreasWorkspaceClient({
       )}
 
       {/* ABA 2: CURSOS & LUGARES PARA NOVOS CURSOS */}
-      {activeTab === 'courses' && (
+      {!isMemberView && activeTab === 'courses' && (
         <section aria-label="Cursos e espaços para novos cursos da área" className="space-y-8">
           {/* Cursos Ativos */}
           <div className="space-y-4">
@@ -968,7 +831,7 @@ export function AreasWorkspaceClient({
                 <button
                   type="button"
                   onClick={() => openNewCourseModal()}
-                  className="inline-flex min-h-10 items-center gap-2 rounded-lg bg-primary px-4 py-2 text-xs font-semibold text-primary-foreground hover:bg-primary/90 cursor-pointer"
+                  className="inline-flex min-h-11 items-center gap-2 rounded-lg bg-primary px-4 py-2 text-xs font-semibold text-primary-foreground hover:bg-primary/90 cursor-pointer"
                 >
                   <Plus className="h-4 w-4" />
                   Adicionar Curso na Área
@@ -1088,7 +951,7 @@ export function AreasWorkspaceClient({
                         {course.firstLessonSlug ? (
                           <Link
                             href={`/curso/${course.firstLessonSlug}`}
-                            className="inline-flex min-h-10 items-center gap-2 rounded-lg bg-primary px-3.5 py-2 text-xs font-semibold text-primary-foreground hover:bg-primary/90"
+                            className="inline-flex min-h-11 items-center gap-2 rounded-lg bg-primary px-3.5 py-2 text-xs font-semibold text-primary-foreground hover:bg-primary/90"
                           >
                             <PlayCircle className="h-4 w-4" />
                             <span>{course.userProgressPct > 0 ? 'Continuar curso' : 'Abrir aulas'}</span>
@@ -1098,7 +961,7 @@ export function AreasWorkspaceClient({
                             href={course.externalUrl}
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="inline-flex min-h-10 items-center gap-2 rounded-lg bg-primary px-3.5 py-2 text-xs font-semibold text-primary-foreground hover:bg-primary/90"
+                            className="inline-flex min-h-11 items-center gap-2 rounded-lg bg-primary px-3.5 py-2 text-xs font-semibold text-primary-foreground hover:bg-primary/90"
                           >
                             <ExternalLink className="h-4 w-4" />
                             <span>Abrir material externo</span>
@@ -1114,7 +977,7 @@ export function AreasWorkspaceClient({
                             href={course.externalUrl}
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="inline-flex min-h-10 items-center gap-1.5 rounded-lg border border-border bg-background px-3 py-2 text-xs font-medium text-foreground hover:bg-accent"
+                            className="inline-flex min-h-11 items-center gap-1.5 rounded-lg border border-border bg-background px-3 py-2 text-xs font-medium text-foreground hover:bg-accent"
                           >
                             <ExternalLink className="h-3.5 w-3.5" />
                             Material extra
@@ -1202,7 +1065,7 @@ export function AreasWorkspaceClient({
                     <button
                       type="button"
                       onClick={() => openNewCourseModal(slot)}
-                      className="inline-flex min-h-10 w-full items-center justify-center gap-2 rounded-lg border border-primary/40 bg-primary/10 px-3 py-2 text-xs font-semibold text-primary hover:bg-primary/20 transition cursor-pointer"
+                      className="inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-lg border border-primary/40 bg-primary/10 px-3 py-2 text-xs font-semibold text-primary hover:bg-primary/20 transition cursor-pointer"
                     >
                       <FolderPlus className="h-4 w-4" />
                       Estruturar Curso neste Espaço
@@ -1233,7 +1096,7 @@ export function AreasWorkspaceClient({
                   <button
                     type="button"
                     onClick={() => openNewCourseModal()}
-                    className="inline-flex min-h-10 w-full items-center justify-center gap-2 rounded-lg bg-primary px-3 py-2 text-xs font-semibold text-primary-foreground hover:bg-primary/90 transition cursor-pointer"
+                    className="inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-lg bg-primary px-3 py-2 text-xs font-semibold text-primary-foreground hover:bg-primary/90 transition cursor-pointer"
                   >
                     <Plus className="h-4 w-4" />
                     Criar Novo Curso
@@ -1250,7 +1113,7 @@ export function AreasWorkspaceClient({
       )}
 
       {/* ABA 3: MEMBROS DA ÁREA */}
-      {activeTab === 'members' && (
+      {!isMemberView && activeTab === 'members' && (
         <section aria-label="Integrantes da área" className="space-y-4">
           {data.members.length === 0 ? (
             <div className="rounded-xl border border-dashed border-border bg-card/50 p-10 text-center text-sm text-muted-foreground">
@@ -1293,7 +1156,8 @@ export function AreasWorkspaceClient({
                     <span className="font-mono text-sm font-bold text-foreground">
                       {m.openTasksCount}
                     </span>
-                    <p className="text-[10px] text-muted-foreground">tarefa(s)</p>
+                    <p className="text-xs text-muted-foreground">tarefa(s) em aberto</p>
+                    <button type="button" onClick={() => { setActiveTab('tasks'); setTaskFilter('all'); setSearch(m.name); }} className="min-h-11 text-xs font-medium hover:underline underline-offset-4">Ver tarefas <ArrowRight className="inline h-3 w-3" /></button>
                   </div>
                 </article>
               ))}
@@ -1308,13 +1172,14 @@ export function AreasWorkspaceClient({
           className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-xs"
           role="dialog"
           aria-modal="true"
+          aria-labelledby="task-dialog-title"
         >
           <div className="w-full max-w-lg max-h-[90vh] overflow-y-auto rounded-2xl border border-border bg-card p-6 shadow-2xl space-y-4">
             <div className="flex items-start justify-between gap-3">
               <div>
-                <h2 className="font-display text-lg font-semibold text-foreground">
+                <h2 id="task-dialog-title" className="font-display text-lg font-semibold text-foreground">
                   {taskModal.mode === 'create'
-                    ? `Passar Nova Tarefa · ${data.selectedScope.label}`
+                    ? `Nova tarefa · ${data.selectedScope.label}`
                     : 'Editar Tarefa da Área'}
                 </h2>
                 <p className="text-xs text-muted-foreground">
@@ -1333,21 +1198,21 @@ export function AreasWorkspaceClient({
 
             <form onSubmit={submitTaskModal} className="space-y-4">
               <div className="space-y-1.5">
-                <label className="text-xs font-semibold text-foreground">Título da tarefa *</label>
-                <input
+                <label htmlFor="area-field-2" className="text-xs font-semibold text-foreground">Título da tarefa *</label>
+                <input id="area-field-2"
                   required
                   value={taskModal.title}
                   onChange={(e) => setTaskModal({ ...taskModal, title: e.target.value })}
                   placeholder="Ex.: Integrar nó de detecção de boias no ROS 2"
-                  className="min-h-10 w-full rounded-lg border border-input bg-background px-3 py-2 text-sm text-foreground"
+                  className="min-h-11 w-full rounded-lg border border-input bg-background px-3 py-2 text-sm text-foreground"
                 />
               </div>
 
               <div className="space-y-1.5">
-                <label className="text-xs font-semibold text-foreground">
+                <label htmlFor="area-field-3" className="text-xs font-semibold text-foreground">
                   Descrição e critérios de entrega
                 </label>
-                <textarea
+                <textarea id="area-field-3"
                   rows={3}
                   value={taskModal.description}
                   onChange={(e) => setTaskModal({ ...taskModal, description: e.target.value })}
@@ -1358,13 +1223,13 @@ export function AreasWorkspaceClient({
 
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-1.5">
-                  <label className="text-xs font-semibold text-foreground">Prioridade</label>
-                  <select
+                  <label htmlFor="area-field-4" className="text-xs font-semibold text-foreground">Prioridade</label>
+                  <select id="area-field-4"
                     value={taskModal.priority}
                     onChange={(e) =>
                       setTaskModal({ ...taskModal, priority: e.target.value as AreaTaskPriority })
                     }
-                    className="min-h-10 w-full rounded-lg border border-input bg-background px-3 py-2 text-sm text-foreground"
+                    className="min-h-11 w-full rounded-lg border border-input bg-background px-3 py-2 text-sm text-foreground"
                   >
                     <option value="BAIXA">Baixa</option>
                     <option value="MEDIA">Média</option>
@@ -1374,33 +1239,33 @@ export function AreasWorkspaceClient({
                 </div>
 
                 <div className="space-y-1.5">
-                  <label className="text-xs font-semibold text-foreground">Prazo (opcional)</label>
-                  <input
+                  <label htmlFor="area-field-5" className="text-xs font-semibold text-foreground">Prazo (opcional)</label>
+                  <input id="area-field-5"
                     type="date"
                     value={taskModal.dueDate}
                     onChange={(e) => setTaskModal({ ...taskModal, dueDate: e.target.value })}
-                    className="min-h-10 w-full rounded-lg border border-input bg-background px-3 py-2 text-sm text-foreground"
+                    className="min-h-11 w-full rounded-lg border border-input bg-background px-3 py-2 text-sm text-foreground"
                   />
                 </div>
               </div>
 
               <div className="space-y-1.5">
-                <label className="text-xs font-semibold text-foreground">
+                <label htmlFor="area-field-6" className="text-xs font-semibold text-foreground">
                   Link de referência (GitHub, Drive, Figma...)
                 </label>
-                <input
+                <input id="area-field-6"
                   type="url"
                   value={taskModal.referenceUrl}
                   onChange={(e) => setTaskModal({ ...taskModal, referenceUrl: e.target.value })}
                   placeholder="https://..."
-                  className="min-h-10 w-full rounded-lg border border-input bg-background px-3 py-2 text-sm text-foreground"
+                  className="min-h-11 w-full rounded-lg border border-input bg-background px-3 py-2 text-sm text-foreground"
                 />
               </div>
 
               <div className="space-y-1.5">
-                <label className="text-xs font-semibold text-foreground">
+                <p className="text-xs font-semibold text-foreground">
                   Atribuir a integrantes da área (opcional)
-                </label>
+                </p>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5 max-h-40 overflow-y-auto rounded-lg border border-border bg-muted/20 p-2.5">
                   {data.members.map((m) => {
                     const checked = taskModal.assigneeIds.includes(m.id);
@@ -1438,7 +1303,7 @@ export function AreasWorkspaceClient({
                     type="button"
                     disabled={busy}
                     onClick={() => void handleDeleteTask(taskModal.taskId!)}
-                    className="inline-flex min-h-10 items-center gap-1.5 rounded-lg border border-red-500/35 bg-red-500/10 px-3 py-2 text-xs font-semibold text-red-700 dark:text-red-300 hover:bg-red-500/20 cursor-pointer"
+                    className="inline-flex min-h-11 items-center gap-1.5 rounded-lg border border-red-500/35 bg-red-500/10 px-3 py-2 text-xs font-semibold text-red-700 dark:text-red-300 hover:bg-red-500/20 cursor-pointer"
                   >
                     <Trash2 className="h-3.5 w-3.5" />
                     Excluir
@@ -1450,16 +1315,16 @@ export function AreasWorkspaceClient({
                   <button
                     type="button"
                     onClick={() => setTaskModal(null)}
-                    className="min-h-10 rounded-lg border border-border px-4 py-2 text-xs font-medium text-foreground hover:bg-accent cursor-pointer"
+                    className="min-h-11 rounded-lg border border-border px-4 py-2 text-xs font-medium text-foreground hover:bg-accent cursor-pointer"
                   >
                     Cancelar
                   </button>
                   <button
                     type="submit"
                     disabled={busy}
-                    className="min-h-10 rounded-lg bg-primary px-4 py-2 text-xs font-semibold text-primary-foreground hover:bg-primary/90 disabled:opacity-50 cursor-pointer"
+                    className="min-h-11 rounded-lg bg-primary px-4 py-2 text-xs font-semibold text-primary-foreground hover:bg-primary/90 disabled:opacity-50 cursor-pointer"
                   >
-                    {busy ? 'Salvando...' : taskModal.mode === 'create' ? 'Passar Tarefa' : 'Salvar Alterações'}
+                    {busy ? 'Salvando...' : taskModal.mode === 'create' ? 'Criar tarefa' : 'Salvar Alterações'}
                   </button>
                 </div>
               </div>
@@ -1474,12 +1339,13 @@ export function AreasWorkspaceClient({
           className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-xs"
           role="dialog"
           aria-modal="true"
+          aria-labelledby="handoff-dialog-title"
         >
           <div className="w-full max-w-md rounded-2xl border border-border bg-card p-6 shadow-2xl space-y-4">
             <div className="flex items-start justify-between gap-3">
               <div>
-                <h2 className="font-display text-lg font-semibold text-foreground">
-                  Passagem &amp; Atualização da Tarefa
+                <h2 id="handoff-dialog-title" className="font-display text-lg font-semibold text-foreground">
+                  Atualizar entrega
                 </h2>
                 <p className="text-xs text-muted-foreground">{handoffModal.task.title}</p>
               </div>
@@ -1495,8 +1361,8 @@ export function AreasWorkspaceClient({
 
             <form onSubmit={submitHandoffModal} className="space-y-4">
               <div className="space-y-1.5">
-                <label className="text-xs font-semibold text-foreground">Status atual</label>
-                <select
+                <label htmlFor="area-field-7" className="text-xs font-semibold text-foreground">Status atual</label>
+                <select id="area-field-7"
                   value={handoffModal.status}
                   onChange={(e) =>
                     setHandoffModal({
@@ -1504,7 +1370,7 @@ export function AreasWorkspaceClient({
                       status: e.target.value as AreaTaskStatus,
                     })
                   }
-                  className="min-h-10 w-full rounded-lg border border-input bg-background px-3 py-2 text-sm text-foreground"
+                  className="min-h-11 w-full rounded-lg border border-input bg-background px-3 py-2 text-sm text-foreground"
                 >
                   <option value="TODO">A fazer</option>
                   <option value="IN_PROGRESS">Em andamento</option>
@@ -1514,10 +1380,10 @@ export function AreasWorkspaceClient({
               </div>
 
               <div className="space-y-1.5">
-                <label className="text-xs font-semibold text-foreground">
+                <label htmlFor="area-field-8" className="text-xs font-semibold text-foreground">
                   Notas de passagem (o que foi feito, próximos passos, bloqueios)
                 </label>
-                <textarea
+                <textarea id="area-field-8"
                   rows={4}
                   value={handoffModal.handoffNotes}
                   onChange={(e) =>
@@ -1529,17 +1395,17 @@ export function AreasWorkspaceClient({
               </div>
 
               <div className="space-y-1.5">
-                <label className="text-xs font-semibold text-foreground">
+                <label htmlFor="area-field-9" className="text-xs font-semibold text-foreground">
                   Link da entrega (PR, pasta no Drive, Onshape, KiCad...)
                 </label>
-                <input
+                <input id="area-field-9"
                   type="url"
                   value={handoffModal.deliveryUrl}
                   onChange={(e) =>
                     setHandoffModal({ ...handoffModal, deliveryUrl: e.target.value })
                   }
                   placeholder="https://..."
-                  className="min-h-10 w-full rounded-lg border border-input bg-background px-3 py-2 text-sm text-foreground"
+                  className="min-h-11 w-full rounded-lg border border-input bg-background px-3 py-2 text-sm text-foreground"
                 />
               </div>
 
@@ -1547,14 +1413,14 @@ export function AreasWorkspaceClient({
                 <button
                   type="button"
                   onClick={() => setHandoffModal(null)}
-                  className="min-h-10 rounded-lg border border-border px-4 py-2 text-xs font-medium text-foreground hover:bg-accent cursor-pointer"
+                  className="min-h-11 rounded-lg border border-border px-4 py-2 text-xs font-medium text-foreground hover:bg-accent cursor-pointer"
                 >
                   Cancelar
                 </button>
                 <button
                   type="submit"
                   disabled={busy}
-                  className="min-h-10 rounded-lg bg-primary px-4 py-2 text-xs font-semibold text-primary-foreground hover:bg-primary/90 disabled:opacity-50 cursor-pointer"
+                  className="min-h-11 rounded-lg bg-primary px-4 py-2 text-xs font-semibold text-primary-foreground hover:bg-primary/90 disabled:opacity-50 cursor-pointer"
                 >
                   {busy ? 'Salvando...' : 'Salvar Passagem'}
                 </button>
@@ -1570,11 +1436,12 @@ export function AreasWorkspaceClient({
           className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-xs"
           role="dialog"
           aria-modal="true"
+          aria-labelledby="course-dialog-title"
         >
           <div className="w-full max-w-lg max-h-[90vh] overflow-y-auto rounded-2xl border border-border bg-card p-6 shadow-2xl space-y-4">
             <div className="flex items-start justify-between gap-3">
               <div>
-                <h2 className="font-display text-lg font-semibold text-foreground">
+                <h2 id="course-dialog-title" className="font-display text-lg font-semibold text-foreground">
                   Novo Curso · {data.selectedScope.area}
                 </h2>
                 <p className="text-xs text-muted-foreground">
@@ -1593,29 +1460,29 @@ export function AreasWorkspaceClient({
 
             <form onSubmit={submitCourseModal} className="space-y-4">
               <div className="space-y-1.5">
-                <label className="text-xs font-semibold text-foreground">Título do curso *</label>
-                <input
+                <label htmlFor="area-field-10" className="text-xs font-semibold text-foreground">Título do curso *</label>
+                <input id="area-field-10"
                   required
                   value={courseModal.title}
                   onChange={(e) => setCourseModal({ ...courseModal, title: e.target.value })}
                   placeholder="Ex.: Visão Computacional & SLAM com ROS 2"
-                  className="min-h-10 w-full rounded-lg border border-input bg-background px-3 py-2 text-sm text-foreground"
+                  className="min-h-11 w-full rounded-lg border border-input bg-background px-3 py-2 text-sm text-foreground"
                 />
               </div>
 
               <div className="space-y-1.5">
-                <label className="text-xs font-semibold text-foreground">Subtítulo</label>
-                <input
+                <label htmlFor="area-field-11" className="text-xs font-semibold text-foreground">Subtítulo</label>
+                <input id="area-field-11"
                   value={courseModal.subtitle}
                   onChange={(e) => setCourseModal({ ...courseModal, subtitle: e.target.value })}
                   placeholder="Resumo curto dos tópicos abordados"
-                  className="min-h-10 w-full rounded-lg border border-input bg-background px-3 py-2 text-sm text-foreground"
+                  className="min-h-11 w-full rounded-lg border border-input bg-background px-3 py-2 text-sm text-foreground"
                 />
               </div>
 
               <div className="space-y-1.5">
-                <label className="text-xs font-semibold text-foreground">Descrição *</label>
-                <textarea
+                <label htmlFor="area-field-12" className="text-xs font-semibold text-foreground">Descrição *</label>
+                <textarea id="area-field-12"
                   required
                   rows={3}
                   value={courseModal.description}
@@ -1627,11 +1494,11 @@ export function AreasWorkspaceClient({
 
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-1.5">
-                  <label className="text-xs font-semibold text-foreground">Nível</label>
-                  <select
+                  <label htmlFor="area-field-13" className="text-xs font-semibold text-foreground">Nível</label>
+                  <select id="area-field-13"
                     value={courseModal.level}
                     onChange={(e) => setCourseModal({ ...courseModal, level: e.target.value })}
-                    className="min-h-10 w-full rounded-lg border border-input bg-background px-3 py-2 text-sm text-foreground"
+                    className="min-h-11 w-full rounded-lg border border-input bg-background px-3 py-2 text-sm text-foreground"
                   >
                     <option value="Iniciante">Iniciante</option>
                     <option value="Intermediário">Intermediário</option>
@@ -1640,22 +1507,22 @@ export function AreasWorkspaceClient({
                 </div>
 
                 <div className="space-y-1.5">
-                  <label className="text-xs font-semibold text-foreground">Duração est. (horas)</label>
-                  <input
+                  <label htmlFor="area-field-14" className="text-xs font-semibold text-foreground">Duração est. (horas)</label>
+                  <input id="area-field-14"
                     type="number"
                     min="1"
                     max="200"
                     value={courseModal.durationHours}
                     onChange={(e) => setCourseModal({ ...courseModal, durationHours: e.target.value })}
-                    className="min-h-10 w-full rounded-lg border border-input bg-background px-3 py-2 text-sm text-foreground"
+                    className="min-h-11 w-full rounded-lg border border-input bg-background px-3 py-2 text-sm text-foreground"
                   />
                 </div>
               </div>
 
               {data.selectedScope.teamId !== null && (
                 <div className="space-y-1.5">
-                  <label className="text-xs font-semibold text-foreground">Abrangência</label>
-                  <select
+                  <label htmlFor="area-field-15" className="text-xs font-semibold text-foreground">Abrangência</label>
+                  <select id="area-field-15"
                     value={courseModal.scopeMode}
                     onChange={(e) =>
                       setCourseModal({
@@ -1663,7 +1530,7 @@ export function AreasWorkspaceClient({
                         scopeMode: e.target.value as 'division' | 'macro',
                       })
                     }
-                    className="min-h-10 w-full rounded-lg border border-input bg-background px-3 py-2 text-sm text-foreground"
+                    className="min-h-11 w-full rounded-lg border border-input bg-background px-3 py-2 text-sm text-foreground"
                   >
                     <option value="division">Apenas {data.selectedScope.label}</option>
                     <option value="macro">
@@ -1674,28 +1541,28 @@ export function AreasWorkspaceClient({
               )}
 
               <div className="space-y-1.5">
-                <label className="text-xs font-semibold text-foreground">
+                <label htmlFor="area-field-16" className="text-xs font-semibold text-foreground">
                   Nome do 1º módulo
                 </label>
-                <input
+                <input id="area-field-16"
                   value={courseModal.initialModuleTitle}
                   onChange={(e) =>
                     setCourseModal({ ...courseModal, initialModuleTitle: e.target.value })
                   }
-                  className="min-h-10 w-full rounded-lg border border-input bg-background px-3 py-2 text-sm text-foreground"
+                  className="min-h-11 w-full rounded-lg border border-input bg-background px-3 py-2 text-sm text-foreground"
                 />
               </div>
 
               <div className="space-y-1.5">
-                <label className="text-xs font-semibold text-foreground">
+                <label htmlFor="area-field-17" className="text-xs font-semibold text-foreground">
                   Link de material externo / playlist / Drive (opcional)
                 </label>
-                <input
+                <input id="area-field-17"
                   type="url"
                   value={courseModal.externalUrl}
                   onChange={(e) => setCourseModal({ ...courseModal, externalUrl: e.target.value })}
                   placeholder="https://..."
-                  className="min-h-10 w-full rounded-lg border border-input bg-background px-3 py-2 text-sm text-foreground"
+                  className="min-h-11 w-full rounded-lg border border-input bg-background px-3 py-2 text-sm text-foreground"
                 />
               </div>
 
@@ -1703,14 +1570,14 @@ export function AreasWorkspaceClient({
                 <button
                   type="button"
                   onClick={() => setCourseModal(null)}
-                  className="min-h-10 rounded-lg border border-border px-4 py-2 text-xs font-medium text-foreground hover:bg-accent cursor-pointer"
+                  className="min-h-11 rounded-lg border border-border px-4 py-2 text-xs font-medium text-foreground hover:bg-accent cursor-pointer"
                 >
                   Cancelar
                 </button>
                 <button
                   type="submit"
                   disabled={busy}
-                  className="min-h-10 rounded-lg bg-primary px-4 py-2 text-xs font-semibold text-primary-foreground hover:bg-primary/90 disabled:opacity-50 cursor-pointer"
+                  className="min-h-11 rounded-lg bg-primary px-4 py-2 text-xs font-semibold text-primary-foreground hover:bg-primary/90 disabled:opacity-50 cursor-pointer"
                 >
                   {busy ? 'Criando...' : 'Criar Curso'}
                 </button>
@@ -1726,11 +1593,12 @@ export function AreasWorkspaceClient({
           className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-xs"
           role="dialog"
           aria-modal="true"
+          aria-labelledby="lesson-dialog-title"
         >
           <div className="w-full max-w-lg max-h-[90vh] overflow-y-auto rounded-2xl border border-border bg-card p-6 shadow-2xl space-y-4">
             <div className="flex items-start justify-between gap-3">
               <div>
-                <h2 className="font-display text-lg font-semibold text-foreground">
+                <h2 id="lesson-dialog-title" className="font-display text-lg font-semibold text-foreground">
                   Adicionar Aula · {lessonModal.course.title}
                 </h2>
                 <p className="text-xs text-muted-foreground">
@@ -1749,11 +1617,11 @@ export function AreasWorkspaceClient({
 
             <form onSubmit={submitLessonModal} className="space-y-4">
               <div className="space-y-1.5">
-                <label className="text-xs font-semibold text-foreground">Módulo</label>
-                <select
+                <label htmlFor="area-field-18" className="text-xs font-semibold text-foreground">Módulo</label>
+                <select id="area-field-18"
                   value={lessonModal.moduleId}
                   onChange={(e) => setLessonModal({ ...lessonModal, moduleId: e.target.value })}
-                  className="min-h-10 w-full rounded-lg border border-input bg-background px-3 py-2 text-sm text-foreground"
+                  className="min-h-11 w-full rounded-lg border border-input bg-background px-3 py-2 text-sm text-foreground"
                 >
                   {lessonModal.course.modules.map((m) => (
                     <option key={m.id} value={m.id}>
@@ -1766,57 +1634,57 @@ export function AreasWorkspaceClient({
 
               {lessonModal.moduleId === '__new__' && (
                 <div className="space-y-1.5">
-                  <label className="text-xs font-semibold text-foreground">Nome do novo módulo *</label>
-                  <input
+                  <label htmlFor="area-field-19" className="text-xs font-semibold text-foreground">Nome do novo módulo *</label>
+                  <input id="area-field-19"
                     required
                     value={lessonModal.newModuleTitle}
                     onChange={(e) =>
                       setLessonModal({ ...lessonModal, newModuleTitle: e.target.value })
                     }
                     placeholder="Ex.: Módulo 2 · Prática em Bancada"
-                    className="min-h-10 w-full rounded-lg border border-input bg-background px-3 py-2 text-sm text-foreground"
+                    className="min-h-11 w-full rounded-lg border border-input bg-background px-3 py-2 text-sm text-foreground"
                   />
                 </div>
               )}
 
               <div className="space-y-1.5">
-                <label className="text-xs font-semibold text-foreground">Título da aula *</label>
-                <input
+                <label htmlFor="area-field-20" className="text-xs font-semibold text-foreground">Título da aula *</label>
+                <input id="area-field-20"
                   required
                   value={lessonModal.title}
                   onChange={(e) => setLessonModal({ ...lessonModal, title: e.target.value })}
                   placeholder="Ex.: Regras de Roteamento de Alta Corrente"
-                  className="min-h-10 w-full rounded-lg border border-input bg-background px-3 py-2 text-sm text-foreground"
+                  className="min-h-11 w-full rounded-lg border border-input bg-background px-3 py-2 text-sm text-foreground"
                 />
               </div>
 
               <div className="space-y-1.5">
-                <label className="text-xs font-semibold text-foreground">
+                <label htmlFor="area-field-21" className="text-xs font-semibold text-foreground">
                   Link ou ID do YouTube (opcional — se vazio, cria aula em texto)
                 </label>
-                <input
+                <input id="area-field-21"
                   value={lessonModal.youtubeUrl}
                   onChange={(e) => setLessonModal({ ...lessonModal, youtubeUrl: e.target.value })}
                   placeholder="https://www.youtube.com/watch?v=... ou ID de 11 caracteres"
-                  className="min-h-10 w-full rounded-lg border border-input bg-background px-3 py-2 text-sm text-foreground"
+                  className="min-h-11 w-full rounded-lg border border-input bg-background px-3 py-2 text-sm text-foreground"
                 />
               </div>
 
               <div className="space-y-1.5">
-                <label className="text-xs font-semibold text-foreground">Resumo curto</label>
-                <input
+                <label htmlFor="area-field-22" className="text-xs font-semibold text-foreground">Resumo curto</label>
+                <input id="area-field-22"
                   value={lessonModal.summary}
                   onChange={(e) => setLessonModal({ ...lessonModal, summary: e.target.value })}
                   placeholder="Objetivo principal desta aula"
-                  className="min-h-10 w-full rounded-lg border border-input bg-background px-3 py-2 text-sm text-foreground"
+                  className="min-h-11 w-full rounded-lg border border-input bg-background px-3 py-2 text-sm text-foreground"
                 />
               </div>
 
               <div className="space-y-1.5">
-                <label className="text-xs font-semibold text-foreground">
+                <label htmlFor="area-field-23" className="text-xs font-semibold text-foreground">
                   Conteúdo / Apostila em Markdown
                 </label>
-                <textarea
+                <textarea id="area-field-23"
                   rows={4}
                   value={lessonModal.textContent}
                   onChange={(e) => setLessonModal({ ...lessonModal, textContent: e.target.value })}
@@ -1826,15 +1694,15 @@ export function AreasWorkspaceClient({
               </div>
 
               <div className="space-y-1.5">
-                <label className="text-xs font-semibold text-foreground">
+                <label htmlFor="area-field-24" className="text-xs font-semibold text-foreground">
                   Link de documentação / referência (opcional)
                 </label>
-                <input
+                <input id="area-field-24"
                   type="url"
                   value={lessonModal.rosDocsUrl}
                   onChange={(e) => setLessonModal({ ...lessonModal, rosDocsUrl: e.target.value })}
                   placeholder="https://..."
-                  className="min-h-10 w-full rounded-lg border border-input bg-background px-3 py-2 text-sm text-foreground"
+                  className="min-h-11 w-full rounded-lg border border-input bg-background px-3 py-2 text-sm text-foreground"
                 />
               </div>
 
@@ -1842,14 +1710,14 @@ export function AreasWorkspaceClient({
                 <button
                   type="button"
                   onClick={() => setLessonModal(null)}
-                  className="min-h-10 rounded-lg border border-border px-4 py-2 text-xs font-medium text-foreground hover:bg-accent cursor-pointer"
+                  className="min-h-11 rounded-lg border border-border px-4 py-2 text-xs font-medium text-foreground hover:bg-accent cursor-pointer"
                 >
                   Cancelar
                 </button>
                 <button
                   type="submit"
                   disabled={busy}
-                  className="min-h-10 rounded-lg bg-primary px-4 py-2 text-xs font-semibold text-primary-foreground hover:bg-primary/90 disabled:opacity-50 cursor-pointer"
+                  className="min-h-11 rounded-lg bg-primary px-4 py-2 text-xs font-semibold text-primary-foreground hover:bg-primary/90 disabled:opacity-50 cursor-pointer"
                 >
                   {busy ? 'Salvando...' : 'Adicionar Aula'}
                 </button>

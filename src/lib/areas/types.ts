@@ -112,6 +112,7 @@ export interface AreaSummaryCardDTO extends EvaluationScopeArea {
 }
 
 export interface AreasWorkspaceDTO {
+  workspaceMode: 'member' | 'coordinator' | 'management';
   userScopeKey: string | null;
   selectedScope: EvaluationScopeArea;
   scopes: AreaSummaryCardDTO[];

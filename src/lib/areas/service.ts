@@ -377,7 +377,12 @@ export async function getAreasWorkspace(
 ): Promise<AreasWorkspaceDTO> {
   const userScopeKeys = await resolveUserAreaScopeKeys(user);
   const userScopeKey = userScopeKeys[0] ?? null;
-  const selectedScope = resolveSelectedScope(requestedScopeKey, userScopeKey);
+  const workspaceMode = hasEffectiveRole(user, ['ADMIN', 'MANAGEMENT'])
+    ? 'management' : hasEffectiveRole(user, 'COORDINATOR') ? 'coordinator' : 'member';
+  // Coordenação permanece nos seus vínculos, inclusive quando atua nas duas divisões.
+  const allowedRequest = workspaceMode === 'management' || userScopeKeys.includes(requestedScopeKey ?? '')
+    ? requestedScopeKey : null;
+  const selectedScope = resolveSelectedScope(allowedRequest, userScopeKey);
   const isAdmin = hasEffectiveRole(user, 'ADMIN');
   const canManageSelected = await canManageAreaScope(user, selectedScope.scopeKey);
   const canUpdateTasksInSelectedArea =
@@ -391,7 +396,9 @@ export async function getAreasWorkspace(
         select: { id: true, scopeKey: true },
       }),
       prisma.areaTask.findMany({
-        where: { scopeKey: selectedScope.scopeKey },
+        where: workspaceMode === 'management' || userScopeKeys.includes(selectedScope.scopeKey)
+          ? { scopeKey: selectedScope.scopeKey }
+          : { assignments: { some: { memberId: user.id } } },
         include: {
           assignments: { orderBy: { assignedAt: 'asc' } },
         },
@@ -567,9 +574,10 @@ export async function getAreasWorkspace(
   );
 
   return {
+    workspaceMode,
     userScopeKey,
     selectedScope,
-    scopes,
+    scopes: workspaceMode === 'management' ? scopes : scopes.filter((s) => s.isUserArea),
     canManageSelectedArea: canManageSelected,
     canUpdateTasksInSelectedArea,
     isAdmin,

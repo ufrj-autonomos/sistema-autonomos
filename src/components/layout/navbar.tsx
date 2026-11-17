@@ -19,6 +19,7 @@ import {
   Wallet,
   Lightbulb,
   Layers,
+  ListChecks,
 } from "lucide-react";
 import { ThemeToggle } from "./theme-toggle";
 import { NotificationBell } from "./notification-bell";
@@ -99,7 +100,7 @@ export function Navbar({ className }: NavbarProps) {
   const effectiveRoles = extractEffectiveRoles(user);
   const NAV_LINKS = [
     { label: "Início", href: "/", icon: Home },
-    { label: "Áreas", href: "/areas", icon: Layers },
+    { label: canAccessManagement ? "Áreas" : "Tarefas", href: canAccessManagement ? "/areas" : "/tarefas", icon: canAccessManagement ? Layers : ListChecks },
     { label: "Ensino", href: "/ensino", icon: BookOpen },
     { label: "Presença", href: "/presenca", icon: Clock3 },
     { label: "Reuniões", href: "/reunioes", icon: CalendarCheck },

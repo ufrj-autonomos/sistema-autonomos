@@ -304,7 +304,7 @@ export default async function HomePage() {
 
               <div className="flex flex-wrap gap-2 border-t border-border/60 pt-4">
                 <Link
-                  href="/areas"
+                  href={hasManagementAccess(user) ? "/areas" : "/tarefas"}
                   className="inline-flex min-h-10 items-center gap-1.5 rounded-lg border border-primary/40 bg-primary/10 px-3 text-xs font-semibold text-primary hover:bg-primary/20"
                 >
                   <Layers className="h-3.5 w-3.5" />
@@ -438,11 +438,11 @@ export default async function HomePage() {
 
         <div className="flex flex-wrap items-center gap-2">
           <Link
-            href="/areas"
+            href={hasManagementAccess(user) ? "/areas" : "/tarefas"}
             className="inline-flex min-h-11 items-center gap-2 rounded-lg border border-primary/40 bg-primary/10 px-4 py-2 text-sm font-semibold text-primary hover:bg-primary/20 transition"
           >
             <Layers className="h-4 w-4" />
-            Minha Área &amp; Tarefas
+            Tarefas
           </Link>
           <Link
             href="/presenca"
@@ -999,7 +999,7 @@ export default async function HomePage() {
           <div className="grid gap-4 md:grid-cols-2">
             {courses.map((course) => {
               const progress = Math.round(course.courseProgress[0]?.percentage || 0);
-              const courseHref = course.slug === 'ros2-jazzy' ? '/ensino' : '/areas?tab=courses';
+              const courseHref = `/ensino/cursos/${course.slug}`;
               return (
                 <Link
                   key={course.id}
