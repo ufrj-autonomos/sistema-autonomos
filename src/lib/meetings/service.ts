@@ -2,7 +2,7 @@ import { meetingMinutesResponsibility } from './responsibility';
 import { db as institutionalDb } from '@/lib/institutional/db';
 import { prisma } from '@/lib/prisma';
 import type { SafeUser } from '@/lib/session';
-import { hasManagementAccess } from '@/lib/access-policy';
+import { hasEffectiveRole, hasManagementAccess } from '@/lib/access-policy';
 import { isOperationalActiveMember } from '@/lib/member-fields';
 import type { MeetingAttendanceStatus } from '@prisma/client';
 
@@ -53,8 +53,8 @@ export const KNOWN_AREAS: AreaDefinition[] = [
 ];
 
 export function canUserManageMeetings(user: SafeUser, targetTeamId?: number | null): boolean {
-  if (user.role === 'ADMIN') return true;
-  if (user.role === 'COORDINATOR') {
+  if (hasEffectiveRole(user, 'ADMIN')) return true;
+  if (hasEffectiveRole(user, 'COORDINATOR')) {
     if (targetTeamId === undefined) return true;
     return (user.teamId ?? null) === (targetTeamId ?? null);
   }
@@ -62,7 +62,7 @@ export function canUserManageMeetings(user: SafeUser, targetTeamId?: number | nu
 }
 
 export function getVisibleAreasForUser(user: SafeUser): AreaDefinition[] {
-  const isAdmin = user.role === 'ADMIN';
+  const isAdmin = hasEffectiveRole(user, 'ADMIN');
 
   let list: AreaDefinition[] = [];
   if (isAdmin) {
@@ -192,7 +192,7 @@ export async function createNewMeetingPeriod(
   user: SafeUser,
   input: { code: string; name?: string; description?: string }
 ): Promise<MeetingPeriodSummary> {
-  if (!hasManagementAccess(user.role)) {
+  if (!hasManagementAccess(user)) {
     throw new Error('Apenas Coordenadores, Gestão e Administradores podem reiniciar ciclos de reuniões.');
   }
 
@@ -264,8 +264,9 @@ export async function getMeetingsDashboardData(user: SafeUser, requestedPeriod?:
   const isArchived = Boolean(periodMeta && !periodMeta.isCurrent);
 
   // Buscar todas as reuniões do período no escopo da equipe do usuário (Admin vê todas)
+  const isAdmin = hasEffectiveRole(user, 'ADMIN');
   const meetingWhere: { period: string; teamId?: number | null } = { period };
-  if (user.role !== 'ADMIN') {
+  if (!isAdmin) {
     meetingWhere.teamId = user.teamId ?? null;
   }
 
@@ -484,11 +485,11 @@ export async function getMeetingsDashboardData(user: SafeUser, requestedPeriod?:
   });
 
   // Métricas Gerais do Painel Executivo (no escopo da equipe do usuário, ou global para Admin)
-  const scopedMembersList = user.role === 'ADMIN'
+  const scopedMembersList = isAdmin
     ? memberStatsList
     : memberStatsList.filter((s) => s.teamId === user.teamId);
 
-  const scopedMeetings = user.role === 'ADMIN'
+  const scopedMeetings = isAdmin
     ? allMeetings
     : allMeetings.filter((m) => m.teamId === user.teamId);
 
@@ -644,7 +645,7 @@ export async function getMeetingsDashboardData(user: SafeUser, requestedPeriod?:
     periods,
     periodMeta,
     isArchived,
-    isAdmin: user.role === 'ADMIN',
+    isAdmin: hasEffectiveRole(user, 'ADMIN'),
     canEdit: canUserManageMeetings(user),
     visibleAreas,
     overview: {
@@ -667,7 +668,7 @@ export async function getMeetingsDashboardData(user: SafeUser, requestedPeriod?:
 
 
 export async function pendingMeetingMinutes(user: SafeUser) {
-  if (!['COORDINATOR', 'ADMIN'].includes(user.role)) return { total: 0, meetings: [] };
+  if (!hasEffectiveRole(user, ['COORDINATOR', 'ADMIN'])) return { total: 0, meetings: [] };
   const office = user.institutionalMemberId && process.env.INSTITUTIONAL_DATABASE_URL
     ? await institutionalDb.institutionalMember.findUnique({ where: { id: user.institutionalMemberId }, select: { role: true, area: true, teamId: true } }).catch(() => null)
     : null;

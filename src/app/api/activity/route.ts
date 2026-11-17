@@ -1,12 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { authorizeApi } from '@/lib/session';
+import { hasEffectiveRole } from '@/lib/access-policy';
 import { checkRateLimit } from '@/lib/rate-limit';
 import { writeActivity } from '@/lib/activity/server';
 import { clientEvents } from '@/lib/activity/input';
 export async function POST(req: NextRequest) {
   const access = await authorizeApi(req);
   if (access.error) return access.error;
-  if (access.user.role === 'ADMIN') return new NextResponse(null, { status: 204 });
+  if (hasEffectiveRole(access.user, 'ADMIN')) return new NextResponse(null, { status: 204 });
   const length = Number(req.headers.get('content-length') || '0');
   if (length > 16384) return NextResponse.json({ error: 'Lote muito grande.' }, { status: 413 });
   const text = await req.text();

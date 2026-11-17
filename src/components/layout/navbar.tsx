@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
-import { hasManagementAccess } from "@/lib/access-policy";
+import { extractEffectiveRoles, hasEffectiveRole, hasManagementAccess } from "@/lib/access-policy";
 import { usePathname } from "next/navigation";
 import {
   Menu,
@@ -18,6 +18,7 @@ import {
   UserCircle,
   Wallet,
   Lightbulb,
+  Layers,
 } from "lucide-react";
 import { ThemeToggle } from "./theme-toggle";
 import { NotificationBell } from "./notification-bell";
@@ -93,9 +94,12 @@ export function Navbar({ className }: NavbarProps) {
     return pathname === href || pathname.startsWith(`${href}/`);
   }
 
-  const canAccessManagement = hasManagementAccess(user?.role);
+  const canAccessManagement = hasManagementAccess(user);
+  const isAdminUser = hasEffectiveRole(user, "ADMIN");
+  const effectiveRoles = extractEffectiveRoles(user);
   const NAV_LINKS = [
     { label: "Início", href: "/", icon: Home },
+    { label: "Áreas", href: "/areas", icon: Layers },
     { label: "Ensino", href: "/ensino", icon: BookOpen },
     { label: "Presença", href: "/presenca", icon: Clock3 },
     { label: "Reuniões", href: "/reunioes", icon: CalendarCheck },
@@ -115,9 +119,8 @@ export function Navbar({ className }: NavbarProps) {
         .toUpperCase()
     : "UA";
 
-  // Identificação do rótulo da role técnica
-  const roleDisplay = (() => {
-    switch (user?.role) {
+  function roleBadgeMeta(roleKey: string) {
+    switch (roleKey) {
       case "ADMIN":
         return {
           label: "Admin",
@@ -145,7 +148,9 @@ export function Navbar({ className }: NavbarProps) {
           badgeClass: "bg-muted-foreground/10 text-muted-foreground border-border",
         };
     }
-  })();
+  }
+
+  const roleBadges = effectiveRoles.length > 0 ? effectiveRoles.map(roleBadgeMeta) : [roleBadgeMeta(user?.role || "TRAINEE")];
 
   return (
     <>
@@ -255,17 +260,17 @@ export function Navbar({ className }: NavbarProps) {
                 <span className="text-sm font-medium text-foreground hidden sm:inline max-w-[120px] truncate">
                   {user.name.split(" ")[0]}
                 </span>
-                {user.role !== 'ADMIN' && user.teamSlug === 'harpia' && (
+                {!isAdminUser && user.teamSlug === 'harpia' && (
                   <span className="hidden md:inline-flex items-center text-[10px] font-medium px-1.5 py-0.5 rounded-full bg-purple-100 text-purple-800 border border-purple-200 dark:bg-purple-900/40 dark:text-purple-200 dark:border-purple-500/30">
                     ☁️ Harpia
                   </span>
                 )}
-                {user.role !== 'ADMIN' && user.teamSlug === 'nautilus' && (
+                {!isAdminUser && user.teamSlug === 'nautilus' && (
                   <span className="hidden md:inline-flex items-center text-[10px] font-medium px-1.5 py-0.5 rounded-full bg-sky-100 text-sky-800 border border-sky-200 dark:bg-sky-900/40 dark:text-sky-200 dark:border-sky-500/30">
                     🌊 Nautilus
                   </span>
                 )}
-                {user.role === 'ADMIN' && (
+                {isAdminUser && (
                   <span className="hidden md:inline-flex items-center text-[10px] font-medium px-1.5 py-0.5 rounded-full bg-amber-500/15 text-amber-600 dark:text-amber-400 border border-amber-500/30">
                     🤖 Autônomos
                   </span>
@@ -293,25 +298,28 @@ export function Navbar({ className }: NavbarProps) {
                       {user.email}
                     </p>
                     <div className="mt-2 flex items-center gap-1.5 flex-wrap">
-                      <span
-                        className={cn(
-                          "text-[10px] font-mono px-2 py-0.5 rounded border font-medium",
-                          roleDisplay.badgeClass
-                        )}
-                      >
-                        {roleDisplay.label}
-                      </span>
-                      {user.role !== 'ADMIN' && user.teamSlug === 'harpia' && (
+                      {roleBadges.map((rb) => (
+                        <span
+                          key={rb.label}
+                          className={cn(
+                            "text-[10px] font-mono px-2 py-0.5 rounded border font-medium",
+                            rb.badgeClass
+                          )}
+                        >
+                          {rb.label}
+                        </span>
+                      ))}
+                      {!isAdminUser && user.teamSlug === 'harpia' && (
                         <span className="text-[10px] font-medium px-2 py-0.5 rounded-full bg-purple-100 text-purple-800 border border-purple-200 dark:bg-purple-900/40 dark:text-purple-200 dark:border-purple-500/30 flex items-center gap-1">
                           <span>☁️</span> Divisão Harpia
                         </span>
                       )}
-                      {user.role !== 'ADMIN' && user.teamSlug === 'nautilus' && (
+                      {!isAdminUser && user.teamSlug === 'nautilus' && (
                         <span className="text-[10px] font-medium px-2 py-0.5 rounded-full bg-sky-100 text-sky-800 border border-sky-200 dark:bg-sky-900/40 dark:text-sky-200 dark:border-sky-500/30 flex items-center gap-1">
                           <span>🌊</span> Divisão Nautilus
                         </span>
                       )}
-                      {(user.role === 'ADMIN' || !user.teamSlug || user.teamSlug === 'autonomos') && (
+                      {(isAdminUser || !user.teamSlug || user.teamSlug === 'autonomos') && (
                         <span className="text-[10px] font-medium px-2 py-0.5 rounded-full bg-zinc-100 text-zinc-800 border border-zinc-200 dark:bg-zinc-800 dark:text-zinc-300 dark:border-zinc-700">
                           Autônomos Geral
                         </span>
@@ -557,17 +565,28 @@ export function Navbar({ className }: NavbarProps) {
                   {user.email}
                 </p>
                 <div className="mt-1 flex items-center gap-1.5 flex-wrap">
-                  {user.role !== 'ADMIN' && user.teamSlug === 'harpia' && (
+                  {roleBadges.map((rb) => (
+                    <span
+                      key={rb.label}
+                      className={cn(
+                        "text-[10px] font-mono px-2 py-0.5 rounded border font-medium",
+                        rb.badgeClass
+                      )}
+                    >
+                      {rb.label}
+                    </span>
+                  ))}
+                  {!isAdminUser && user.teamSlug === 'harpia' && (
                     <span className="text-[10px] font-medium px-2 py-0.5 rounded-full bg-purple-100 text-purple-800 border border-purple-200 dark:bg-purple-900/40 dark:text-purple-200 dark:border-purple-500/30">
                       ☁️ Divisão Harpia
                     </span>
                   )}
-                  {user.role !== 'ADMIN' && user.teamSlug === 'nautilus' && (
+                  {!isAdminUser && user.teamSlug === 'nautilus' && (
                     <span className="text-[10px] font-medium px-2 py-0.5 rounded-full bg-sky-100 text-sky-800 border border-sky-200 dark:bg-sky-900/40 dark:text-sky-200 dark:border-sky-500/30">
                       🌊 Divisão Nautilus
                     </span>
                   )}
-                  {(user.role === 'ADMIN' || !user.teamSlug || user.teamSlug === 'autonomos') && (
+                  {(isAdminUser || !user.teamSlug || user.teamSlug === 'autonomos') && (
                     <span className="text-[10px] font-medium px-2 py-0.5 rounded-full bg-zinc-100 text-zinc-800 border border-zinc-200 dark:bg-zinc-800 dark:text-zinc-300 dark:border-zinc-700">
                       Autônomos Geral
                     </span>

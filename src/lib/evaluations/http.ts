@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { authorizeApi } from '@/lib/session';
 import type { SafeUser } from '@/lib/session';
+import { hasEffectiveRole } from '@/lib/access-policy';
 import { EvaluationError, canAccessEvaluations } from './service';
 
 export async function authorizeEvaluationsApi(
@@ -10,7 +11,7 @@ export async function authorizeEvaluationsApi(
   const access = await authorizeApi(req, true);
   if (access.error) return access;
 
-  if (options.adminOnly && access.user.role !== 'ADMIN') {
+  if (options.adminOnly && !hasEffectiveRole(access.user, 'ADMIN')) {
     return {
       user: null,
       error: NextResponse.json(
@@ -20,7 +21,7 @@ export async function authorizeEvaluationsApi(
     };
   }
 
-  if (!canAccessEvaluations(access.user.role)) {
+  if (!canAccessEvaluations(access.user)) {
     return {
       user: null,
       error: NextResponse.json(

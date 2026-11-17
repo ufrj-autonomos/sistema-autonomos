@@ -1,5 +1,6 @@
 import { prisma } from '@/lib/prisma';
 import { db as institutionalDb } from '@/lib/institutional/db';
+import { hasEffectiveRole } from '@/lib/access-policy';
 import { isOperationalActiveMember } from '@/lib/member-fields';
 import type { SafeUser } from '@/lib/session';
 import type { DisciplinaryWarningType, AccountStatus, Prisma } from '@prisma/client';
@@ -100,8 +101,8 @@ export function calculateDisciplinaryStatus(avisos: number, directWarnings: numb
 }
 
 export function canUserManageDisciplinary(user: SafeUser, targetMemberTeamId?: number | null): boolean {
-  if (user.role === 'ADMIN' || user.role === 'MANAGEMENT') return true;
-  if (user.role === 'COORDINATOR') {
+  if (hasEffectiveRole(user, ['ADMIN', 'MANAGEMENT'])) return true;
+  if (hasEffectiveRole(user, 'COORDINATOR')) {
     if (targetMemberTeamId === undefined) return true;
     return (user.teamId ?? null) === (targetMemberTeamId ?? null);
   }
@@ -166,7 +167,7 @@ export async function getMemberDisciplinarySummary(memberId: string): Promise<Me
 }
 
 export async function getDisciplinaryDashboardData(user: SafeUser): Promise<DisciplinaryDashboardData> {
-  const isGlobal = user.role === 'ADMIN' || user.role === 'MANAGEMENT';
+  const isGlobal = hasEffectiveRole(user, ['ADMIN', 'MANAGEMENT']);
   const memberWhere: Prisma.MemberWhereInput = {
     active: true,
     status: { notIn: ['SUSPENDED', 'REJECTED'] as AccountStatus[] },

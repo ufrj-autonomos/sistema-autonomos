@@ -17,27 +17,43 @@ export function isGestaoArea(area: string | null | undefined): boolean {
   return norm !== null && normalizedKey(norm) === 'gestao';
 }
 
+export const ROLE_PRIORITY_LIST = ['ADMIN', 'COORDINATOR', 'MANAGEMENT', 'MEMBER', 'TRAINEE'] as const;
+export type DerivedSystemRole = (typeof ROLE_PRIORITY_LIST)[number];
+
+export function rolesFromCargo(
+  cargo: string | string[] | null | undefined,
+  area?: string | null
+): DerivedSystemRole[] {
+  const parts = splitMemberRoles(cargo);
+  const found = new Set<DerivedSystemRole>();
+
+  if (parts.length === 0) {
+    found.add(isGestaoArea(area) ? 'MANAGEMENT' : 'MEMBER');
+  } else {
+    for (const c of parts) {
+      if (['Capitão', 'Vice-Capitão', 'Diretor de Gente e Gestão', 'Diretor de Operações'].includes(c)) {
+        found.add('ADMIN');
+      } else if (['Coordenador', 'Vice-Coordenador', 'Coordenador de Marketing'].includes(c)) {
+        found.add('COORDINATOR');
+      } else if (c === 'Trainee') {
+        found.add('TRAINEE');
+      } else {
+        found.add('MEMBER');
+      }
+    }
+    if (isGestaoArea(area)) {
+      found.add('MANAGEMENT');
+    }
+  }
+
+  return ROLE_PRIORITY_LIST.filter((r) => found.has(r));
+}
+
 export function roleFromCargo(
   cargo: string | null | undefined,
   area?: string | null
-): 'ADMIN' | 'COORDINATOR' | 'MANAGEMENT' | 'TRAINEE' | 'MEMBER' {
-  if (!cargo) return isGestaoArea(area) ? 'MANAGEMENT' : 'MEMBER';
-  const c = normalizeMemberRole(cargo);
-  // Diretoria e capitania (e vices) são ADMIN
-  if (['Capitão', 'Vice-Capitão', 'Diretor de Gente e Gestão', 'Diretor de Operações'].includes(c)) {
-    return 'ADMIN';
-  }
-  // Coordenador e vice-coordenador têm os mesmos acessos de coordenador
-  if (['Coordenador', 'Vice-Coordenador', 'Coordenador de Marketing'].includes(c)) {
-    return 'COORDINATOR';
-  }
-  if (isGestaoArea(area)) {
-    return 'MANAGEMENT';
-  }
-  if (c === 'Trainee') {
-    return 'TRAINEE';
-  }
-  return 'MEMBER';
+): DerivedSystemRole {
+  return rolesFromCargo(cargo, area)[0] ?? (isGestaoArea(area) ? 'MANAGEMENT' : 'MEMBER');
 }
 const normalizedKey = (value: string) => value.trim().normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
 
@@ -101,7 +117,7 @@ export function planMemberAreaRepairs(site: { id: number; area: string }[], inte
   }
   return { siteUpdates, internalUpdates };
 }
-export function normalizeMemberRole(value: string) {
+export function normalizeSingleMemberRole(value: string) {
   const aliases: Record<string, string> = {
     integrante: 'Membro', membro: 'Membro', capita: 'Capitão', 'vice-capita': 'Vice-Capitão',
     coordenadora: 'Coordenador', 'vice-coordenadora': 'Vice-Coordenador',
@@ -110,19 +126,75 @@ export function normalizeMemberRole(value: string) {
   };
   return aliases[normalizedKey(value)] || MEMBER_ROLES.find(role => normalizedKey(role.value) === normalizedKey(value))?.value || value.trim();
 }
+
+export function splitMemberRoles(value: unknown): string[] {
+  if (Array.isArray(value)) {
+    const out: string[] = [];
+    for (const item of value) {
+      if (typeof item !== 'string') continue;
+      for (const part of item.split(/\s*(?:\/|,|;|\||\+)\s*/)) {
+        const clean = normalizeSingleMemberRole(part);
+        if (clean && !out.includes(clean)) out.push(clean);
+      }
+    }
+    return out;
+  }
+  if (typeof value !== 'string') return [];
+  const trimmed = value.trim();
+  if (!trimmed) return [];
+  if (trimmed.startsWith('[') && trimmed.endsWith(']')) {
+    try {
+      const parsed = JSON.parse(trimmed);
+      if (Array.isArray(parsed)) return splitMemberRoles(parsed);
+    } catch {
+      // Fallback para texto simples
+    }
+  }
+  const out: string[] = [];
+  for (const part of trimmed.split(/\s*(?:\/|,|;|\||\+)\s*/)) {
+    const clean = normalizeSingleMemberRole(part);
+    if (clean && !out.includes(clean)) out.push(clean);
+  }
+  return out;
+}
+
+export function formatMemberRoles(value: string[] | string): string {
+  return splitMemberRoles(value).join(' / ');
+}
+
+export function normalizeMemberRole(value: string) {
+  const parts = splitMemberRoles(value);
+  if (parts.length === 0) return value.trim();
+  if (parts.length === 1) return parts[0];
+  return parts.join(' / ');
+}
+
+const SINGLE_ROLE_TRANSLATIONS: Record<string, { roleEn: string; roleFr: string }> = {
+  'Capitão': { roleEn: 'Captain', roleFr: 'Capitaine' },
+  'Vice-Capitão': { roleEn: 'Vice-Captain', roleFr: 'Vice-Capitaine' },
+  'Diretor de Gente e Gestão': { roleEn: 'Director of People & Management', roleFr: 'Directeur des Ressources Humaines' },
+  'Diretor de Operações': { roleEn: 'Operations Director', roleFr: 'Directeur des Opérations' },
+  'Coordenador': { roleEn: 'Coordinator', roleFr: 'Coordinateur' },
+  'Vice-Coordenador': { roleEn: 'Vice-Coordinator', roleFr: 'Vice-Coordinateur' },
+  'Coordenador de Marketing': { roleEn: 'Marketing Coordinator', roleFr: 'Coordinateur Marketing' },
+  'Membro': { roleEn: 'Member', roleFr: 'Membre' },
+  'Trainee': { roleEn: 'Trainee', roleFr: 'Stagiaire' },
+  'Alumni': { roleEn: 'Alumni', roleFr: 'Ancien élève' },
+};
+
 export function memberRoleTranslations(role: string) {
-  return ({
-    'Capitão': { roleEn: 'Captain', roleFr: 'Capitaine' },
-    'Vice-Capitão': { roleEn: 'Vice-Captain', roleFr: 'Vice-Capitaine' },
-    'Diretor de Gente e Gestão': { roleEn: 'Director of People & Management', roleFr: 'Directeur des Ressources Humaines' },
-    'Diretor de Operações': { roleEn: 'Operations Director', roleFr: 'Directeur des Opérations' },
-    'Coordenador': { roleEn: 'Coordinator', roleFr: 'Coordinateur' },
-    'Vice-Coordenador': { roleEn: 'Vice-Coordinator', roleFr: 'Vice-Coordinateur' },
-    'Coordenador de Marketing': { roleEn: 'Marketing Coordinator', roleFr: 'Coordinateur Marketing' },
-    'Membro': { roleEn: 'Member', roleFr: 'Membre' },
-    'Trainee': { roleEn: 'Trainee', roleFr: 'Stagiaire' },
-    'Alumni': { roleEn: 'Alumni', roleFr: 'Ancien élève' },
-  } as Record<string, { roleEn: string; roleFr: string }>)[normalizeMemberRole(role)];
+  const parts = splitMemberRoles(role);
+  if (parts.length <= 1) {
+    return SINGLE_ROLE_TRANSLATIONS[normalizeMemberRole(role)];
+  }
+  const translated = parts
+    .map((p) => SINGLE_ROLE_TRANSLATIONS[p])
+    .filter((t): t is { roleEn: string; roleFr: string } => Boolean(t));
+  if (translated.length === 0) return undefined;
+  return {
+    roleEn: translated.map((t) => t.roleEn).join(' / '),
+    roleFr: translated.map((t) => t.roleFr).join(' / '),
+  };
 }
 
 export function computeMissingProfileFields(input: {

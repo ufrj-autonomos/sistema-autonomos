@@ -8,6 +8,7 @@ import {
   canAccessEvaluations,
   getPendingEvaluationsSummary,
 } from '@/lib/evaluations/service';
+import { hasEffectiveRole } from '@/lib/access-policy';
 import type { PendingEvaluationsSummaryDTO } from '@/lib/evaluations/types';
 import {
   computeMissingProfileFields,
@@ -244,7 +245,7 @@ export async function getManagementPendencies(
       select: { id: true, code: true, title: true, amountCents: true, status: true },
     }),
     pendingMeetingMinutes(effectiveUser),
-    canAccessEvaluations(effectiveUser.role)
+    canAccessEvaluations(effectiveUser)
       ? getPendingEvaluationsSummary(effectiveUser)
       : Promise.resolve<PendingEvaluationsSummaryDTO | null>(null),
     prisma.member.findMany({
@@ -636,7 +637,7 @@ export async function getManagementPendencies(
             title: 'Avaliações mensais de membros pendentes',
             shortLabel: 'Avaliações do mês',
             subtitle:
-              effectiveUser.role === 'COORDINATOR'
+              !hasEffectiveRole(effectiveUser, 'ADMIN') && hasEffectiveRole(effectiveUser, 'COORDINATOR')
                 ? `Membros da sua área ainda não avaliados em ${evaluationsPending.periodLabel}.`
                 : `Membros ainda não avaliados pelos coordenadores em ${evaluationsPending.periodLabel}.`,
             count: evaluationsPending.pendingMembersCount,

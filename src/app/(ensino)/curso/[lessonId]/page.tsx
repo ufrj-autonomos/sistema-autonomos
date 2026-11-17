@@ -54,7 +54,9 @@ export default async function CoursePlayerPage(props: PageProps) {
       OR: [
         { id: lessonId },
         { slug: lessonId },
-        ...(!isNaN(numId) && numId > 0 ? [{ orderIndex: numId }] : []),
+        ...(!isNaN(numId) && numId > 0
+          ? [{ orderIndex: numId, module: { course: { slug: "ros2-jazzy" } } }]
+          : []),
       ],
     },
     include: {
@@ -64,6 +66,7 @@ export default async function CoursePlayerPage(props: PageProps) {
       module: {
         select: {
           id: true,
+          courseId: true,
           title: true,
           orderIndex: true,
         },
@@ -75,9 +78,9 @@ export default async function CoursePlayerPage(props: PageProps) {
     notFound();
   }
 
-  // 2. Busca do curso completo com os 11 módulos e 108 aulas
-  const course = await prisma.course.findFirst({
-    where: { slug: "ros2-jazzy" },
+  // 2. Busca do curso ao qual esta aula pertence (ROS 2 Jazzy ou curso da área)
+  const course = await prisma.course.findUnique({
+    where: { id: lesson.module.courseId },
     include: {
       modules: {
         orderBy: { orderIndex: "asc" },

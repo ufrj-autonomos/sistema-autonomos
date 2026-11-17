@@ -2,7 +2,7 @@ import { ManagementOverview } from '@/components/gestao/management-overview';
 import { AttendanceCard } from '@/components/attendance/attendance-card';
 import { attendanceReport } from '@/lib/attendance/service';
 import Link from 'next/link';
-import { hasManagementAccess } from '@/lib/access-policy';
+import { hasEffectiveRole, hasManagementAccess } from '@/lib/access-policy';
 import {
   AlertCircle,
   ArrowRight,
@@ -94,16 +94,19 @@ const MEETING_BADGE: Record<string, { code: string; label: string; cls: string }
 export default async function HomePage() {
   const user = await requirePageUser();
 
-  if (hasManagementAccess(user.role)) {
+  if (hasManagementAccess(user)) {
     const [personalAttendance, homeInsights, areaEvaluations, pendingEvaluations] =
       await Promise.all([
         attendanceReport(undefined, user.id).catch(() => null),
         getMemberHomeInsights(user),
         getHomeAreaEvaluations(user).catch(() => null),
-        canAccessEvaluations(user.role)
+        canAccessEvaluations(user)
           ? getPendingEvaluationsSummary(user).catch(() => null)
           : Promise.resolve(null),
       ]);
+
+    const userIsAdmin = hasEffectiveRole(user, 'ADMIN');
+    const userIsCoordOnly = !userIsAdmin && hasEffectiveRole(user, 'COORDINATOR');
 
     const missingFields = homeInsights?.profileStatus.missingOperationalFields ?? [];
     const needsOperationalProfile = homeInsights
@@ -153,7 +156,7 @@ export default async function HomePage() {
               <div className="min-w-0 space-y-1">
                 <div className="flex flex-wrap items-center gap-2">
                   <p className="font-semibold text-amber-950 dark:text-yellow-100">
-                    {user.role === 'COORDINATOR'
+                    {userIsCoordOnly
                       ? `Avaliação mensal pendente · ${pendingEvaluations.periodLabel}`
                       : `Avaliações mensais pendentes · ${pendingEvaluations.periodLabel}`}
                   </p>
@@ -165,7 +168,7 @@ export default async function HomePage() {
                 </div>
                 <p className="text-xs sm:text-sm text-amber-900/90 dark:text-yellow-200/90">
                   {pendingEvaluations.pendingMembersCount > 0 ? (
-                    user.role === 'COORDINATOR' ? (
+                    userIsCoordOnly ? (
                       <>
                         Faltam{' '}
                         <strong>{pendingEvaluations.pendingMembersCount}</strong>{' '}
@@ -199,7 +202,7 @@ export default async function HomePage() {
                     {pendingEvaluations.pendingMembers
                       .slice(0, 4)
                       .map((m) =>
-                        user.role === 'ADMIN' ? `${m.name} (${m.areaLabel})` : m.name
+                        userIsAdmin ? `${m.name} (${m.areaLabel})` : m.name
                       )
                       .join(', ')}
                     {pendingEvaluations.pendingMembers.length > 4 &&
@@ -301,6 +304,13 @@ export default async function HomePage() {
 
               <div className="flex flex-wrap gap-2 border-t border-border/60 pt-4">
                 <Link
+                  href="/areas"
+                  className="inline-flex min-h-10 items-center gap-1.5 rounded-lg border border-primary/40 bg-primary/10 px-3 text-xs font-semibold text-primary hover:bg-primary/20"
+                >
+                  <Layers className="h-3.5 w-3.5" />
+                  Espaço das Áreas
+                </Link>
+                <Link
                   href="/reunioes"
                   className="inline-flex min-h-10 items-center gap-1.5 rounded-lg border border-border bg-background px-3 text-xs font-medium text-foreground hover:bg-accent"
                 >
@@ -356,6 +366,7 @@ export default async function HomePage() {
       orderBy: { orderIndex: 'asc' },
       select: {
         id: true,
+        slug: true,
         title: true,
         subtitle: true,
         level: true,
@@ -426,6 +437,13 @@ export default async function HomePage() {
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
+          <Link
+            href="/areas"
+            className="inline-flex min-h-11 items-center gap-2 rounded-lg border border-primary/40 bg-primary/10 px-4 py-2 text-sm font-semibold text-primary hover:bg-primary/20 transition"
+          >
+            <Layers className="h-4 w-4" />
+            Minha Área &amp; Tarefas
+          </Link>
           <Link
             href="/presenca"
             className="inline-flex min-h-11 items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground hover:bg-primary/90 transition"
@@ -981,10 +999,11 @@ export default async function HomePage() {
           <div className="grid gap-4 md:grid-cols-2">
             {courses.map((course) => {
               const progress = Math.round(course.courseProgress[0]?.percentage || 0);
+              const courseHref = course.slug === 'ros2-jazzy' ? '/ensino' : '/areas?tab=courses';
               return (
                 <Link
                   key={course.id}
-                  href="/ensino"
+                  href={courseHref}
                   className="group flex flex-col justify-between rounded-xl border border-border bg-card p-5 hover:border-foreground/30 transition shadow-xs"
                 >
                   <div>

@@ -17,7 +17,8 @@ export interface SafeUser {
   id: string;
   email: string;
   name: string;
-  role: "TRAINEE" | "MANAGEMENT" | "MEMBER" | "ADMIN" | string;
+  role: "TRAINEE" | "MANAGEMENT" | "COORDINATOR" | "MEMBER" | "ADMIN" | string;
+  roles?: string[];
   avatar?: string | null;
   status?: string;
   area?: string | null;

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getCurrentUser } from '@/lib/session';
+import { hasEffectiveRole } from '@/lib/access-policy';
 import { prisma } from '@/lib/prisma';
 import { canUserManageMeetings } from '@/lib/meetings/service';
 import { minutesInput, summarizeMinutes } from '@/lib/meetings/minutes';
@@ -10,7 +11,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
     if (!user) return NextResponse.json({ error: 'Não autenticado.' }, { status: 401 });
     const meeting = await prisma.meeting.findUnique({ where: { id: (await params).id } });
     if (!meeting) return NextResponse.json({ error: 'Reunião não encontrada.' }, { status: 404 });
-    if (user.role !== 'ADMIN' && (user.teamId ?? null) !== meeting.teamId) return NextResponse.json({ error: 'Você não tem acesso a esta reunião.' }, { status: 403 });
+    if (!hasEffectiveRole(user, 'ADMIN') && (user.teamId ?? null) !== meeting.teamId) return NextResponse.json({ error: 'Você não tem acesso a esta reunião.' }, { status: 403 });
     return NextResponse.json({ minutes: meeting.minutes, summary: meeting.minutesSummary, source: meeting.minutesSummarySource, updatedAt: meeting.minutesUpdatedAt?.toISOString() || null }, { headers });
   } catch { return NextResponse.json({ error: 'Não foi possível abrir a ata. Tente novamente.' }, { status: 503, headers }); }
 }

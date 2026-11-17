@@ -4,7 +4,7 @@ import { ArrowLeft, ArrowRight, RefreshCw } from 'lucide-react';
 import { useSession } from '@/contexts/auth-context';
 import { useRouter } from 'next/navigation';
 import { activityTitle, activityLocation, ACTIVITY_KINDS, KIND_LABELS, OUTCOME_LABELS } from '@/lib/activity/catalog';
-import { ROLE_LABELS } from '@/lib/access-policy';
+import { ROLE_LABELS, hasEffectiveRole } from '@/lib/access-policy';
 import type { ActivityLogResult } from '@/lib/activity/query';
 const control = 'min-h-11 rounded-lg border border-input bg-background px-3 py-2 text-sm text-foreground';
 const button = `${control} inline-flex items-center justify-center gap-2 disabled:opacity-50 hover:bg-accent`;
@@ -14,7 +14,7 @@ export function ActivityLogViewer() {
   const [result, setResult] = useState<ActivityLogResult | null>(null);
   const [query, setQuery] = useState(''); const [kind, setKind] = useState(''); const [outcome, setOutcome] = useState(''); const [days, setDays] = useState('7');
   const [applied, setApplied] = useState('days=7'); const [cursors, setCursors] = useState<(string | null)[]>([null]); const [loading, setLoading] = useState(true); const [error, setError] = useState(''); const [version, setVersion] = useState(0);
-  useEffect(() => { if (!isLoading && user && user.role !== 'ADMIN') { setResult(null); router.replace('/gestao'); } }, [user, isLoading, router]);
+  useEffect(() => { if (!isLoading && user && !hasEffectiveRole(user, 'ADMIN')) { setResult(null); router.replace('/gestao'); } }, [user, isLoading, router]);
   const latest = useRef(0);
   const cursor = cursors.at(-1);
   const load = useCallback(async (signal: AbortSignal) => {
@@ -26,7 +26,7 @@ export function ActivityLogViewer() {
   }, [applied, cursor]);
   useEffect(() => { const controller = new AbortController(); void load(controller.signal); return () => controller.abort(); }, [load, version]);
   function apply(event: FormEvent) { event.preventDefault(); const params = new URLSearchParams({ days }); if (query.trim()) params.set('q', query.trim()); if (kind) params.set('kind', kind); if (outcome) params.set('outcome', outcome); setApplied(params.toString()); setCursors([null]); setVersion(value => value + 1); }
-  if (!isLoading && user && user.role !== 'ADMIN') return <p role="status" className="text-sm text-muted-foreground">Acesso exclusivo de Admin.</p>;
+  if (!isLoading && user && !hasEffectiveRole(user, 'ADMIN')) return <p role="status" className="text-sm text-muted-foreground">Acesso exclusivo de Admin.</p>;
   return <div className="space-y-5"><form onSubmit={apply} className="grid items-end gap-3 sm:grid-cols-2 xl:grid-cols-[minmax(200px,1fr)_190px_180px_170px_auto]"><label className="text-xs font-medium text-muted-foreground">Buscar por usuário, ação ou página<input name="activity-search" value={query} maxLength={100} onChange={event => setQuery(event.target.value)} className={`${control} mt-2 w-full`} placeholder="Nome, presença, projeto…" /></label><label className="text-xs font-medium text-muted-foreground">Tipo<select name="activity-kind" value={kind} onChange={event => setKind(event.target.value)} className={`${control} mt-2 w-full`}><option value="">Ações relevantes</option>{ACTIVITY_KINDS.map(value => <option key={value} value={value}>{KIND_LABELS[value]}</option>)}</select></label><label className="text-xs font-medium text-muted-foreground">Resultado<select name="activity-outcome" value={outcome} onChange={event => setOutcome(event.target.value)} className={`${control} mt-2 w-full`}><option value="">Todos</option>{Object.entries(OUTCOME_LABELS).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></label><label className="text-xs font-medium text-muted-foreground">Período<select name="activity-days" value={days} onChange={event => setDays(event.target.value)} className={`${control} mt-2 w-full`}><option value="1">Últimas 24 horas</option><option value="7">Últimos 7 dias</option><option value="30">Últimos 30 dias</option><option value="90">Últimos 90 dias</option><option value="0">Todo o histórico</option></select></label><button type="submit" disabled={loading} className={button}>Aplicar filtros</button></form>
     {result && <dl className="grid grid-cols-3 gap-4 border-y border-border py-4">{[{ label: 'Ações no período', value: result.summary.actions }, { label: 'Contas vinculadas', value: result.summary.users }, { label: 'Ações com falha', value: result.summary.failures }].map(item => <div key={item.label}><dt className="text-xs text-muted-foreground">{item.label}</dt><dd className="mt-1 text-xl font-semibold tabular-nums">{item.value}</dd></div>)}</dl>}
     <div className="flex flex-wrap items-center justify-between gap-3"><p role="status" className="text-sm text-muted-foreground">{loading ? 'Consultando registros…' : result ? `${result.total} resumos encontrados · página ${cursors.length}` : 'Registros indisponíveis'}{result?.startedAt && <span className="mt-1 block text-xs">Histórico desde {new Date(result.startedAt).toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' })}</span>}</p><button type="button" disabled={loading} onClick={() => { setCursors([null]); setVersion(value => value + 1); }} className={button}><RefreshCw size={15} className={loading ? 'animate-spin' : ''} />Atualizar</button></div>

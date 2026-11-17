@@ -4,7 +4,7 @@ import { redirect } from 'next/navigation';
 import { NextRequest, NextResponse } from 'next/server';
 import { randomUUID } from 'node:crypto';
 import { createSessionToken, verifySessionToken, SessionPayload } from './auth';
-import { hasManagementAccess } from './access-policy';
+import { hasManagementAccess, extractEffectiveRoles } from './access-policy';
 import { prisma } from './prisma';
 
 import { SESSION_COOKIE_NAME, SESSION_MAX_AGE } from './session-cookie';
@@ -14,6 +14,7 @@ export const safeUserSelect = {
   email: true,
   name: true,
   role: true,
+  roles: true,
   status: true,
   avatar: true,
   area: true,
@@ -36,6 +37,7 @@ export interface SafeUser {
   email: string;
   name: string;
   role: string;
+  roles?: string[];
   status: string;
   avatar?: string | null;
   area?: string | null;
@@ -73,7 +75,14 @@ export async function getCurrentUser(req?: NextRequest): Promise<SafeUser | null
   if (!member || ownerId !== payload.sub) return null;
   if (member.status !== 'APPROVED') return null;
   const teamSlug: TeamSlug = member.teamId === 1 ? 'nautilus' : member.teamId === 2 ? 'harpia' : 'autonomos';
-  const user: SafeUser = { ...member, email: member.email || '', teamSlug };
+  const effectiveRoles = extractEffectiveRoles(member);
+  const user: SafeUser = {
+    ...member,
+    email: member.email || '',
+    role: effectiveRoles[0] || member.role,
+    roles: effectiveRoles,
+    teamSlug,
+  };
   rememberActivityActor(user);
   return user;
 }
@@ -95,14 +104,14 @@ export async function createUserSession(user: SafeUser) {
 export async function requirePageUser(managementOnly = false) {
   const user = await getCurrentUser();
   if (!user) redirect('/login');
-  if (managementOnly && !hasManagementAccess(user.role)) redirect('/');
+  if (managementOnly && !hasManagementAccess(user)) redirect('/');
   return user;
 }
 
 export async function authorizeApi(req: NextRequest, managementOnly = false) {
   const user = await getCurrentUser(req);
   if (!user) return { user: null, error: NextResponse.json({ error: 'Entre com uma conta aprovada para continuar.' }, { status: 401 }) };
-  if (managementOnly && !hasManagementAccess(user.role)) return { user: null, error: NextResponse.json({ error: 'Acesso exclusivo para Gestão e Admin.' }, { status: 403 }) };
+  if (managementOnly && !hasManagementAccess(user)) return { user: null, error: NextResponse.json({ error: 'Acesso exclusivo para Gestão e Admin.' }, { status: 403 }) };
   return { user, error: null };
 }
 
@@ -116,12 +125,12 @@ export async function clearSessionCookie(): Promise<void> {
 
 export async function requireAdminPageUser() {
   const user = await requirePageUser();
-  if (user.role !== 'ADMIN') redirect('/gestao');
+  if (!extractEffectiveRoles(user).includes('ADMIN')) redirect('/gestao');
   return user;
 }
 export async function authorizeAdminApi(req: NextRequest) {
   const access = await authorizeApi(req);
   if (access.error) return access;
-  if (access.user.role !== 'ADMIN') return { user: null, error: NextResponse.json({ error: 'Acesso exclusivo para Admin.' }, { status: 403 }) };
+  if (!extractEffectiveRoles(access.user).includes('ADMIN')) return { user: null, error: NextResponse.json({ error: 'Acesso exclusivo para Admin.' }, { status: 403 }) };
   return access;
 }

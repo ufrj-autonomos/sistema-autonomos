@@ -61,20 +61,25 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // 3. Resolução da aula (suporta CUID, slug ou orderIndex numérico)
+    // 3. Resolução da aula (suporta CUID, slug ou orderIndex numérico do ROS 2 Jazzy)
     const numId = Number(lessonId);
     const lesson = await prisma.lesson.findFirst({
       where: {
         OR: [
           { id: lessonId },
           { slug: lessonId },
-          ...(!isNaN(numId) && numId > 0 ? [{ orderIndex: numId }] : []),
+          ...(!isNaN(numId) && numId > 0
+            ? [{ orderIndex: numId, module: { course: { slug: 'ros2-jazzy' } } }]
+            : []),
         ],
       },
       include: {
         module: {
           select: {
             courseId: true,
+            course: {
+              select: { slug: true },
+            },
           },
         },
       },
@@ -155,10 +160,28 @@ export async function POST(req: NextRequest) {
       const completedExerciseIds = completedExercises.map((e) => e.exerciseId);
 
       // 4d. Recalcula o overallPercentage de forma atômica
-      const overallPercentage = calculateOverallPercentage(
+      const courseSlug = lesson.module.course?.slug;
+      let totalLessonsForCourse = TOTAL_LESSONS;
+      let overallPercentage = calculateOverallPercentage(
         completedLessonIds.length,
         completedExerciseIds.length
       );
+
+      if (courseSlug && courseSlug !== 'ros2-jazzy') {
+        const [courseLessonCount, courseExerciseCount] = await Promise.all([
+          tx.lesson.count({ where: { module: { courseId } } }),
+          tx.exercise.count({ where: { lesson: { module: { courseId } } } }),
+        ]);
+        totalLessonsForCourse = Math.max(1, courseLessonCount);
+        const totalCourseItems = Math.max(1, courseLessonCount + courseExerciseCount);
+        overallPercentage = Math.min(
+          100,
+          Math.max(
+            0,
+            Math.round(((completedLessonIds.length + completedExerciseIds.length) / totalCourseItems) * 100)
+          )
+        );
+      }
 
       const isCourseCompleted = overallPercentage >= 100;
 
@@ -178,6 +201,7 @@ export async function POST(req: NextRequest) {
         data: {
           percentage: overallPercentage,
           completedLessonsCount: completedLessonIds.length,
+          totalLessonsCount: totalLessonsForCourse,
           lastLessonId: updatedLastLessonId,
           isCompleted: isCourseCompleted,
           completedAt: isCourseCompleted ? new Date() : null,

@@ -25,25 +25,42 @@ export const dynamic = "force-dynamic";
 
 export default async function EnsinoCatalogPage() {
   await requirePageUser(false);
-  // Busca dinâmica do curso no Supabase PostgreSQL
-  const course = await prisma.course.findFirst({
-    where: { slug: "ros2-jazzy" },
-    include: {
-      modules: {
-        orderBy: { orderIndex: "asc" },
-        include: {
-          lessons: {
-            orderBy: { orderIndex: "asc" },
-            include: {
-              exercises: {
-                select: { id: true, title: true, points: true, type: true },
+  // Busca dinâmica dos cursos no Supabase PostgreSQL
+  const [course, areaCourses] = await Promise.all([
+    prisma.course.findFirst({
+      where: { slug: "ros2-jazzy" },
+      include: {
+        modules: {
+          orderBy: { orderIndex: "asc" },
+          include: {
+            lessons: {
+              orderBy: { orderIndex: "asc" },
+              include: {
+                exercises: {
+                  select: { id: true, title: true, points: true, type: true },
+                },
               },
             },
           },
         },
       },
-    },
-  });
+    }),
+    prisma.course.findMany({
+      where: { published: true, slug: { not: "ros2-jazzy" } },
+      orderBy: [{ orderIndex: "asc" }, { createdAt: "desc" }],
+      include: {
+        modules: {
+          orderBy: { orderIndex: "asc" },
+          include: {
+            lessons: {
+              orderBy: { orderIndex: "asc" },
+              select: { id: true, slug: true, title: true },
+            },
+          },
+        },
+      },
+    }),
+  ]);
 
   const modules = course?.modules || [];
   const allLessons = modules.flatMap((m) => m.lessons);
@@ -534,6 +551,94 @@ export default async function EnsinoCatalogPage() {
             );
           })}
         </div>
+      </section>
+
+      {/* Cursos das Áreas da Equipe */}
+      <section className="max-w-7xl mx-auto w-full px-4 sm:px-6 lg:px-8 py-12 border-t border-border space-y-6">
+        <div className="flex flex-wrap items-center justify-between gap-4">
+          <div>
+            <h2 className="font-display font-bold text-2xl text-foreground">
+              Cursos &amp; Trilhas das Áreas da Equipe
+            </h2>
+            <p className="text-sm text-muted-foreground mt-1">
+              Trilhas criadas por coordenadores em Software, Mecânica, Eletrônica, Gestão e Marketing.
+            </p>
+          </div>
+          <Link
+            href="/areas?tab=courses"
+            className="inline-flex items-center gap-2 rounded-xl border border-border bg-card px-4 py-2 text-xs font-semibold text-foreground hover:bg-accent transition"
+          >
+            <Layers className="w-4 h-4 text-primary" />
+            <span>Abrir Espaço das Áreas</span>
+          </Link>
+        </div>
+
+        {areaCourses.length > 0 ? (
+          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+            {areaCourses.map((ac) => {
+              const allAreaLessons = ac.modules.flatMap((m) => m.lessons);
+              const firstSlug = allAreaLessons[0]?.slug;
+              return (
+                <article
+                  key={ac.id}
+                  className="rounded-2xl border border-border bg-card p-5 flex flex-col justify-between gap-4"
+                >
+                  <div className="space-y-2">
+                    <div className="flex flex-wrap items-center gap-2">
+                      {ac.badge && (
+                        <span className="rounded-full border border-primary/30 bg-primary/10 px-2.5 py-0.5 text-[10px] font-semibold text-primary">
+                          {ac.badge}
+                        </span>
+                      )}
+                      <span className="text-[11px] font-mono text-muted-foreground">
+                        {ac.level} · {ac.durationHours}h
+                      </span>
+                    </div>
+                    <h3 className="font-display font-semibold text-lg text-foreground">{ac.title}</h3>
+                    {ac.subtitle && <p className="text-xs text-muted-foreground">{ac.subtitle}</p>}
+                    <p className="text-xs text-muted-foreground line-clamp-3">{ac.description}</p>
+                  </div>
+
+                  <div className="flex items-center justify-between gap-2 pt-2 border-t border-border/60">
+                    <span className="text-xs font-mono text-muted-foreground">
+                      {ac.modules.length} módulo(s) · {allAreaLessons.length} aula(s)
+                    </span>
+                    {firstSlug ? (
+                      <Link
+                        href={`/curso/${firstSlug}`}
+                        className="inline-flex items-center gap-1.5 rounded-lg bg-primary px-3 py-1.5 text-xs font-semibold text-primary-foreground hover:bg-primary/90"
+                      >
+                        <PlayCircle className="w-3.5 h-3.5" />
+                        <span>Acessar</span>
+                      </Link>
+                    ) : ac.externalUrl ? (
+                      <a
+                        href={ac.externalUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-background px-3 py-1.5 text-xs font-semibold text-foreground hover:bg-accent"
+                      >
+                        <span>Material</span>
+                        <ExternalLink className="w-3.5 h-3.5" />
+                      </a>
+                    ) : (
+                      <Link
+                        href="/areas?tab=courses"
+                        className="text-xs font-medium text-primary hover:underline"
+                      >
+                        Ver na área
+                      </Link>
+                    )}
+                  </div>
+                </article>
+              );
+            })}
+          </div>
+        ) : (
+          <div className="rounded-2xl border border-dashed border-border bg-card/40 p-8 text-center text-sm text-muted-foreground">
+            Novos cursos específicos de Mecânica, Eletrônica, Software, Gestão e Marketing podem ser adicionados no Espaço das Áreas.
+          </div>
+        )}
       </section>
     </div>
   );

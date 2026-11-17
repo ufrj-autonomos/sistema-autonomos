@@ -7,7 +7,8 @@ import { requirePageUser } from '@/lib/session';
 import { getInstitutionalModel, recordData, institutionalFailure, InstitutionalError } from '@/lib/institutional/records';
 import { publishInstitutionalSite } from '@/lib/institutional/publish';
 import { directoryPath } from '@/lib/institutional/routes';
-import { isProfessorAdvisor, memberRoleTranslations, roleFromCargo } from '@/lib/member-fields';
+import { isProfessorAdvisor, memberRoleTranslations, rolesFromCargo } from '@/lib/member-fields';
+import { extractEffectiveRoles } from '@/lib/access-policy';
 import { storeInstitutionalImage } from '@/lib/institutional/image-upload';
 import { prisma } from '@/lib/prisma';
 
@@ -42,6 +43,7 @@ export async function createRecord(table: string, data: unknown): Promise<{ succ
     activityTarget(`${directoryPath(table)}/${created.id}`);
     if (table === 'member' && created?.id) {
       const advisor = isProfessorAdvisor(created);
+      const derivedRoles = rolesFromCargo(created.role, created.area);
       await prisma.member.upsert({
         where: { institutionalMemberId: created.id },
         update: {
@@ -56,7 +58,8 @@ export async function createRecord(table: string, data: unknown): Promise<{ succ
           area: created.area || null,
           course: created.course || null,
           active: Boolean(created.active) && !advisor,
-          role: 'MEMBER',
+          role: derivedRoles[0] || 'MEMBER',
+          roles: derivedRoles,
           status: 'APPROVED',
         },
       });
@@ -115,10 +118,13 @@ export async function updateRecord(table: string, id: number, data: unknown): Pr
               : 'area' in parsed && parsed.area === null
                 ? null
                 : (instUpdated.area ?? targetMember.area);
-          const derivedRole = roleFromCargo(effectiveCargo, effectiveArea);
-          if (derivedRole === 'ADMIN' || targetMember.role !== 'ADMIN') {
-            syncData.role = derivedRole;
-          }
+          const derivedRoles = rolesFromCargo(effectiveCargo, effectiveArea);
+          const currentEffective = extractEffectiveRoles(targetMember);
+          const mergedRoles = currentEffective.includes('ADMIN')
+            ? extractEffectiveRoles(['ADMIN', ...derivedRoles])
+            : derivedRoles;
+          syncData.role = mergedRoles[0] || 'MEMBER';
+          syncData.roles = mergedRoles;
         }
       }
       if (Object.keys(syncData).length > 0) {

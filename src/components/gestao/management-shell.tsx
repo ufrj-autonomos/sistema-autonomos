@@ -105,7 +105,7 @@ export function ManagementShell({
     desktop.addEventListener('change', closeOnDesktop);
     return () => desktop.removeEventListener('change', closeOnDesktop);
   }, []);
-  useEffect(() => { if (!isLoading && user && !hasManagementAccess(user.role)) router.replace('/'); }, [user, isLoading, router]);
+  useEffect(() => { if (!isLoading && user && !hasManagementAccess(user)) router.replace('/'); }, [user, isLoading, router]);
   function closeMenu() { mobileMenu.current?.close(); menuTrigger.current?.focus(); }
   async function signOut() { setLeaving(true); try { await logout(); } finally { setLeaving(false); } }
   function navigation(mobile = false) {
@@ -119,7 +119,7 @@ export function ManagementShell({
       </div>
       <nav aria-label="Sistemas de gestão" className="flex-1 overflow-y-auto px-3 py-6">
         {['Principal', 'Pessoas', 'Financeiro', 'Site', 'Sistema'].map(group => {
-          const items = managementSectionsForRole(currentUser.role).filter(item => item.group === group);
+          const items = managementSectionsForRole(currentUser).filter(item => item.group === group);
           if (!items.length) return null;
           const isPrincipal = group === 'Principal';
           const isGroupActive = items.some(item => section?.href === item.href);

@@ -15,7 +15,7 @@ export default async function EvaluationsPage({
   searchParams: Promise<{ period?: string }>;
 }) {
   const user = await requirePageUser(true);
-  if (!canAccessEvaluations(user.role)) {
+  if (!canAccessEvaluations(user)) {
     redirect('/gestao');
   }
 

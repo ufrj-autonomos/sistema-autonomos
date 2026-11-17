@@ -37,6 +37,7 @@ import {
   MeetingsPerformanceByAreaChart,
   DisciplinaryHealthChart,
 } from '@/components/gestao/dashboard-charts';
+import { hasEffectiveRole } from '@/lib/access-policy';
 import type { SafeUser } from '@/lib/session';
 
 const action =
@@ -234,7 +235,7 @@ export async function ManagementOverview({
       ? Math.round((current.summary.met / current.summary.requiredMembers) * 100)
       : 0;
 
-  const canHandleMinutes = !user || ['COORDINATOR', 'ADMIN'].includes(user.role);
+  const canHandleMinutes = !user || hasEffectiveRole(user, ['COORDINATOR', 'ADMIN']);
   const visibleQueues = pendencies.queues.filter(
     (q) =>
       (q.key !== 'meetingMinutes' || canHandleMinutes || q.count > 0) &&
@@ -892,7 +893,7 @@ export async function ManagementOverview({
                       <ArrowRight className="h-3.5 w-3.5 text-muted-foreground" />
                     </Link>
                   </li>
-                  {user && ['ADMIN', 'COORDINATOR'].includes(user.role) && (
+                  {user && hasEffectiveRole(user, ['ADMIN', 'COORDINATOR']) && (
                     <li>
                       <Link href="/gestao/avaliacoes" className="flex items-center justify-between rounded-lg px-2 py-1.5 hover:bg-accent text-foreground">
                         <span>Avaliações Mensais</span>

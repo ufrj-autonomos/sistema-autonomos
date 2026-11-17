@@ -3,10 +3,15 @@ import { prisma } from '@/lib/prisma';
 import { db as institutionalDb } from '@/lib/institutional/db';
 import type { SafeUser } from '@/lib/session';
 import {
+  extractEffectiveRoles,
+  hasEffectiveRole,
+  type SystemRole,
+} from '@/lib/access-policy';
+import {
   isOperationalActiveMember,
   normalizeMemberArea,
   normalizeMemberRole,
-  roleFromCargo,
+  rolesFromCargo,
 } from '@/lib/member-fields';
 import { calculateAttendanceScore } from '@/lib/meetings/service';
 import { calculateDisciplinaryStatus } from '@/lib/disciplinary/service';
@@ -42,8 +47,8 @@ export class EvaluationError extends Error {
   }
 }
 
-export function canAccessEvaluations(role: unknown): boolean {
-  return role === 'ADMIN' || role === 'COORDINATOR';
+export function canAccessEvaluations(roleOrUser: unknown): boolean {
+  return hasEffectiveRole(roleOrUser, ['ADMIN', 'COORDINATOR']);
 }
 
 export function teamSlugFromId(teamId: number | null | undefined): EvaluationTeamSlug {
@@ -257,9 +262,9 @@ async function resolveEvaluationPeriods(now: Date = new Date()): Promise<{
 }
 
 export async function resolveCoordinatorScope(
-  user: Pick<SafeUser, 'role' | 'area' | 'teamId' | 'institutionalMemberId'>
+  user: Pick<SafeUser, 'role' | 'roles' | 'area' | 'teamId' | 'institutionalMemberId'>
 ): Promise<EvaluationScopeArea | null> {
-  if (user.role !== 'COORDINATOR') return null;
+  if (!hasEffectiveRole(user, 'COORDINATOR')) return null;
   let area = normalizeMemberArea(user.area);
   let teamId = user.teamId ?? null;
 
@@ -288,6 +293,7 @@ interface ActiveMemberIdentity {
   email: string | null;
   avatar: string | null;
   systemRole: string;
+  systemRoles: SystemRole[];
   cargoLabel: string;
   effectiveRole: 'ADMIN' | 'COORDINATOR' | 'MANAGEMENT' | 'MEMBER' | 'TRAINEE';
   area: string;
@@ -310,6 +316,7 @@ async function loadOperationalRoster(): Promise<{
         email: true,
         avatar: true,
         role: true,
+        roles: true,
         area: true,
         teamId: true,
         active: true,
@@ -330,19 +337,22 @@ async function loadOperationalRoster(): Promise<{
     const teamId = m.teamId ?? inst?.teamId ?? null;
     const scope = makeScopeArea(teamId, area);
     const instCargo = inst?.role ? normalizeMemberRole(inst.role) : null;
-    const effectiveFromInst = instCargo ? roleFromCargo(instCargo, area) : null;
+    const rolesFromInst = instCargo ? rolesFromCargo(instCargo, area) : [];
+    const systemRoles = extractEffectiveRoles(m);
+
+    const effectiveFromInst = rolesFromInst.includes('COORDINATOR')
+      ? 'COORDINATOR'
+      : (rolesFromInst[0] ?? null);
 
     let effectiveRole: ActiveMemberIdentity['effectiveRole'] =
       m.role === 'ADMIN' || m.role === 'COORDINATOR' || m.role === 'MANAGEMENT' || m.role === 'TRAINEE'
         ? m.role
         : 'MEMBER';
-    if (effectiveFromInst === 'COORDINATOR' && effectiveRole === 'ADMIN') {
+    if (systemRoles.includes('COORDINATOR') || effectiveFromInst === 'COORDINATOR') {
       // Preserva identificação de coordenador para a aba Nota dos Coordenadores
       effectiveRole = 'COORDINATOR';
-    } else if (m.role === 'COORDINATOR') {
-      effectiveRole = 'COORDINATOR';
-    } else if (effectiveFromInst === 'COORDINATOR') {
-      effectiveRole = 'COORDINATOR';
+    } else if (systemRoles[0]) {
+      effectiveRole = systemRoles[0];
     }
 
     const cargoLabel =
@@ -363,6 +373,7 @@ async function loadOperationalRoster(): Promise<{
       email: m.email || null,
       avatar: m.avatar || inst?.photo?.trim() || null,
       systemRole: m.role,
+      systemRoles,
       cargoLabel,
       effectiveRole,
       area: scope.area,
@@ -380,11 +391,11 @@ export async function getEvaluationsWorkspace(
   user: SafeUser,
   requestedPeriod?: string
 ): Promise<EvaluationsWorkspaceDTO> {
-  if (!canAccessEvaluations(user.role)) {
+  if (!canAccessEvaluations(user)) {
     throw new EvaluationError('Acesso restrito a coordenadores e administradores.', 403);
   }
 
-  const isAdmin = user.role === 'ADMIN';
+  const isAdmin = hasEffectiveRole(user, 'ADMIN');
   const coordinatorScope = isAdmin ? null : await resolveCoordinatorScope(user);
 
   const [{ periods, currentCode }, { roster }, vacationWeeks] = await Promise.all([
@@ -561,10 +572,13 @@ export async function getEvaluationsWorkspace(
 
   // Partition roster into evaluable members vs coordinators
   const allEvaluableMembers = roster.filter(
-    (m) => m.systemRole !== 'ADMIN' && m.systemRole !== 'COORDINATOR' && m.effectiveRole !== 'COORDINATOR'
+    (m) =>
+      !m.systemRoles.includes('ADMIN') &&
+      !m.systemRoles.includes('COORDINATOR') &&
+      m.effectiveRole !== 'COORDINATOR'
   );
   const allCoordinators = roster.filter(
-    (m) => m.effectiveRole === 'COORDINATOR' || m.systemRole === 'COORDINATOR'
+    (m) => m.effectiveRole === 'COORDINATOR' || m.systemRoles.includes('COORDINATOR')
   );
 
   // Scoped members list: ADMIN sees all; COORDINATOR sees ONLY their own scopeKey (excluding self)
@@ -892,7 +906,7 @@ export async function upsertMemberEvaluation(
   user: SafeUser,
   input: { periodCode: unknown; memberId: unknown; score: unknown; notes: unknown }
 ) {
-  if (!canAccessEvaluations(user.role)) {
+  if (!canAccessEvaluations(user)) {
     throw new EvaluationError('Acesso restrito a coordenadores e administradores.', 403);
   }
 
@@ -906,20 +920,25 @@ export async function upsertMemberEvaluation(
   const score = validateEvaluationScore(input.score);
   const notes = sanitizeNotes(input.notes);
 
+  const isAdmin = hasEffectiveRole(user, 'ADMIN');
   const [{ byId }, coordinatorScope] = await Promise.all([
     loadOperationalRoster(),
-    user.role === 'COORDINATOR' ? resolveCoordinatorScope(user) : Promise.resolve(null),
+    !isAdmin ? resolveCoordinatorScope(user) : Promise.resolve(null),
   ]);
 
   const target = byId.get(memberId);
   if (!target) {
     throw new EvaluationError('Integrante ativo não encontrado.', 404);
   }
-  if (target.systemRole === 'ADMIN' || target.systemRole === 'COORDINATOR' || target.effectiveRole === 'COORDINATOR') {
+  if (
+    target.systemRoles.includes('ADMIN') ||
+    target.systemRoles.includes('COORDINATOR') ||
+    target.effectiveRole === 'COORDINATOR'
+  ) {
     throw new EvaluationError('Coordenadores devem ser avaliados na aba de Coordenação por um Administrador.', 403);
   }
 
-  if (user.role === 'COORDINATOR') {
+  if (!isAdmin) {
     if (!coordinatorScope) {
       throw new EvaluationError('Sua conta de coordenador não possui área definida.', 403);
     }
@@ -971,13 +990,13 @@ export async function upsertMemberEvaluation(
 }
 
 export async function deleteMemberEvaluation(user: SafeUser, evaluationId: string) {
-  if (!canAccessEvaluations(user.role)) {
+  if (!canAccessEvaluations(user)) {
     throw new EvaluationError('Acesso restrito a coordenadores e administradores.', 403);
   }
   const existing = await prisma.memberEvaluation.findUnique({ where: { id: evaluationId } });
   if (!existing) throw new EvaluationError('Avaliação não encontrada.', 404);
 
-  if (user.role === 'COORDINATOR') {
+  if (!hasEffectiveRole(user, 'ADMIN')) {
     const scope = await resolveCoordinatorScope(user);
     const evalScopeKey = buildScopeKey(existing.teamId, existing.area);
     if (!scope || evalScopeKey !== scope.scopeKey) {
@@ -992,7 +1011,7 @@ export async function upsertAreaEvaluation(
   user: SafeUser,
   input: { periodCode: unknown; scopeKey: unknown; score: unknown; notes: unknown }
 ) {
-  if (user.role !== 'ADMIN') {
+  if (!hasEffectiveRole(user, 'ADMIN')) {
     throw new EvaluationError('Apenas administradores podem lançar ou editar a nota das áreas.', 403);
   }
 
@@ -1050,7 +1069,7 @@ export async function upsertCoordinatorEvaluation(
   user: SafeUser,
   input: { periodCode: unknown; coordinatorId: unknown; score: unknown; notes: unknown }
 ) {
-  if (user.role !== 'ADMIN') {
+  if (!hasEffectiveRole(user, 'ADMIN')) {
     throw new EvaluationError('Apenas administradores podem avaliar coordenadores.', 403);
   }
 
@@ -1066,7 +1085,7 @@ export async function upsertCoordinatorEvaluation(
 
   const { byId } = await loadOperationalRoster();
   const target = byId.get(coordinatorId);
-  if (!target || (target.effectiveRole !== 'COORDINATOR' && target.systemRole !== 'COORDINATOR')) {
+  if (!target || (target.effectiveRole !== 'COORDINATOR' && !target.systemRoles.includes('COORDINATOR'))) {
     throw new EvaluationError('Coordenador ativo não encontrado.', 404);
   }
 
@@ -1204,7 +1223,7 @@ export async function getPendingEvaluationsSummary(
   const periodCode = currentMonthCode(now);
   const periodLabel = formatMonthPeriodLabel(periodCode);
 
-  if (!canAccessEvaluations(user.role)) {
+  if (!canAccessEvaluations(user)) {
     return {
       periodCode,
       periodLabel,
@@ -1218,7 +1237,7 @@ export async function getPendingEvaluationsSummary(
     };
   }
 
-  const isAdmin = user.role === 'ADMIN';
+  const isAdmin = hasEffectiveRole(user, 'ADMIN');
   const coordinatorScope = isAdmin ? null : await resolveCoordinatorScope(user);
 
   const [{ roster }, memberEvals, areaEvals, coordEvals] = await Promise.all([
@@ -1236,7 +1255,10 @@ export async function getPendingEvaluationsSummary(
   ]);
 
   const allEvaluableMembers = roster.filter(
-    (m) => m.systemRole !== 'ADMIN' && m.systemRole !== 'COORDINATOR' && m.effectiveRole !== 'COORDINATOR'
+    (m) =>
+      !m.systemRoles.includes('ADMIN') &&
+      !m.systemRoles.includes('COORDINATOR') &&
+      m.effectiveRole !== 'COORDINATOR'
   );
   const visibleMembers = isAdmin
     ? allEvaluableMembers

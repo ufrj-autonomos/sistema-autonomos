@@ -1,4 +1,4 @@
-import { isManagementPath } from './access-policy';
+import { extractEffectiveRoles, isManagementPath } from './access-policy';
 
 // Add a system here to include it in the sidebar, overview and breadcrumbs.
 export const MANAGEMENT_SECTIONS = [
@@ -42,10 +42,13 @@ export const INSTITUTIONAL_LINKS = [
   ['Configurações Globais', '/settings'],
 ] as const;
 
-export function managementSectionsForRole(role: unknown) {
+export function managementSectionsForRole(roleOrUser: unknown) {
+  const roles = extractEffectiveRoles(roleOrUser);
   return MANAGEMENT_SECTIONS.filter((item) => {
-    if ('adminOnly' in item && item.adminOnly && role !== 'ADMIN') return false;
-    if ('roles' in item && item.roles && !(item.roles as readonly string[]).includes(String(role))) return false;
+    if ('adminOnly' in item && item.adminOnly && !roles.includes('ADMIN')) return false;
+    if ('roles' in item && item.roles && !roles.some((r) => (item.roles as readonly string[]).includes(r))) {
+      return false;
+    }
     return true;
   });
 }

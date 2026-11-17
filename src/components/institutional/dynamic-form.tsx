@@ -2,7 +2,7 @@
 
 import { ImageUploadField } from "./image-upload-field";
 import { selectOptions } from "@/lib/form-select";
-import { normalizeMemberRole } from "@/lib/member-fields";
+import { formatMemberRoles, normalizeMemberRole, splitMemberRoles } from "@/lib/member-fields";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import type { AdminModel, AdminField } from "@/lib/institutional/admin-config";
@@ -376,8 +376,67 @@ export function DynamicForm({
       );
     }
 
-    // Select dropdowns
+    // Select dropdowns (e multi-cargo para member.role)
     if (field.type === "select" && field.options) {
+      if (config.table === "member" && field.name === "role") {
+        const selectedRoles = splitMemberRoles(val);
+        const menu = selectOptions(field.options, selectedRoles[0] || val);
+        const groups = [...new Set(menu.options.map(option => option.group).filter(Boolean))];
+        return (
+          <div key={field.name} className="space-y-2 md:col-span-2">
+            <label className="flex items-center text-sm font-semibold text-foreground">
+              {field.label} (Múltiplos cargos permitidos)
+              {field.required && <span className="text-red-700 dark:text-red-400 ml-1">*</span>}
+              {field.description && (
+                <span className="ml-2 text-xs font-normal text-muted-foreground">
+                  — {field.description}
+                </span>
+              )}
+            </label>
+            <div className="rounded-lg border border-border bg-card/50 p-3 space-y-3">
+              {groups.map(group => (
+                <div key={group} className="space-y-1.5">
+                  <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">{group}</p>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
+                    {menu.options.filter(option => option.group === group).map(option => {
+                      const optStr = String(option.value);
+                      const checked = selectedRoles.includes(optStr);
+                      return (
+                        <label
+                          key={optStr}
+                          className={cn(
+                            "flex items-center gap-2 rounded-md border p-2 text-xs cursor-pointer transition-colors",
+                            checked
+                              ? "border-primary/50 bg-primary/10 text-primary font-medium"
+                              : "border-border/70 bg-background/60 text-muted-foreground hover:bg-muted"
+                          )}
+                        >
+                          <input
+                            type="checkbox"
+                            className="h-3.5 w-3.5 rounded border-input accent-primary"
+                            checked={checked}
+                            onChange={(e) => {
+                              const next = e.target.checked
+                                ? [...selectedRoles, optStr]
+                                : selectedRoles.filter((r) => r !== optStr);
+                              handleChange(field, next.length > 0 ? formatMemberRoles(next) : "");
+                            }}
+                          />
+                          <span className="truncate">{option.label}</span>
+                        </label>
+                      );
+                    })}
+                  </div>
+                </div>
+              ))}
+              <p className="text-[11px] text-muted-foreground">
+                Selecionado(s): <strong className="text-foreground">{selectedRoles.length ? formatMemberRoles(selectedRoles) : "Nenhum"}</strong>
+              </p>
+            </div>
+          </div>
+        );
+      }
+
       const menu = selectOptions(field.options, val);
       const groups = [...new Set(menu.options.map(option => option.group).filter(Boolean))];
       return (

@@ -1,6 +1,6 @@
 'use client';
 
-import { MEMBER_AREAS, MEMBER_ROLES, normalizeMemberRole } from '@/lib/member-fields';
+import { formatMemberRoles, MEMBER_AREAS, MEMBER_ROLES, normalizeMemberRole, splitMemberRoles } from '@/lib/member-fields';
 import { useMemo, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
@@ -47,6 +47,7 @@ export function MemberDirectory({ rows, initialPreferences, mode = 'active' }: {
     member: MemberDirectoryRow;
     field: 'role' | 'area' | 'teamId';
   } | null>(null);
+  const [draftMultiRoles, setDraftMultiRoles] = useState<string[]>([]);
   const [textEditModal, setTextEditModal] = useState<{
     member: MemberDirectoryRow;
     field: 'course' | 'joinedYear' | 'leftYear';
@@ -419,12 +420,31 @@ export function MemberDirectory({ rows, initialPreferences, mode = 'active' }: {
         <div className="flex items-center gap-1.5">
           <button
             type="button"
-            onClick={() => setSelectedEnumMember({ member: row, field: isRole ? 'role' : 'area' })}
-            className={`inline-flex items-center gap-1.5 rounded-md px-2.5 py-1 text-xs font-medium border cursor-pointer hover:ring-1 hover:ring-ring transition-all ${color} ${focus}`}
-            title={`Clique para alterar ${isRole ? 'cargo' : 'área'}`}
+            onClick={() => {
+              if (isRole) {
+                setDraftMultiRoles(splitMemberRoles(row.role));
+              }
+              setSelectedEnumMember({ member: row, field: isRole ? 'role' : 'area' });
+            }}
+            className={`inline-flex items-center gap-1.5 rounded-md px-2.5 py-1 text-xs font-medium border cursor-pointer hover:ring-1 hover:ring-ring transition-all ${
+              isRole && splitMemberRoles(String(value || '')).length > 1
+                ? 'bg-accent/50 text-foreground border-border flex-wrap'
+                : color
+            } ${focus}`}
+            title={`Clique para alterar ${isRole ? 'cargo(s)' : 'área'}`}
           >
-            <span>{value ? String(value) : 'Área não informada'}</span>
-            <ChevronDown className="h-3 w-3 opacity-60" />
+            {isRole && splitMemberRoles(String(value || '')).length > 1 ? (
+              <span className="flex flex-wrap items-center gap-1">
+                {splitMemberRoles(String(value || '')).map((r) => (
+                  <span key={r} className={`rounded px-1.5 py-0.5 text-[11px] border ${roleColors[r] || 'bg-muted text-foreground border-border'}`}>
+                    {r}
+                  </span>
+                ))}
+              </span>
+            ) : (
+              <span>{value ? String(value) : 'Área não informada'}</span>
+            )}
+            <ChevronDown className="h-3 w-3 opacity-60 shrink-0" />
           </button>
         </div>
       );
@@ -639,9 +659,11 @@ export function MemberDirectory({ rows, initialPreferences, mode = 'active' }: {
           </DialogTitle>
         </DialogHeader>
         <DialogDescription className="text-xs text-muted-foreground">
-          Selecione o novo valor para {selectedEnumMember?.field === 'role' ? 'o cargo' : selectedEnumMember?.field === 'teamId' ? 'a equipe' : 'a área'}. Você precisará confirmar antes de salvar.
+          {selectedEnumMember?.field === 'role'
+            ? 'Marque um ou mais cargos organizacionais para este integrante (o acesso no sistema soma todos os cargos selecionados).'
+            : `Selecione o novo valor para ${selectedEnumMember?.field === 'teamId' ? 'a equipe' : 'a área'}. Você precisará confirmar antes de salvar.`}
         </DialogDescription>
-        <div className="py-2 space-y-1.5 max-h-64 overflow-y-auto">
+        <div className="py-2 space-y-1.5 max-h-72 overflow-y-auto">
           {selectedEnumMember?.field === 'teamId' ? (
             [
               { label: '🌊 Nautilus (Veículos Subaquáticos)', value: 1 },
@@ -660,19 +682,31 @@ export function MemberDirectory({ rows, initialPreferences, mode = 'active' }: {
             ))
           ) : selectedEnumMember?.field === 'role' ? (
             [...new Set(MEMBER_ROLES.map(option => option.group))].map(group => (
-              <div key={group} className="space-y-1 py-2">
-                <h3 className="px-3 text-xs font-medium text-muted-foreground">{group}</h3>
-                {MEMBER_ROLES.filter(option => option.group === group).map(option => (
-                  <button
-                    key={option.value}
-                    type="button"
-                    onClick={() => requestEnumChange(selectedEnumMember.member, 'role', option.value)}
-                    className={`flex min-h-11 w-full items-center justify-between rounded-md px-3 py-2 text-left text-sm ${normalizeMemberRole(selectedEnumMember.member.role) === option.value ? 'bg-accent text-foreground' : 'text-secondary-foreground hover:bg-muted'} ${focus}`}
-                  >
-                    <span>{option.label}</span>
-                    {normalizeMemberRole(selectedEnumMember.member.role) === option.value && <span className="ml-2 text-xs text-muted-foreground">Atual</span>}
-                  </button>
-                ))}
+              <div key={group} className="space-y-1 py-1.5">
+                <h3 className="px-2 text-xs font-medium text-muted-foreground">{group}</h3>
+                {MEMBER_ROLES.filter(option => option.group === group).map(option => {
+                  const checked = draftMultiRoles.includes(option.value);
+                  return (
+                    <label
+                      key={option.value}
+                      className={`flex min-h-10 w-full items-center gap-2.5 rounded-md px-3 py-1.5 text-left text-sm cursor-pointer ${checked ? 'bg-accent text-foreground font-medium' : 'text-secondary-foreground hover:bg-muted'} ${focus}`}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={checked}
+                        onChange={() => {
+                          setDraftMultiRoles(prev =>
+                            prev.includes(option.value)
+                              ? prev.filter(r => r !== option.value)
+                              : [...prev, option.value]
+                          );
+                        }}
+                        className="h-4 w-4 rounded border-input accent-primary"
+                      />
+                      <span className="flex-1">{option.label}</span>
+                    </label>
+                  );
+                })}
               </div>
             ))
           ) : (
@@ -693,6 +727,20 @@ export function MemberDirectory({ rows, initialPreferences, mode = 'active' }: {
           <button type="button" onClick={() => setSelectedEnumMember(null)} className={secondary}>
             Cancelar
           </button>
+          {selectedEnumMember?.field === 'role' && (
+            <button
+              type="button"
+              disabled={draftMultiRoles.length === 0}
+              onClick={() => {
+                if (!selectedEnumMember || draftMultiRoles.length === 0) return;
+                const formatted = formatMemberRoles(draftMultiRoles);
+                requestEnumChange(selectedEnumMember.member, 'role', formatted);
+              }}
+              className={`min-h-11 rounded-lg bg-primary px-4 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50 ${focus}`}
+            >
+              Confirmar cargos
+            </button>
+          )}
         </DialogFooter>
       </DialogContent>
     </Dialog>
