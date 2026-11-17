@@ -2,7 +2,10 @@ import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
   reactStrictMode: true,
-  experimental: { serverActions: { bodySizeLimit: '5mb' } },
+  experimental: {
+    serverActions: { bodySizeLimit: '5mb' },
+    agentUpgrade: "security",
+  },
   poweredByHeader: false,
   async headers() {
     const production = process.env.NODE_ENV === 'production';
