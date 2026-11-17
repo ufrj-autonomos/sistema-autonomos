@@ -1,3 +1,5 @@
+import { computeCurrentAcademicPeriod } from './member-fields';
+
 export const OPERATIONAL_FIELDS = [
   { key: 'name', label: 'Nome', type: 'text', maxLength: 200 },
   { key: 'area', label: 'Área', type: 'text', maxLength: 100 },
@@ -5,9 +7,9 @@ export const OPERATIONAL_FIELDS = [
   { key: 'phone', label: 'Contato / WhatsApp', type: 'tel', maxLength: 30 },
   { key: 'dre', label: 'DRE', type: 'text', maxLength: 25 },
   { key: 'cpf', label: 'CPF', type: 'text', maxLength: 14 },
-  { key: 'birthDate', label: 'Data de nascimento', type: 'date', maxLength: 10 },
+  { key: 'birthDate', label: 'Data de nascimento', type: 'text', maxLength: 10 },
   { key: 'course', label: 'Curso', type: 'text', maxLength: 200 },
-  { key: 'academicPeriod', label: 'Período acadêmico', type: 'text', maxLength: 50 },
+  { key: 'academicPeriod', label: 'Período de entrada (UFRJ)', type: 'text', maxLength: 50 },
   { key: 'emergencyContactName', label: 'Nome do contato de emergência', type: 'text', maxLength: 200 },
   { key: 'emergencyContactPhone', label: 'Telefone de emergência', type: 'tel', maxLength: 30 },
 ] as const;
@@ -39,7 +41,6 @@ export const MEMBER_COLUMNS = [
   { key: 'name', label: 'Nome (site)', group: 'Site', width: 240 },
   { key: 'role', label: 'Cargo', group: 'Site', width: 180 },
   { key: 'area', label: 'Área (site)', group: 'Site', width: 150 },
-  { key: 'age', label: 'Idade', group: 'Site', width: 90 },
   { key: 'teamName', label: 'Equipe', group: 'Site', width: 150 },
   { key: 'active', label: 'Status', group: 'Site', width: 110 },
   { key: 'showOnSite', label: 'Exibição no site', group: 'Site', width: 160 },
@@ -67,7 +68,7 @@ export const MEMBER_COLUMNS = [
   { key: 'cpf', label: 'CPF', group: 'Interno', width: 170 },
   { key: 'birthDate', label: 'Data de nascimento', group: 'Interno', width: 180 },
   { key: 'internalCourse', label: 'Curso (interno)', group: 'Interno', width: 260 },
-  { key: 'academicPeriod', label: 'Período', group: 'Interno', width: 140 },
+  { key: 'academicPeriod', label: 'Período atual', group: 'Interno', width: 190 },
   { key: 'emergencyContact', label: 'Contato de emergência', group: 'Interno', width: 260 },
   { key: 'notes', label: 'Observações internas', group: 'Interno', width: 300 },
   { key: 'missedWeeks', label: 'Semanas abaixo da meta', group: 'Presença', width: 220 },
@@ -77,7 +78,7 @@ export const MEMBER_COLUMNS = [
 export type MemberColumnKey = typeof MEMBER_COLUMNS[number]['key'];
 export type MemberView = 'site' | 'internal' | 'custom';
 export type MemberPreferences = { view: MemberView; columns: MemberColumnKey[] };
-export const SITE_COLUMNS: MemberColumnKey[] = ['name', 'role', 'area', 'teamName', 'course', 'joinedYear', 'age', 'active'];
+export const SITE_COLUMNS: MemberColumnKey[] = ['name', 'role', 'area', 'teamName', 'course', 'joinedYear', 'active'];
 export const ALUMNI_COLUMNS: MemberColumnKey[] = ['name', 'role', 'area', 'teamName', 'course', 'joinedYear', 'inactivatedAt', 'inactivationReason', 'linkedin', 'active'];
 export const INTERNAL_COLUMNS: MemberColumnKey[] = ['internalName', 'internalArea', 'email', 'phone', 'dre', 'cpf', 'birthDate', 'internalCourse', 'academicPeriod', 'emergencyContact'];
 export function memberPreferences(input: unknown): MemberPreferences {
@@ -98,8 +99,9 @@ export function memberValue(row: MemberDirectoryRow, key: MemberColumnKey): stri
     case 'emergencyContact': return [row.internal.emergencyContactName, row.internal.emergencyContactPhone].filter(Boolean).join('\n') || null;
     case 'inactivatedAt': return row.inactivatedAt || (row.leftYear ? `Ano ${row.leftYear}` : null);
     case 'inactivationReason': return row.inactivationReason || null;
-    case 'email': case 'phone': case 'dre': case 'cpf': case 'birthDate': case 'academicPeriod': case 'notes': case 'missedWeeks': return row.internal[key];
-    default: return row[key];
+    case 'academicPeriod': return computeCurrentAcademicPeriod(row.internal.academicPeriod);
+    case 'email': case 'phone': case 'dre': case 'cpf': case 'birthDate': case 'notes': case 'missedWeeks': return row.internal[key];
+    default: return (row as Record<string, unknown>)[key] as string | number | boolean | null ?? null;
   }
 }
 export function normalizeMemberSearch(value: string) { return value.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLocaleLowerCase('pt-BR'); }

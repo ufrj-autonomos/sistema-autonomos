@@ -20,12 +20,15 @@ import {
 } from "lucide-react";
 import { prisma } from "@/lib/prisma";
 import { getSession } from "@/lib/session";
+import { hasEffectiveRole } from "@/lib/access-policy";
+import { CourseEditorToolbar, LessonEditButton } from "@/components/course/course-inline-editor";
 import { HarpiaMark, NautilusMark } from "@/components/brand/logo";
 
 export const dynamic = "force-dynamic";
 
 export default async function EnsinoCatalogPage() {
-  await requirePageUser(false);
+  const user = await requirePageUser(false);
+  const canEdit = hasEffectiveRole(user, ['COORDINATOR', 'MANAGEMENT', 'ADMIN']);
   // Busca dinâmica dos cursos no Supabase PostgreSQL
   const course = await prisma.course.findFirst({
     where: { slug: 'ros2-jazzy', published: true },
@@ -377,6 +380,21 @@ export default async function EnsinoCatalogPage() {
 
       {/* 4. Grade Curricular Completa (11 Módulos • 108 Aulas) */}
       <section id="grade" className="py-16 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 w-full space-y-8 flex-1">
+        {canEdit && (
+          <CourseEditorToolbar
+            course={{
+              id: course.id,
+              title: course.title,
+              subtitle: course.subtitle,
+              description: course.description,
+              level: course.level,
+              durationHours: course.durationHours,
+              published: course.published,
+              externalUrl: course.externalUrl,
+            }}
+            modules={modules.map((m) => ({ id: m.id, title: m.title }))}
+          />
+        )}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-border">
           <div>
             <div className="font-mono text-xs text-cyan-700 dark:text-cyan-400 uppercase tracking-wider font-semibold mb-1">
@@ -517,6 +535,20 @@ export default async function EnsinoCatalogPage() {
                             <span>Acessar</span>
                             <ExternalLink size={11} />
                           </Link>
+                          {canEdit && (
+                            <LessonEditButton
+                              compact
+                              lesson={{
+                                id: lesson.id,
+                                title: lesson.title,
+                                lessonType: lesson.lessonType,
+                                youtubeVideoId: lesson.youtubeVideoId,
+                                summary: lesson.summary,
+                                textContent: lesson.textContent,
+                                rosDocsUrl: lesson.rosDocsUrl,
+                              }}
+                            />
+                          )}
                         </div>
                       </div>
                     );

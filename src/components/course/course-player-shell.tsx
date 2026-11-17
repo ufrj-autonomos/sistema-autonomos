@@ -18,6 +18,7 @@ import {
 } from "./types";
 import { CourseHeader } from "./course-header";
 import { CurriculumSidebar } from "./curriculum-sidebar";
+import { LessonEditButton } from "./course-inline-editor";
 import { VideoPlayer } from "./video-player";
 import { VideoPlaceholder } from "./video-placeholder";
 import { LessonContent } from "./lesson-content";
@@ -30,6 +31,7 @@ export interface CoursePlayerShellProps {
   nextLesson?: SurroundingLesson | null;
   initialCompletedLessonIds?: string[];
   initialCompletedExerciseIds?: string[];
+  canEdit?: boolean;
 }
 
 export function CoursePlayerShell({
@@ -39,6 +41,7 @@ export function CoursePlayerShell({
   nextLesson,
   initialCompletedLessonIds = [],
   initialCompletedExerciseIds = [],
+  canEdit = false,
 }: CoursePlayerShellProps) {
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [isMobileDrawerOpen, setIsMobileDrawerOpen] = useState(false);
@@ -170,6 +173,26 @@ export function CoursePlayerShell({
               isTheaterMode ? "max-w-6xl" : "max-w-4xl"
             )}
           >
+            {/* Barra de edição rápida para Coordenação / Gestão / Admin */}
+            {canEdit && (
+              <div className="flex items-center justify-between gap-3 rounded-xl border border-primary/25 bg-primary/5 px-4 py-2.5">
+                <span className="text-xs font-medium text-primary">
+                  Edição de aula habilitada (Coordenação / Gestão / Admin)
+                </span>
+                <LessonEditButton
+                  lesson={{
+                    id: activeLesson.id,
+                    title: activeLesson.title,
+                    lessonType: activeLesson.lessonType || activeLesson.type || 'VIDEO',
+                    youtubeVideoId: activeLesson.youtubeVideoId ?? null,
+                    summary: activeLesson.summary ?? null,
+                    textContent: activeLesson.textContent ?? activeLesson.content ?? null,
+                    rosDocsUrl: activeLesson.rosDocsUrl ?? null,
+                  }}
+                />
+              </div>
+            )}
+
             {/* Bloco 1: Estágio de Vídeo ou Placeholder 16:9 (somente para aulas com vídeo previsto) */}
             {!isTextLesson && (
               <div className="w-full">

@@ -6,7 +6,7 @@ export interface AttendanceVisitDto {
   status: VisitStatus; source: string; seconds: number; needsReview: boolean;
 }
 export interface AttendanceMemberDto {
-  id: MemberIdentifier; name: string; email: string | null; area: string;
+  id: MemberIdentifier; name: string; email: string | null; area: string; teamId?: number | null;
   requiredSeconds: number; completedSeconds: number; remainingSeconds: number;
   justifiedSeconds?: number;
   percentage: number; status: GoalStatus; missedWeeks: number;

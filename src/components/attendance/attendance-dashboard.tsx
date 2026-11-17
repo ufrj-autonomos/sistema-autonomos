@@ -2,6 +2,7 @@
 import { Fragment, useEffect, useState } from 'react';
 import Link from 'next/link';
 import { ArrowLeft, ArrowRight, ChevronDown, Download, LayoutGrid, QrCode, RefreshCw, Table2 } from 'lucide-react';
+import { memberBelongsToDivisionTeam } from '@/lib/member-fields';
 import type { AttendanceMemberDto, AttendanceReport } from '@/lib/attendance/types';
 import { formatDuration, formatLabDate, formatLabTime, getAttendanceCardTheme, GOAL_LABELS, mondayForDate, shiftWeek, VISIT_LABELS } from '@/lib/attendance/format';
 import { AttendanceJustifications } from './attendance-justifications';
@@ -40,6 +41,7 @@ export function AttendanceDashboard({ initialWeek, selectedWeek = initialWeek, a
   const [search, setSearch] = useState('');
   const [filter, setFilter] = useState('ALL');
   const [area, setArea] = useState('ALL');
+  const [division, setDivision] = useState<'ALL' | '2' | '1' | 'GENERAL'>('ALL');
   const [viewMode, setViewMode] = useState<'CARDS' | 'TABLE'>('CARDS');
   const [expanded, setExpanded] = useState<string[]>([]);
   const [version, setVersion] = useState(0);
@@ -70,7 +72,13 @@ export function AttendanceDashboard({ initialWeek, selectedWeek = initialWeek, a
   const visible = allMembers.filter(member => {
     const matchesSearch = `${member.name} ${member.email || ''}`.toLocaleLowerCase('pt-BR').includes(search.toLocaleLowerCase('pt-BR'));
     const matchesArea = area === 'ALL' || member.area === area;
-    if (!matchesSearch || !matchesArea) return false;
+    const matchesDivision =
+      division === 'ALL'
+        ? true
+        : division === 'GENERAL'
+          ? (member.teamId ?? null) === null
+          : memberBelongsToDivisionTeam({ area: member.area, teamId: member.teamId ?? null }, Number(division));
+    if (!matchesSearch || !matchesArea || !matchesDivision) return false;
     if (filter === 'ALL') return true;
     if (filter === 'REVIEW') return member.pendingReviews > 0;
     const { tier } = getAttendanceCardTheme(member);
@@ -225,6 +233,29 @@ export function AttendanceDashboard({ initialWeek, selectedWeek = initialWeek, a
               </button>
             </div>
           </div>
+        </div>
+      )}
+      {admin && (
+        <div className="mb-4 flex flex-wrap items-center gap-2">
+          {([
+            { id: 'ALL', label: 'Todas as divisões' },
+            { id: '2', label: '☁️ Harpia' },
+            { id: '1', label: '🌊 Nautilus' },
+            { id: 'GENERAL', label: '🧭 Autônomos' },
+          ] as const).map((tab) => (
+            <button
+              key={tab.id}
+              type="button"
+              onClick={() => setDivision(tab.id)}
+              className={`min-h-9 rounded-lg border px-3.5 py-1.5 text-xs font-semibold transition-colors cursor-pointer ${
+                division === tab.id
+                  ? 'border-primary bg-primary text-primary-foreground shadow-xs'
+                  : 'border-border bg-card text-muted-foreground hover:text-foreground hover:bg-muted'
+              }`}
+            >
+              {tab.label}
+            </button>
+          ))}
         </div>
       )}
       {admin && (

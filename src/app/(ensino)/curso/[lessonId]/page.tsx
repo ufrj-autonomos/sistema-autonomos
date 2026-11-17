@@ -1,4 +1,5 @@
 import { requirePageUser } from '@/lib/session';
+import { hasEffectiveRole } from '@/lib/access-policy';
 import { notFound } from "next/navigation";
 import { Metadata } from "next";
 import { prisma } from "@/lib/prisma";
@@ -44,7 +45,8 @@ export async function generateMetadata(props: PageProps): Promise<Metadata> {
 }
 
 export default async function CoursePlayerPage(props: PageProps) {
-  await requirePageUser(false);
+  const user = await requirePageUser(false);
+  const canEdit = hasEffectiveRole(user, ['COORDINATOR', 'MANAGEMENT', 'ADMIN']);
   const { lessonId } = await props.params;
   const numId = Number(lessonId);
 
@@ -232,6 +234,7 @@ export default async function CoursePlayerPage(props: PageProps) {
       nextLesson={nextLesson}
       initialCompletedLessonIds={initialCompletedLessonIds}
       initialCompletedExerciseIds={initialCompletedExerciseIds}
+      canEdit={canEdit}
     />
   );
 }

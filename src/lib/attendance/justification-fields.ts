@@ -4,6 +4,7 @@ export const JUSTIFICATION_REASONS = [
   { value: 'ACADEMIC', label: 'Compromisso acadêmico' },
   { value: 'TRANSPORT', label: 'Problemas de transporte' },
   { value: 'OFFSITE_EVENT', label: 'Evento fora do laboratório' },
+  { value: 'EVENT_HOURS', label: 'Solicitar horas por evento / atividade externa' },
   { value: 'RECORD_CORRECTION', label: 'Recurso por problema no registro de presença' },
   { value: 'OTHER', label: 'Outro motivo' },
 ] as const;

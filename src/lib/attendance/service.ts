@@ -43,7 +43,7 @@ export async function attendanceReport(key = weekKey(), memberId?: string, now =
   const isVacationWeek = vacationKeys.includes(range.key);
   const ids = members.flatMap(member => typeof member.institutionalMemberId === 'number' ? [member.institutionalMemberId] : []);
   const identities = ids.length && process.env.INSTITUTIONAL_DATABASE_URL
-    ? await institutionalDb.institutionalMember.findMany({ where: { id: { in: ids } }, select: { id: true, name: true, area: true, active: true, role: true } })
+    ? await institutionalDb.institutionalMember.findMany({ where: { id: { in: ids } }, select: { id: true, name: true, area: true, active: true, role: true, teamId: true } })
     : [];
   const byId = new Map(identities.map(member => [member.id, member]));
   const eligibleMembers = members.filter(member => {
@@ -53,7 +53,7 @@ export async function attendanceReport(key = weekKey(), memberId?: string, now =
   const summaries = eligibleMembers.map(member => {
     const identity = member.institutionalMemberId ? byId.get(member.institutionalMemberId) : undefined;
     return memberSummary(
-      { id: member.id, name: identity?.name || member.name, area: resolveMemberAreas(identity?.area, member.area).internal || 'Não informada', email: member.email || null },
+      { id: member.id, name: identity?.name || member.name, area: resolveMemberAreas(identity?.area, member.area).internal || 'Não informada', email: member.email || null, teamId: member.teamId ?? identity?.teamId ?? null },
       member.attendancePeriods,
       member.attendanceVisits,
       range.key,

@@ -44,7 +44,7 @@ export function visitDto(visit: VisitRecord, now = new Date(), maxSeconds = MAX_
 }
 
 export function memberSummary(
-  member: { id: MemberIdentifier; name: string; area: string; email: string | null },
+  member: { id: MemberIdentifier; name: string; area: string; email: string | null; teamId?: number | null },
   periods: PeriodRecord[],
   visits: VisitRecord[],
   selected: string,

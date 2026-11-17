@@ -13,6 +13,7 @@ import {
   FileText,
   CheckCircle2,
   Eye,
+  ExternalLink,
   Mail,
   Settings,
 } from "lucide-react";
@@ -175,6 +176,15 @@ export default async function AdminDashboard() {
           </div>
 
           <div className="flex flex-wrap items-center gap-2.5 shrink-0">
+            <a
+              href={process.env.NEXT_PUBLIC_SITE_URL || "https://ufrjautonomos.com"}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-2 rounded-lg border border-emerald-500/40 bg-emerald-500/10 px-4 py-2.5 text-xs font-semibold text-emerald-700 dark:text-emerald-300 hover:bg-emerald-500/20 transition-colors"
+            >
+              <ExternalLink className="h-4 w-4" />
+              <span>Abrir Site Público</span>
+            </a>
             <Link
               href="/gestao/site/membros"
               className="inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2.5 text-xs font-semibold text-primary-foreground shadow-sm hover:bg-primary/90 transition-colors"

@@ -16,7 +16,14 @@ import {
   ShieldAlert,
   Sparkles,
 } from "lucide-react";
-import { MEMBER_AREAS, normalizeMemberArea } from "@/lib/member-fields";
+import {
+  brDateToIso,
+  computeCurrentAcademicPeriod,
+  isoDateToBr,
+  maskBrDateInput,
+  MEMBER_AREAS,
+  normalizeMemberArea,
+} from "@/lib/member-fields";
 import { useSession } from "@/contexts/auth-context";
 import { ProfileSecuritySection, type PendingEmailChangeData } from "@/components/profile/profile-security-section";
 
@@ -129,7 +136,7 @@ function ProfileFormContent() {
       setPhone(p.phone || "");
       setDre(p.dre || "");
       setCpf(p.cpf || "");
-      setBirthDate(p.birthDate || "");
+      setBirthDate(isoDateToBr(p.birthDate || ""));
       setCourse(
         typeof pendingFields.course === "string"
           ? pendingFields.course
@@ -213,7 +220,7 @@ function ProfileFormContent() {
           phone,
           dre,
           cpf,
-          birthDate,
+          birthDate: brDateToIso(birthDate) || birthDate,
           course,
           academicPeriod,
           emergencyContactName,
@@ -399,15 +406,20 @@ function ProfileFormContent() {
             </label>
 
             <label className="block text-sm font-medium text-foreground">
-              Período Acadêmico <span className="text-amber-700 dark:text-amber-400">*</span>
+              Período de Entrada (UFRJ) <span className="text-amber-700 dark:text-amber-400">*</span>
               <input
                 type="text"
                 required
                 value={academicPeriod}
                 onChange={(e) => setAcademicPeriod(e.target.value)}
-                placeholder="Ex.: 5º período"
+                placeholder="Ex.: 2024.1"
                 className={inputClass}
               />
+              {academicPeriod.trim() && (
+                <span className="mt-1 block text-[11px] font-normal text-muted-foreground">
+                  Calculado automaticamente: {computeCurrentAcademicPeriod(academicPeriod)}
+                </span>
+              )}
             </label>
 
             <label className="block text-sm font-medium text-foreground">
@@ -453,14 +465,17 @@ function ProfileFormContent() {
             <label className="block text-sm font-medium text-foreground">
               Data de Nascimento <span className="text-amber-700 dark:text-amber-400">*</span>
               <input
-                type="date"
+                type="text"
+                inputMode="numeric"
+                maxLength={10}
                 required
                 value={birthDate}
-                onChange={(e) => setBirthDate(e.target.value)}
+                onChange={(e) => setBirthDate(maskBrDateInput(e.target.value))}
+                placeholder="dd/mm/aaaa"
                 className={inputClass}
               />
               <span className="mt-1 block text-[11px] font-normal text-muted-foreground">
-                Privada da equipe — usada para seguro/cadastro e para calcular sua idade no site.
+                Formato dd/mm/aaaa · Privada da equipe (usada para seguro/cadastro).
               </span>
             </label>
           </div>

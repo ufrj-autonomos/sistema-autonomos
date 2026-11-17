@@ -1,4 +1,4 @@
-import { normalizeMemberArea } from './member-fields';
+import { brDateToIso, normalizeMemberArea } from './member-fields';
 export function privateData(input: unknown, member: boolean) {
   if (!input || typeof input !== 'object' || Array.isArray(input)) throw new Error('Dados internos inválidos.');
   const data = input as Record<string, unknown>;
@@ -47,10 +47,11 @@ export function privateData(input: unknown, member: boolean) {
   if ('birthDate' in data) {
     if (typeof data.birthDate !== 'string') throw new Error('Data de nascimento inválida.');
     operational.birthDate = null;
-    if (data.birthDate) {
-      const date = new Date(`${data.birthDate}T00:00:00Z`);
+    if (data.birthDate.trim()) {
+      const iso = brDateToIso(data.birthDate) || data.birthDate.trim();
+      const date = new Date(`${iso}T00:00:00Z`);
       const today = new Intl.DateTimeFormat('sv-SE', { timeZone: 'America/Sao_Paulo' }).format(new Date());
-      if (!/^\d{4}-\d{2}-\d{2}$/.test(data.birthDate) || !Number.isFinite(date.getTime()) || date.toISOString().slice(0, 10) !== data.birthDate || data.birthDate < '1900-01-01' || data.birthDate > today) throw new Error('Informe uma data de nascimento válida, sem data futura.');
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(iso) || !Number.isFinite(date.getTime()) || date.toISOString().slice(0, 10) !== iso || iso < '1900-01-01' || iso > today) throw new Error('Informe uma data de nascimento válida (dd/mm/aaaa), sem data futura.');
       operational.birthDate = date;
     }
   }

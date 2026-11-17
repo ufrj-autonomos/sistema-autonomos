@@ -125,12 +125,13 @@ export function isAlumniOrInactive(
 
 export function isOperationalActiveMember(
   member:
-    | { active?: boolean | null; role?: string | null; area?: string | null; status?: string | null }
+    | { active?: boolean | null; role?: string | null; area?: string | null; status?: string | null; email?: string | null }
     | null
     | undefined,
   inst?: { active?: boolean | null; role?: string | null; area?: string | null } | null
 ): boolean {
   if (!member) return false;
+  if (member.email && member.email.trim().toLowerCase() === 'ufrjautonomos@gmail.com') return false;
   if (isProfessorAdvisor(member) || isAlumniOrInactive(member)) return false;
   if (inst && (isProfessorAdvisor(inst) || isAlumniOrInactive(inst))) return false;
   return true;
@@ -271,4 +272,63 @@ export function computeMissingProfileFields(input: {
     }
   }
   return missing;
+}
+
+export function isoDateToBr(value: string | null | undefined): string {
+  if (!value) return '';
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value.trim());
+  if (!match) return value;
+  return `${match[3]}/${match[2]}/${match[1]}`;
+}
+
+export function brDateToIso(value: string | null | undefined): string | null {
+  if (!value) return null;
+  const trimmed = value.trim();
+  if (!trimmed) return null;
+  if (/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) return trimmed;
+  const match = /^(\d{2})\/(\d{2})\/(\d{4})$/.exec(trimmed);
+  if (!match) return null;
+  return `${match[3]}-${match[2]}-${match[1]}`;
+}
+
+export function maskBrDateInput(raw: string): string {
+  const digits = raw.replace(/\D/g, '').slice(0, 8);
+  if (digits.length <= 2) return digits;
+  if (digits.length <= 4) return `${digits.slice(0, 2)}/${digits.slice(2)}`;
+  return `${digits.slice(0, 2)}/${digits.slice(2, 4)}/${digits.slice(4)}`;
+}
+
+export function computeCurrentAcademicPeriod(
+  entryValue: string | null | undefined,
+  now: Date = new Date()
+): string | null {
+  if (!entryValue) return null;
+  const trimmed = entryValue.trim();
+  if (!trimmed) return null;
+
+  let entryYear: number | null = null;
+  let entryHalf: number | null = null;
+
+  const semMatch = /^(\d{4})[./-]([12])$/.exec(trimmed);
+  if (semMatch) {
+    entryYear = Number(semMatch[1]);
+    entryHalf = Number(semMatch[2]);
+  } else {
+    const monthYearMatch = /^(\d{1,2})\/(\d{4})$/.exec(trimmed);
+    if (monthYearMatch) {
+      const m = Number(monthYearMatch[1]);
+      entryYear = Number(monthYearMatch[2]);
+      entryHalf = m <= 6 ? 1 : 2;
+    }
+  }
+
+  if (!entryYear || !entryHalf || entryYear < 1990 || entryYear > 2100) {
+    return trimmed;
+  }
+
+  const currentYear = now.getUTCFullYear();
+  const currentHalf = now.getUTCMonth() < 6 ? 1 : 2;
+  const periodNumber = (currentYear - entryYear) * 2 + (currentHalf - entryHalf) + 1;
+  if (periodNumber < 1) return `Entrada ${entryYear}.${entryHalf}`;
+  return `${periodNumber}º período (entrada ${entryYear}.${entryHalf})`;
 }

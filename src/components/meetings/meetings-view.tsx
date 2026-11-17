@@ -302,7 +302,14 @@ export function MeetingsView({
   const canEdit = Boolean((data.canEdit ?? data.isAdmin) && !data.isArchived);
   const canManageCycles = user.role === 'ADMIN' || user.role === 'COORDINATOR' || user.role === 'MANAGEMENT';
   const [activeTab, setActiveTab] = useState<string>(initialArea || 'painel');
+  const [divisionFilter, setDivisionFilter] = useState<'ALL' | '2' | '1' | 'GENERAL'>('ALL');
   const [isPending, startTransition] = useTransition();
+
+  const filteredDetailedAreas = data.detailedAreas.filter((da) => {
+    if (divisionFilter === 'ALL') return true;
+    if (divisionFilter === 'GENERAL') return da.def.teamId === null;
+    return da.def.teamId === Number(divisionFilter);
+  });
 
   // Alternador de visualização para áreas detalhadas: 'matrix' (planilha) ou 'cards' (chamada por reunião / mobile)
   const [areaViewMode, setAreaViewMode] = useState<'feed' | 'matrix' | 'cards'>('feed');
@@ -629,6 +636,44 @@ export function MeetingsView({
         </div>
       )}
 
+      {/* Abas por Divisão: Harpia / Nautilus / Autônomos */}
+      <div className="flex flex-wrap items-center gap-2">
+        {([
+          { id: 'ALL', label: 'Todas as divisões' },
+          { id: '2', label: '☁️ Harpia' },
+          { id: '1', label: '🌊 Nautilus' },
+          { id: 'GENERAL', label: '🧭 Autônomos' },
+        ] as const).map((divTab) => (
+          <button
+            key={divTab.id}
+            type="button"
+            onClick={() => {
+              setDivisionFilter(divTab.id);
+              if (activeTab !== 'painel') {
+                const stillVisible = data.detailedAreas.some((da) => {
+                  const matchesDiv =
+                    divTab.id === 'ALL'
+                      ? true
+                      : divTab.id === 'GENERAL'
+                        ? da.def.teamId === null
+                        : da.def.teamId === Number(divTab.id);
+                  return matchesDiv && `${da.def.area}-${da.def.teamId}` === activeTab;
+                });
+                if (!stillVisible) setActiveTab('painel');
+              }
+            }}
+            className={cn(
+              'px-3.5 py-1.5 rounded-lg text-xs font-semibold border transition-colors cursor-pointer',
+              divisionFilter === divTab.id
+                ? 'border-primary bg-primary text-primary-foreground shadow-xs'
+                : 'border-border bg-card text-muted-foreground hover:text-foreground hover:bg-muted'
+            )}
+          >
+            {divTab.label}
+          </button>
+        ))}
+      </div>
+
       {/* Navegação de Abas com Rolagem Horizontal com Estética do Site */}
       <div className="relative border-b border-border/60 pb-1">
         <div className="flex items-center gap-1.5">
@@ -672,7 +717,7 @@ export function MeetingsView({
 
             <div className="h-4 w-px bg-border mx-1 shrink-0" />
 
-            {data.detailedAreas.map((da) => {
+            {filteredDetailedAreas.map((da) => {
               const tabKey = `${da.def.area}-${da.def.teamId}`;
               const isSelected = activeTab === tabKey;
               return (
