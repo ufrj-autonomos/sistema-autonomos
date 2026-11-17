@@ -8,6 +8,7 @@ import {
   type SystemRole,
 } from '@/lib/access-policy';
 import {
+  expandMemberScopeKeys,
   isOperationalActiveMember,
   normalizeMemberArea,
   normalizeMemberRole,
@@ -261,10 +262,10 @@ async function resolveEvaluationPeriods(now: Date = new Date()): Promise<{
   return { periods, currentCode };
 }
 
-export async function resolveCoordinatorScope(
+export async function resolveCoordinatorScopes(
   user: Pick<SafeUser, 'role' | 'roles' | 'area' | 'teamId' | 'institutionalMemberId'>
-): Promise<EvaluationScopeArea | null> {
-  if (!hasEffectiveRole(user, 'COORDINATOR')) return null;
+): Promise<EvaluationScopeArea[]> {
+  if (!hasEffectiveRole(user, 'COORDINATOR')) return [];
   let area = normalizeMemberArea(user.area);
   let teamId = user.teamId ?? null;
 
@@ -283,8 +284,21 @@ export async function resolveCoordinatorScope(
     }
   }
 
-  if (!area) return null;
-  return makeScopeArea(teamId, area);
+  if (!area) return [];
+  const keys = expandMemberScopeKeys({ area, teamId });
+  const scopes: EvaluationScopeArea[] = [];
+  for (const key of keys) {
+    const parsed = parseScopeKey(key);
+    if (parsed) scopes.push(makeScopeArea(parsed.teamId, parsed.area));
+  }
+  return scopes.length > 0 ? scopes : [makeScopeArea(teamId, area)];
+}
+
+export async function resolveCoordinatorScope(
+  user: Pick<SafeUser, 'role' | 'roles' | 'area' | 'teamId' | 'institutionalMemberId'>
+): Promise<EvaluationScopeArea | null> {
+  const scopes = await resolveCoordinatorScopes(user);
+  return scopes[0] ?? null;
 }
 
 interface ActiveMemberIdentity {
@@ -301,6 +315,7 @@ interface ActiveMemberIdentity {
   teamSlug: EvaluationTeamSlug;
   teamName: string;
   scopeKey: string;
+  scopeKeys: string[];
 }
 
 async function loadOperationalRoster(): Promise<{
@@ -381,6 +396,7 @@ async function loadOperationalRoster(): Promise<{
       teamSlug: scope.teamSlug,
       teamName: scope.teamName,
       scopeKey: scope.scopeKey,
+      scopeKeys: expandMemberScopeKeys({ area: scope.area, teamId: scope.teamId }),
     });
   }
 
@@ -396,7 +412,9 @@ export async function getEvaluationsWorkspace(
   }
 
   const isAdmin = hasEffectiveRole(user, 'ADMIN');
-  const coordinatorScope = isAdmin ? null : await resolveCoordinatorScope(user);
+  const coordinatorScopes = isAdmin ? [] : await resolveCoordinatorScopes(user);
+  const coordinatorScope = coordinatorScopes[0] ?? null;
+  const coordinatorScopeKeys = new Set(coordinatorScopes.map((s) => s.scopeKey));
 
   const [{ periods, currentCode }, { roster }, vacationWeeks] = await Promise.all([
     resolveEvaluationPeriods(),
@@ -581,12 +599,12 @@ export async function getEvaluationsWorkspace(
     (m) => m.effectiveRole === 'COORDINATOR' || m.systemRoles.includes('COORDINATOR')
   );
 
-  // Scoped members list: ADMIN sees all; COORDINATOR sees ONLY their own scopeKey (excluding self)
+  // Scoped members list: ADMIN sees all; COORDINATOR sees ONLY their own scopeKeys (excluding self)
   const visibleMembers = isAdmin
     ? allEvaluableMembers
-    : coordinatorScope
+    : coordinatorScopeKeys.size > 0
       ? allEvaluableMembers.filter(
-          (m) => m.scopeKey === coordinatorScope.scopeKey && m.id !== user.id
+          (m) => m.scopeKeys.some((k) => coordinatorScopeKeys.has(k)) && m.id !== user.id
         )
       : [];
 
@@ -891,10 +909,13 @@ export async function getEvaluationsWorkspace(
   return {
     viewerRole: isAdmin ? 'ADMIN' : 'COORDINATOR',
     isAdmin,
-    coordinatorScope,
+    coordinatorScope:
+      coordinatorScopes.length > 1 && coordinatorScope
+        ? { ...coordinatorScope, label: `${coordinatorScope.area} · Harpia & Nautilus` }
+        : coordinatorScope,
     periods: periodOptions,
     selectedPeriod,
-    scopes: isAdmin ? allScopes : coordinatorScope ? [coordinatorScope] : [],
+    scopes: isAdmin ? allScopes : coordinatorScopes,
     members: memberRows,
     areas: areaRows,
     coordinators: coordinatorRows,
@@ -921,9 +942,9 @@ export async function upsertMemberEvaluation(
   const notes = sanitizeNotes(input.notes);
 
   const isAdmin = hasEffectiveRole(user, 'ADMIN');
-  const [{ byId }, coordinatorScope] = await Promise.all([
+  const [{ byId }, coordinatorScopes] = await Promise.all([
     loadOperationalRoster(),
-    !isAdmin ? resolveCoordinatorScope(user) : Promise.resolve(null),
+    !isAdmin ? resolveCoordinatorScopes(user) : Promise.resolve([]),
   ]);
 
   const target = byId.get(memberId);
@@ -939,12 +960,17 @@ export async function upsertMemberEvaluation(
   }
 
   if (!isAdmin) {
-    if (!coordinatorScope) {
+    if (coordinatorScopes.length === 0) {
       throw new EvaluationError('Sua conta de coordenador não possui área definida.', 403);
     }
-    if (target.scopeKey !== coordinatorScope.scopeKey) {
+    const allowedKeys = new Set(coordinatorScopes.map((s) => s.scopeKey));
+    if (!target.scopeKeys.some((k) => allowedKeys.has(k))) {
+      const label =
+        coordinatorScopes.length > 1
+          ? `${coordinatorScopes[0].area} · Harpia & Nautilus`
+          : coordinatorScopes[0].label;
       throw new EvaluationError(
-        `Você só pode avaliar integrantes da sua área (${coordinatorScope.label}).`,
+        `Você só pode avaliar integrantes da sua área (${label}).`,
         403
       );
     }
@@ -997,9 +1023,10 @@ export async function deleteMemberEvaluation(user: SafeUser, evaluationId: strin
   if (!existing) throw new EvaluationError('Avaliação não encontrada.', 404);
 
   if (!hasEffectiveRole(user, 'ADMIN')) {
-    const scope = await resolveCoordinatorScope(user);
-    const evalScopeKey = buildScopeKey(existing.teamId, existing.area);
-    if (!scope || evalScopeKey !== scope.scopeKey) {
+    const scopes = await resolveCoordinatorScopes(user);
+    const allowedKeys = new Set(scopes.map((s) => s.scopeKey));
+    const evalScopeKeys = expandMemberScopeKeys({ area: existing.area, teamId: existing.teamId });
+    if (scopes.length === 0 || !evalScopeKeys.some((k) => allowedKeys.has(k))) {
       throw new EvaluationError('Você só pode gerenciar avaliações da sua própria área.', 403);
     }
   }
@@ -1167,10 +1194,11 @@ export async function getHomeAreaEvaluations(
     return b.code.localeCompare(a.code, 'pt-BR');
   });
 
-  const normalizedUserArea = normalizeMemberArea(user.area);
-  const userScopeKey = normalizedUserArea
-    ? buildScopeKey(user.teamId ?? null, normalizedUserArea)
-    : null;
+  const userScopeKeys = expandMemberScopeKeys({
+    area: user.area,
+    teamId: user.teamId ?? null,
+  });
+  const userScopeKey = userScopeKeys[0] ?? null;
 
   const evaluationsByPeriod: Record<string, HomeAreaScoreItemDTO[]> = {};
 
@@ -1199,7 +1227,7 @@ export async function getHomeAreaEvaluations(
         score: found ? found.score : null,
         notes: found ? found.notes : null,
         updatedAt: found ? found.updatedAt.toISOString() : null,
-        isUserArea: userScopeKey === scope.scopeKey,
+        isUserArea: userScopeKeys.includes(scope.scopeKey),
       };
     });
   }
@@ -1238,7 +1266,9 @@ export async function getPendingEvaluationsSummary(
   }
 
   const isAdmin = hasEffectiveRole(user, 'ADMIN');
-  const coordinatorScope = isAdmin ? null : await resolveCoordinatorScope(user);
+  const coordinatorScopes = isAdmin ? [] : await resolveCoordinatorScopes(user);
+  const coordinatorScope = coordinatorScopes[0] ?? null;
+  const coordinatorScopeKeys = new Set(coordinatorScopes.map((s) => s.scopeKey));
 
   const [{ roster }, memberEvals, areaEvals, coordEvals] = await Promise.all([
     loadOperationalRoster(),
@@ -1262,9 +1292,9 @@ export async function getPendingEvaluationsSummary(
   );
   const visibleMembers = isAdmin
     ? allEvaluableMembers
-    : coordinatorScope
+    : coordinatorScopeKeys.size > 0
       ? allEvaluableMembers.filter(
-          (m) => m.scopeKey === coordinatorScope.scopeKey && m.id !== user.id
+          (m) => m.scopeKeys.some((k) => coordinatorScopeKeys.has(k)) && m.id !== user.id
         )
       : [];
 
@@ -1306,6 +1336,9 @@ export async function getPendingEvaluationsSummary(
     })),
     pendingAreasCount,
     pendingCoordinatorsCount,
-    scopeLabel: coordinatorScope?.label ?? null,
+    scopeLabel:
+      coordinatorScopes.length > 1
+        ? `${coordinatorScopes[0].area} · Harpia & Nautilus`
+        : coordinatorScopes[0]?.label ?? null,
   };
 }

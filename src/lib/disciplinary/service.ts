@@ -1,7 +1,12 @@
 import { prisma } from '@/lib/prisma';
 import { db as institutionalDb } from '@/lib/institutional/db';
 import { hasEffectiveRole } from '@/lib/access-policy';
-import { isOperationalActiveMember } from '@/lib/member-fields';
+import {
+  isDualDivisionTechnicalMember,
+  isOperationalActiveMember,
+  memberBelongsToDivisionTeam,
+  normalizeMemberArea,
+} from '@/lib/member-fields';
 import type { SafeUser } from '@/lib/session';
 import type { DisciplinaryWarningType, AccountStatus, Prisma } from '@prisma/client';
 
@@ -104,7 +109,7 @@ export function canUserManageDisciplinary(user: SafeUser, targetMemberTeamId?: n
   if (hasEffectiveRole(user, ['ADMIN', 'MANAGEMENT'])) return true;
   if (hasEffectiveRole(user, 'COORDINATOR')) {
     if (targetMemberTeamId === undefined) return true;
-    return (user.teamId ?? null) === (targetMemberTeamId ?? null);
+    return memberBelongsToDivisionTeam(user, targetMemberTeamId);
   }
   return false;
 }
@@ -174,7 +179,14 @@ export async function getDisciplinaryDashboardData(user: SafeUser): Promise<Disc
   };
 
   if (!isGlobal) {
-    memberWhere.teamId = user.teamId ?? null;
+    if (isDualDivisionTechnicalMember(user)) {
+      const normalizedArea = normalizeMemberArea(user.area);
+      memberWhere.OR = normalizedArea
+        ? [{ teamId: { in: [1, 2] } }, { teamId: null, area: normalizedArea }]
+        : [{ teamId: { in: [1, 2] } }];
+    } else {
+      memberWhere.teamId = user.teamId ?? null;
+    }
   }
 
   const [rawMembers, rawAllWarnings, instRows] = await Promise.all([

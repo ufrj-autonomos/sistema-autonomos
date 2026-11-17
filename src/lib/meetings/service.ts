@@ -3,7 +3,11 @@ import { db as institutionalDb } from '@/lib/institutional/db';
 import { prisma } from '@/lib/prisma';
 import type { SafeUser } from '@/lib/session';
 import { hasEffectiveRole, hasManagementAccess } from '@/lib/access-policy';
-import { isOperationalActiveMember } from '@/lib/member-fields';
+import {
+  isDualDivisionTechnicalMember,
+  isOperationalActiveMember,
+  memberBelongsToDivisionTeam,
+} from '@/lib/member-fields';
 import type { MeetingAttendanceStatus } from '@prisma/client';
 
 export interface MeetingPeriodSummary {
@@ -56,7 +60,7 @@ export function canUserManageMeetings(user: SafeUser, targetTeamId?: number | nu
   if (hasEffectiveRole(user, 'ADMIN')) return true;
   if (hasEffectiveRole(user, 'COORDINATOR')) {
     if (targetTeamId === undefined) return true;
-    return (user.teamId ?? null) === (targetTeamId ?? null);
+    return memberBelongsToDivisionTeam(user, targetTeamId);
   }
   return false;
 }
@@ -67,6 +71,8 @@ export function getVisibleAreasForUser(user: SafeUser): AreaDefinition[] {
   let list: AreaDefinition[] = [];
   if (isAdmin) {
     list = KNOWN_AREAS;
+  } else if (isDualDivisionTechnicalMember(user)) {
+    list = KNOWN_AREAS.filter((a) => a.teamId === 1 || a.teamId === 2);
   } else if (user.teamId === 2) {
     list = KNOWN_AREAS.filter((a) => a.teamId === 2);
   } else if (user.teamId === 1) {
@@ -265,9 +271,10 @@ export async function getMeetingsDashboardData(user: SafeUser, requestedPeriod?:
 
   // Buscar todas as reuniões do período no escopo da equipe do usuário (Admin vê todas)
   const isAdmin = hasEffectiveRole(user, 'ADMIN');
-  const meetingWhere: { period: string; teamId?: number | null } = { period };
+  const isDualTechnical = !isAdmin && isDualDivisionTechnicalMember(user);
+  const meetingWhere: { period: string; teamId?: number | null | { in: number[] } } = { period };
   if (!isAdmin) {
-    meetingWhere.teamId = user.teamId ?? null;
+    meetingWhere.teamId = isDualTechnical ? { in: [1, 2] } : user.teamId ?? null;
   }
 
   const allMeetings = await prisma.meeting.findMany({
@@ -487,11 +494,15 @@ export async function getMeetingsDashboardData(user: SafeUser, requestedPeriod?:
   // Métricas Gerais do Painel Executivo (no escopo da equipe do usuário, ou global para Admin)
   const scopedMembersList = isAdmin
     ? memberStatsList
-    : memberStatsList.filter((s) => s.teamId === user.teamId);
+    : isDualTechnical
+      ? memberStatsList.filter((s) => s.teamId === 1 || s.teamId === 2)
+      : memberStatsList.filter((s) => s.teamId === user.teamId);
 
   const scopedMeetings = isAdmin
     ? allMeetings
-    : allMeetings.filter((m) => m.teamId === user.teamId);
+    : isDualTechnical
+      ? allMeetings.filter((m) => m.teamId === 1 || m.teamId === 2)
+      : allMeetings.filter((m) => m.teamId === user.teamId);
 
   let totalPresences = 0;
   let totalAbsences = 0;
@@ -674,11 +685,15 @@ export async function pendingMeetingMinutes(user: SafeUser) {
     : null;
   const scope = meetingMinutesResponsibility(user, office);
   if (!scope) return { total: 0, meetings: [] };
-  const where = { AND: [
-    { OR: [{ minutes: null }, { minutes: '' }] },
-    { teamId: scope.teamId },
-    { area: scope.area },
-  ] };
+  const where = {
+    AND: [
+      { OR: [{ minutes: null }, { minutes: '' }] },
+      isDualDivisionTechnicalMember({ area: scope.area, teamId: scope.teamId })
+        ? { teamId: { in: [1, 2] } }
+        : { teamId: scope.teamId },
+      { area: scope.area },
+    ],
+  };
   const [total, meetings] = await Promise.all([
     prisma.meeting.count({ where }),
     prisma.meeting.findMany({ where, select: { id: true, title: true, date: true, area: true, teamId: true, period: true }, orderBy: [{ date: 'desc' }, { id: 'asc' }], take: 6 }),

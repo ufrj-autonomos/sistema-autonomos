@@ -3,6 +3,7 @@ import { db as institutionalDb } from '@/lib/institutional/db';
 import type { SafeUser } from '@/lib/session';
 import { extractEffectiveRoles, hasEffectiveRole, type SystemRole } from '@/lib/access-policy';
 import {
+  expandMemberScopeKeys,
   isOperationalActiveMember,
   normalizeMemberArea,
   normalizeMemberRole,
@@ -215,9 +216,9 @@ function sanitizeOptionalUrl(raw: unknown, fieldLabel: string): string | null {
   return clean.slice(0, 1000);
 }
 
-export async function resolveUserAreaScopeKey(
+export async function resolveUserAreaScopeKeys(
   user: Pick<SafeUser, 'area' | 'teamId' | 'institutionalMemberId'>
-): Promise<string | null> {
+): Promise<string[]> {
   let area = normalizeMemberArea(user.area);
   let teamId = user.teamId ?? null;
 
@@ -236,8 +237,14 @@ export async function resolveUserAreaScopeKey(
     }
   }
 
-  if (!area) return null;
-  return makeScopeArea(teamId, area).scopeKey;
+  return expandMemberScopeKeys({ area, teamId });
+}
+
+export async function resolveUserAreaScopeKey(
+  user: Pick<SafeUser, 'area' | 'teamId' | 'institutionalMemberId'>
+): Promise<string | null> {
+  const keys = await resolveUserAreaScopeKeys(user);
+  return keys[0] ?? null;
 }
 
 export function resolveSelectedScope(
@@ -258,8 +265,8 @@ export function resolveSelectedScope(
 export async function canManageAreaScope(user: SafeUser, scopeKey: string): Promise<boolean> {
   if (hasEffectiveRole(user, 'ADMIN')) return true;
   if (!hasEffectiveRole(user, 'COORDINATOR')) return false;
-  const userScope = await resolveUserAreaScopeKey(user);
-  return Boolean(userScope && userScope === scopeKey);
+  const userScopes = await resolveUserAreaScopeKeys(user);
+  return userScopes.includes(scopeKey);
 }
 
 interface RosterIdentity {
@@ -273,6 +280,7 @@ interface RosterIdentity {
   area: string;
   teamId: number | null;
   scopeKey: string;
+  scopeKeys: string[];
 }
 
 async function loadActiveAreaRoster(): Promise<RosterIdentity[]> {
@@ -342,6 +350,7 @@ async function loadActiveAreaRoster(): Promise<RosterIdentity[]> {
       area: scope.area,
       teamId: scope.teamId,
       scopeKey: scope.scopeKey,
+      scopeKeys: expandMemberScopeKeys({ area: scope.area, teamId: scope.teamId }),
     });
   }
 
@@ -366,11 +375,13 @@ export async function getAreasWorkspace(
   user: SafeUser,
   requestedScopeKey?: string | null
 ): Promise<AreasWorkspaceDTO> {
-  const userScopeKey = await resolveUserAreaScopeKey(user);
+  const userScopeKeys = await resolveUserAreaScopeKeys(user);
+  const userScopeKey = userScopeKeys[0] ?? null;
   const selectedScope = resolveSelectedScope(requestedScopeKey, userScopeKey);
   const isAdmin = hasEffectiveRole(user, 'ADMIN');
   const canManageSelected = await canManageAreaScope(user, selectedScope.scopeKey);
-  const canUpdateTasksInSelectedArea = canManageSelected || userScopeKey === selectedScope.scopeKey;
+  const canUpdateTasksInSelectedArea =
+    canManageSelected || userScopeKeys.includes(selectedScope.scopeKey);
 
   const [roster, allOpenTasks, selectedTasks, allCourses, userCourseProgress, latestAreaEvals] =
     await Promise.all([
@@ -433,15 +444,17 @@ export async function getAreasWorkspace(
   }
 
   const scopes: AreaSummaryCardDTO[] = CANONICAL_EVALUATION_SCOPES.map((s) => {
-    const countMembers = roster.filter((m) => m.scopeKey === s.scopeKey).length;
+    const countMembers = roster.filter((m) => m.scopeKeys.includes(s.scopeKey)).length;
     const countOpenTasks = allOpenTasks.filter((t) => t.scopeKey === s.scopeKey).length;
     const countCourses = allCourses.filter(
-      (c) => (c.published || isAdmin || userScopeKey === s.scopeKey) && isCourseRelevantToScope(c, s)
+      (c) =>
+        (c.published || isAdmin || userScopeKeys.includes(s.scopeKey)) &&
+        isCourseRelevantToScope(c, s)
     ).length;
 
     return {
       ...s,
-      isUserArea: userScopeKey === s.scopeKey,
+      isUserArea: userScopeKeys.includes(s.scopeKey),
       activeMembersCount: countMembers,
       openTasksCount: countOpenTasks,
       coursesCount: countCourses,
@@ -458,7 +471,7 @@ export async function getAreasWorkspace(
   }
 
   const areaMembers: AreaMemberDTO[] = roster
-    .filter((m) => m.scopeKey === selectedScope.scopeKey)
+    .filter((m) => m.scopeKeys.includes(selectedScope.scopeKey))
     .map((m) => ({
       id: m.id,
       name: m.name,
@@ -501,7 +514,8 @@ export async function getAreasWorkspace(
         memberName: a.memberName,
       })),
       canEditTask: canManageSelected,
-      canUpdateProgress: canManageSelected || userScopeKey === selectedScope.scopeKey || isAssigned,
+      canUpdateProgress:
+        canManageSelected || userScopeKeys.includes(selectedScope.scopeKey) || isAssigned,
     };
   });
 
@@ -669,9 +683,9 @@ export async function updateAreaTask(
   if (!existing) throw new AreaHubError('Tarefa não encontrada.', 404);
 
   const isManager = await canManageAreaScope(user, existing.scopeKey);
-  const userScope = await resolveUserAreaScopeKey(user);
+  const userScopes = await resolveUserAreaScopeKeys(user);
   const isAssigned = existing.assignments.some((a) => a.memberId === user.id);
-  const isAreaMember = userScope === existing.scopeKey;
+  const isAreaMember = userScopes.includes(existing.scopeKey);
 
   if (!isManager && !isAreaMember && !isAssigned) {
     throw new AreaHubError('Você não tem permissão para atualizar tarefas desta área.', 403);

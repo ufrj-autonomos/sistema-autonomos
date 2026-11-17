@@ -2,7 +2,10 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { prisma } from '../src/lib/prisma';
 import {
+  expandMemberScopeKeys,
   formatMemberRoles,
+  isDualDivisionTechnicalMember,
+  memberBelongsToDivisionTeam,
   memberRoleTranslations,
   normalizeMemberRole,
   roleFromCargo,
@@ -16,7 +19,8 @@ import {
 } from '../src/lib/access-policy';
 import { managementSectionsForRole } from '../src/lib/management-navigation';
 import { canUserManageDisciplinary } from '../src/lib/disciplinary/service';
-import { canAccessEvaluations } from '../src/lib/evaluations/service';
+import { canUserManageMeetings } from '../src/lib/meetings/service';
+import { canAccessEvaluations, resolveCoordinatorScopes } from '../src/lib/evaluations/service';
 import {
   AreaHubError,
   addLessonToAreaCourse,
@@ -566,6 +570,143 @@ test('espaço da área abre na área do usuário, controla passagem de tarefas e
       assert.equal(ws.courses[0].totalLessons, 1);
       // Como criamos o curso com o título do slot "Visão Computacional & Navegação Autônoma", esse slot sai dos pendentes
       assert.ok(!ws.recommendedSlots.some((s) => s.title === 'Visão Computacional & Navegação Autônoma'));
+    }
+  );
+});
+
+test('membros e coordenadores técnicos da Autônomos atuam em Harpia e Nautilus', async () => {
+  assert.equal(isDualDivisionTechnicalMember({ area: 'Software', teamId: null }), true);
+  assert.equal(isDualDivisionTechnicalMember({ area: 'Mecânica', teamId: null }), true);
+  assert.equal(isDualDivisionTechnicalMember({ area: 'Eletrônica', teamId: null }), true);
+  assert.equal(isDualDivisionTechnicalMember({ area: 'Gestão', teamId: null }), false);
+  assert.equal(isDualDivisionTechnicalMember({ area: 'Marketing', teamId: null }), false);
+  assert.equal(isDualDivisionTechnicalMember({ area: 'Software', teamId: 2 }), false);
+
+  assert.deepEqual(expandMemberScopeKeys({ area: 'Software', teamId: null }), [
+    'harpia:Software',
+    'nautilus:Software',
+  ]);
+  assert.deepEqual(expandMemberScopeKeys({ area: 'Gestão', teamId: null }), ['autonomos:Gestão']);
+  assert.deepEqual(expandMemberScopeKeys({ area: 'Eletrônica', teamId: 1 }), ['nautilus:Eletrônica']);
+
+  assert.equal(memberBelongsToDivisionTeam({ area: 'Mecânica', teamId: null }, 1), true);
+  assert.equal(memberBelongsToDivisionTeam({ area: 'Mecânica', teamId: null }, 2), true);
+  assert.equal(memberBelongsToDivisionTeam({ area: 'Mecânica', teamId: null }, null), true);
+  assert.equal(memberBelongsToDivisionTeam({ area: 'Gestão', teamId: null }, 1), false);
+  assert.equal(memberBelongsToDivisionTeam({ area: 'Gestão', teamId: null }, null), true);
+
+  const coordAutoSw = makeUser({
+    id: 'coord-auto-sw',
+    name: 'Coord Autônomos Software',
+    role: 'COORDINATOR',
+    roles: ['COORDINATOR'],
+    area: 'Software',
+    teamId: null,
+  });
+  const memberAutoSw = makeUser({
+    id: 'mem-auto-sw',
+    name: 'Membro Autônomos Software',
+    role: 'MEMBER',
+    roles: ['MEMBER'],
+    area: 'Software',
+    teamId: null,
+  });
+  const coordAutoGestao = makeUser({
+    id: 'coord-auto-gestao',
+    name: 'Coord Gestão',
+    role: 'COORDINATOR',
+    roles: ['COORDINATOR'],
+    area: 'Gestão',
+    teamId: null,
+  });
+
+  assert.equal(canUserManageDisciplinary(coordAutoSw, 1), true);
+  assert.equal(canUserManageDisciplinary(coordAutoSw, 2), true);
+  assert.equal(canUserManageDisciplinary(coordAutoSw, null), true);
+  assert.equal(canUserManageDisciplinary(coordAutoGestao, 1), false);
+  assert.equal(canUserManageDisciplinary(coordAutoGestao, null), true);
+
+  assert.equal(canUserManageMeetings(coordAutoSw, 1), true);
+  assert.equal(canUserManageMeetings(coordAutoSw, 2), true);
+  assert.equal(canUserManageMeetings(coordAutoGestao, 2), false);
+
+  const evalScopes = await resolveCoordinatorScopes(coordAutoSw);
+  assert.deepEqual(
+    evalScopes.map((s) => s.scopeKey),
+    ['harpia:Software', 'nautilus:Software']
+  );
+
+  await withAreaStubs(
+    {
+      members: [
+        {
+          id: coordAutoSw.id,
+          name: coordAutoSw.name,
+          email: 'c@ufrj.br',
+          avatar: null,
+          role: 'COORDINATOR',
+          roles: ['COORDINATOR'],
+          area: 'Software',
+          teamId: null,
+          active: true,
+          status: 'APPROVED',
+          institutionalMemberId: null,
+        },
+        {
+          id: memberAutoSw.id,
+          name: memberAutoSw.name,
+          email: 'm@ufrj.br',
+          avatar: null,
+          role: 'MEMBER',
+          roles: ['MEMBER'],
+          area: 'Software',
+          teamId: null,
+          active: true,
+          status: 'APPROVED',
+          institutionalMemberId: null,
+        },
+      ],
+      tasks: [],
+      courses: [],
+    },
+    async () => {
+      const wsHarpia = await getAreasWorkspace(coordAutoSw, 'harpia:Software');
+      assert.equal(wsHarpia.canManageSelectedArea, true);
+      assert.ok(wsHarpia.scopes.find((a) => a.scopeKey === 'harpia:Software')?.isUserArea);
+      assert.ok(wsHarpia.scopes.find((a) => a.scopeKey === 'nautilus:Software')?.isUserArea);
+      assert.equal(wsHarpia.members.length, 2);
+
+      const wsNautilus = await getAreasWorkspace(coordAutoSw, 'nautilus:Software');
+      assert.equal(wsNautilus.canManageSelectedArea, true);
+      assert.equal(wsNautilus.members.length, 2);
+
+      const wsMec = await getAreasWorkspace(coordAutoSw, 'harpia:Mecânica');
+      assert.equal(wsMec.canManageSelectedArea, false);
+
+      // Membro técnico da Autônomos pode criar passagem de tarefa em ambas as equipes
+      const taskNautilus = await createAreaTask(coordAutoSw, {
+        scopeKey: 'nautilus:Software',
+        title: 'Integrar visão do AUV',
+        assigneeIds: [memberAutoSw.id],
+      });
+      assert.equal(taskNautilus.scopeKey, 'nautilus:Software');
+
+      const updatedNautilus = await updateAreaTask(memberAutoSw, taskNautilus.id, {
+        status: 'IN_PROGRESS',
+        handoffNotes: 'Membro da Autônomos atuando no Nautilus.',
+      });
+      assert.equal(updatedNautilus.status, 'IN_PROGRESS');
+
+      const taskHarpia = await createAreaTask(coordAutoSw, {
+        scopeKey: 'harpia:Software',
+        title: 'Pipeline ROS 2 Harpia',
+        assigneeIds: [memberAutoSw.id],
+      });
+      const updatedHarpia = await updateAreaTask(memberAutoSw, taskHarpia.id, {
+        status: 'REVIEW',
+        handoffNotes: 'Membro da Autônomos atuando na Harpia.',
+      });
+      assert.equal(updatedHarpia.status, 'REVIEW');
     }
   );
 });

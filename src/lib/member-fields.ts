@@ -11,6 +11,49 @@ export const MEMBER_ROLES: MemberOption[] = [
   { value: 'Trainee', label: 'Trainee', group: 'Integrantes' },
 ];
 export const MEMBER_AREAS = ['Gestão', 'Marketing', 'Mecânica', 'Eletrônica', 'Software'] as const;
+export const TECHNICAL_AREAS = ['Software', 'Mecânica', 'Eletrônica'] as const;
+
+export function isTechnicalArea(area: string | null | undefined): boolean {
+  const norm = normalizeMemberArea(area);
+  return norm !== null && TECHNICAL_AREAS.some((a) => normalizedKey(a) === normalizedKey(norm));
+}
+
+export function isDualDivisionTechnicalMember(input: {
+  area?: string | null;
+  teamId?: number | null;
+}): boolean {
+  return (input.teamId ?? null) === null && isTechnicalArea(input.area);
+}
+
+/**
+ * Retorna os escopos (teamSlug:Área) a que um integrante pertence.
+ * Se for membro/coordenador/trainee de área técnica pertencente à Autônomos (teamId === null),
+ * atua tanto na Harpia quanto na Nautilus.
+ */
+export function expandMemberScopeKeys(input: {
+  area?: string | null;
+  teamId?: number | null;
+}): string[] {
+  const area = normalizeMemberArea(input.area);
+  if (!area) return [];
+  const teamId = input.teamId ?? null;
+  if (teamId === null && isTechnicalArea(area)) {
+    return [`harpia:${area}`, `nautilus:${area}`];
+  }
+  const slug = teamId === 1 ? 'nautilus' : teamId === 2 ? 'harpia' : 'autonomos';
+  return [`${slug}:${area}`];
+}
+
+export function memberBelongsToDivisionTeam(
+  input: { area?: string | null; teamId?: number | null },
+  targetTeamId: number | null
+): boolean {
+  const memberTeamId = input.teamId ?? null;
+  if (targetTeamId === 1 || targetTeamId === 2) {
+    return memberTeamId === targetTeamId || isDualDivisionTechnicalMember(input);
+  }
+  return memberTeamId === null;
+}
 
 export function isGestaoArea(area: string | null | undefined): boolean {
   const norm = normalizeMemberArea(area);
