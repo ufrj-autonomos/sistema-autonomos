@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getCurrentUser } from '@/lib/session';
 import { prisma } from '@/lib/prisma';
+import { isTechnicalArea } from '@/lib/member-fields';
 import { canUserManageMeetings, getMeetingsDashboardData, KNOWN_AREAS } from '@/lib/meetings/service';
 
 export async function GET(req: NextRequest) {
@@ -67,7 +68,11 @@ export async function POST(req: NextRequest) {
       where: {
         active: true,
         status: 'APPROVED',
-        ...(normalizedTeamId !== null ? { teamId: normalizedTeamId } : { teamId: null }),
+        ...(normalizedTeamId !== null
+          ? isTechnicalArea(area)
+            ? { OR: [{ teamId: normalizedTeamId }, { teamId: null }] }
+            : { teamId: normalizedTeamId }
+          : { teamId: null }),
         area: { contains: area, mode: 'insensitive' },
       },
       select: { id: true },

@@ -439,7 +439,7 @@ export async function getMeetingsDashboardData(user: SafeUser, requestedPeriod?:
       color: '#A346CC',
       icon: '☁️',
       meetingsCount: allMeetings.filter((m) => m.teamId === 2).length,
-      membersCount: allMembers.filter((m) => m.teamId === 2).length,
+      membersCount: allMembers.filter((m) => memberBelongsToDivisionTeam(m, 2)).length,
       presences: 0,
       absences: 0,
       pct: 0,
@@ -451,7 +451,7 @@ export async function getMeetingsDashboardData(user: SafeUser, requestedPeriod?:
       color: '#387aef',
       icon: '🌊',
       meetingsCount: allMeetings.filter((m) => m.teamId === 1).length,
-      membersCount: allMembers.filter((m) => m.teamId === 1).length,
+      membersCount: allMembers.filter((m) => memberBelongsToDivisionTeam(m, 1)).length,
       presences: 0,
       absences: 0,
       pct: 0,
@@ -559,8 +559,7 @@ export async function getMeetingsDashboardData(user: SafeUser, requestedPeriod?:
     // Inicializar membros ativos cadastrados na área
     allMembers
       .filter((m) => {
-        if (def.teamId !== null && m.teamId !== def.teamId) return false;
-        if (def.teamId === null && m.teamId !== null) return false;
+        if (!memberBelongsToDivisionTeam(m, def.teamId)) return false;
         return m.area.toLowerCase().includes(def.area.toLowerCase());
       })
       .forEach((m) => {
